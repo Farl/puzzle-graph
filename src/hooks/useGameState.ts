@@ -1,0 +1,90 @@
+import { useState, useCallback } from 'react';
+import type { GameState, GeneratorConfig, ItemId, LockId } from '../game/types';
+import { generatePuzzle } from '../game/generator';
+import {
+  initGame,
+  executeCommand,
+  takeItem as engineTakeItem,
+  useItemOnLock as engineUseItemOnLock,
+  enterPassword as engineEnterPassword,
+  moveToRoom as engineMoveToRoom,
+  inspectEntity as engineInspectEntity,
+  lookAround as engineLookAround,
+  showInventory as engineShowInventory,
+} from '../game/engine';
+
+export const DEFAULT_CONFIG: GeneratorConfig = {
+  targetDepth: 4,
+  maxRooms: 5,
+  roomGrowthRate: 0.4,
+  compositeRate: 0.3,
+  keySpatialSplitRate: 0.5,
+  depthStaggerVariance: 1.0,
+};
+
+export function useGameState(initialConfig: GeneratorConfig = DEFAULT_CONFIG) {
+  const [gameState, setGameState] = useState<GameState | null>(null);
+  const [config, setConfig] = useState<GeneratorConfig>(initialConfig);
+  const [selectedItem, setSelectedItem] = useState<ItemId | null>(null);
+
+  const startNewGame = useCallback((overrideConfig?: GeneratorConfig) => {
+    const cfg = overrideConfig ?? config;
+    const puzzle = generatePuzzle(cfg);
+    const state = initGame(puzzle);
+    setGameState(state);
+    setSelectedItem(null);
+    if (overrideConfig) setConfig(overrideConfig);
+  }, [config]);
+
+  const dispatch = useCallback((command: string) => {
+    setGameState(prev => prev ? executeCommand(command, prev) : prev);
+    setSelectedItem(null);
+  }, []);
+
+  const takeItem = useCallback((itemId: ItemId) => {
+    setGameState(prev => prev ? engineTakeItem(prev, itemId) : prev);
+  }, []);
+
+  const useItemOnLock = useCallback((itemId: ItemId, lockId: LockId) => {
+    setGameState(prev => prev ? engineUseItemOnLock(prev, itemId, lockId) : prev);
+    setSelectedItem(null);
+  }, []);
+
+  const enterPasswordAction = useCallback((password: string, lockId: LockId) => {
+    setGameState(prev => prev ? engineEnterPassword(prev, password, lockId) : prev);
+  }, []);
+
+  const moveToRoomAction = useCallback((lockId: LockId) => {
+    setGameState(prev => prev ? engineMoveToRoom(prev, lockId) : prev);
+    setSelectedItem(null);
+  }, []);
+
+  const inspectEntityAction = useCallback((entityId: string) => {
+    setGameState(prev => prev ? engineInspectEntity(prev, entityId) : prev);
+  }, []);
+
+  const lookAroundAction = useCallback(() => {
+    setGameState(prev => prev ? engineLookAround(prev) : prev);
+  }, []);
+
+  const showInventoryAction = useCallback(() => {
+    setGameState(prev => prev ? engineShowInventory(prev) : prev);
+  }, []);
+
+  return {
+    gameState,
+    config,
+    selectedItem,
+    setSelectedItem,
+    setConfig,
+    startNewGame,
+    dispatch,
+    takeItem,
+    useItemOnLock,
+    enterPassword: enterPasswordAction,
+    moveToRoom: moveToRoomAction,
+    inspectEntity: inspectEntityAction,
+    lookAround: lookAroundAction,
+    showInventory: showInventoryAction,
+  };
+}

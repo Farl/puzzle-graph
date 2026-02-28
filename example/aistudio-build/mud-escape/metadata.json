@@ -1,0 +1,5 @@
+{
+  "name": "MUD Escape",
+  "description": "A text-based escape room game with a randomized puzzle graph generator.",
+  "requestFramePermissions": []
+}

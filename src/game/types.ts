@@ -1,0 +1,120 @@
+// ─── ID 類型別名 ───
+
+export type RoomId = string;
+export type ItemId = string;
+export type LockId = string;
+
+// ─── 物品類型 ───
+
+export type ItemType = 'key' | 'clue' | 'tool';
+
+export interface Item {
+  id: ItemId;
+  name: string;
+  description: string;
+  type: ItemType;
+  reusable: boolean;
+  initialRoom: RoomId;
+}
+
+// ─── 鎖類型 ───
+
+/** 容器鎖 = 保護物品的機關；空間鎖 = 連接房間的通道 */
+export type LockCategory = 'container' | 'spatial';
+
+/** 鎖的解鎖機制 */
+export type LockMechanism = 'physical' | 'password' | 'hidden' | 'combination';
+
+export interface Lock {
+  id: LockId;
+  name: string;
+  description: string;
+  lockedDescription: string;
+  unlockDescription: string;
+  partialDescription?: string;
+  category: LockCategory;
+  mechanism: LockMechanism;
+  roomId: RoomId;
+  targetRoomId?: RoomId;
+  requiredItems: ItemId[];
+  insertedItems: ItemId[];
+  containsItems: ItemId[];
+  password?: string;
+  passwordHint?: string;
+  isLocked: boolean;
+  isExit: boolean;
+}
+
+// ─── 房間 ───
+
+export interface Room {
+  id: RoomId;
+  name: string;
+  description: string;
+  lockIds: LockId[];
+  visibleItems: ItemId[];
+}
+
+// ─── 謎題定義（生成器輸出，不可變） ───
+
+export interface PuzzleDefinition {
+  rooms: Record<RoomId, Room>;
+  items: Record<ItemId, Item>;
+  locks: Record<LockId, Lock>;
+  startRoomId: RoomId;
+  exitLockId: LockId;
+}
+
+// ─── 遊戲狀態（執行時可變） ───
+
+export type LogType = 'system' | 'user' | 'error' | 'success' | 'info' | 'room';
+
+export interface HistoryEntry {
+  id: string;
+  type: LogType;
+  text: string;
+}
+
+export interface GameState {
+  puzzle: PuzzleDefinition;
+  currentRoomId: RoomId;
+  inventory: ItemId[];
+  history: HistoryEntry[];
+  isGameOver: boolean;
+}
+
+// ─── 生成器配置 ───
+
+export interface GeneratorConfig {
+  targetDepth: number;
+  maxRooms: number;
+  roomGrowthRate: number;
+  compositeRate: number;
+  keySpatialSplitRate: number;
+  depthStaggerVariance: number;
+}
+
+// ─── 謎題家族定義 ───
+
+export interface KeyDefinition {
+  name: string;
+  reusable: boolean;
+}
+
+export interface FamilyVariation {
+  name: string;
+  lockMsg: string;
+  unlockMsg: string;
+  partialMsg?: string;
+}
+
+export interface PuzzleFamily {
+  isSpatial: boolean;
+  keys: KeyDefinition[];
+  variations: FamilyVariation[];
+}
+
+export interface RoomTheme {
+  name: string;
+  description: string;
+}
