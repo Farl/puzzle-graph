@@ -11,7 +11,7 @@ import type {
   LockTemplate,
 } from './types';
 import { ROOM_THEMES, ADJECTIVES } from './families';
-import { LOCK_TEMPLATES, findKeyTemplate } from './templates';
+import { KEY_TEMPLATES, LOCK_TEMPLATES, findKeyTemplate } from './templates';
 import { shuffle, getUniqueName, PasswordFormatPool, generateId, resetIdCounter } from './utils';
 
 // ─── BFS 佇列項目 ───
@@ -41,6 +41,7 @@ class GeneratorContext {
   lockCount = 0;
   tagUsageCount: Record<string, number> = {};
   lastSelectedTags: string[] = [];
+  toolReuseCount: Record<ItemId, number> = {};
 
   constructor(maxRooms: number) {
     this.availableThemes = shuffle(ROOM_THEMES).slice(0, maxRooms);
@@ -120,6 +121,12 @@ class GeneratorContext {
 
   /** 從模板池中選擇匹配的鎖模板 */
   selectLock(trySpatial: boolean, tryComposite: boolean, config: GeneratorConfig): LockTemplate {
+    // ── 復用路徑：嘗試用已有的 reusable tool 開新鎖 ──
+    if (config.reuseRate != null && config.reuseRate > 0 && Math.random() < config.reuseRate) {
+      const reuseLock = this.tryReusePath(trySpatial, config);
+      if (reuseLock) return reuseLock;
+    }
+
     if (this.availableLocks.length === 0) {
       this.availableLocks = shuffle([...LOCK_TEMPLATES]);
     }
@@ -142,6 +149,47 @@ class GeneratorContext {
     const selected = this.weightedSelect(candidates, config);
 
     // 從池中移除
+    const idx = this.availableLocks.indexOf(selected);
+    if (idx !== -1) this.availableLocks.splice(idx, 1);
+
+    // 更新 tag 追蹤
+    for (const tag of selected.tags) {
+      this.tagUsageCount[tag] = (this.tagUsageCount[tag] ?? 0) + 1;
+    }
+    this.lastSelectedTags = selected.tags;
+
+    return selected;
+  }
+
+  /** 嘗試復用已有的 reusable tool 來選擇相容的鎖 */
+  private tryReusePath(trySpatial: boolean, config: GeneratorConfig): LockTemplate | null {
+    const maxReuses = config.maxReusesPerTool ?? Infinity;
+    const targetCategory = trySpatial ? 'spatial' : 'container';
+
+    // 收集可復用的 tool（已建立、未達上限）
+    const reusableToolNames = Object.entries(this.reusableItemCache)
+      .filter(([_, itemId]) => (this.toolReuseCount[itemId] ?? 0) < maxReuses)
+      .map(([name, _]) => name);
+
+    if (reusableToolNames.length === 0) return null;
+
+    // 隨機選一個 tool
+    const toolName = reusableToolNames[Math.floor(Math.random() * reusableToolNames.length)]!;
+
+    // 找到對應的 KeyTemplate id
+    const keyTpl = KEY_TEMPLATES.find(k => k.name === toolName && k.reusable);
+    if (!keyTpl) return null;
+
+    // 找到相容且符合 category 的 LockTemplate
+    const compatibleLocks = LOCK_TEMPLATES.filter(
+      l => l.category === targetCategory && l.requiredKeys.includes(keyTpl.id),
+    );
+
+    if (compatibleLocks.length === 0) return null;
+
+    const selected = compatibleLocks[Math.floor(Math.random() * compatibleLocks.length)]!;
+
+    // 從 availableLocks 移除（如果還在裡面）
     const idx = this.availableLocks.indexOf(selected);
     if (idx !== -1) this.availableLocks.splice(idx, 1);
 
@@ -229,6 +277,11 @@ function enqueueKeysForLock(
     }
 
     lock.requiredItems.push(keyId);
+
+    // 追蹤 reusable tool 的復用次數
+    if (keyTpl.reusable) {
+      ctx.toolReuseCount[keyId] = (ctx.toolReuseCount[keyId] ?? 0) + 1;
+    }
 
     // 已快取的可重複道具不需要再次生成
     if (keyTpl.reusable && ctx.reusableItemCache[keyTpl.name] === keyId && ctx.items[keyId]!.initialRoom !== '') {
