@@ -181,3 +181,21 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     ],
   },
 ];
+
+// ─── 查詢輔助函式 ───
+
+export function findKeyTemplate(keyId: string): KeyTemplate | undefined {
+  return KEY_TEMPLATES.find(k => k.id === keyId);
+}
+
+export function findLocksForKey(keyId: string): readonly LockTemplate[] {
+  return LOCK_TEMPLATES.filter(l => l.requiredKeys.includes(keyId));
+}
+
+export function findLocksByTag(tag: string): readonly LockTemplate[] {
+  return LOCK_TEMPLATES.filter(l => l.tags.includes(tag));
+}
+
+export function findLocksByCategory(category: 'container' | 'spatial'): readonly LockTemplate[] {
+  return LOCK_TEMPLATES.filter(l => l.category === category);
+}
