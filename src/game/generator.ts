@@ -39,6 +39,8 @@ class GeneratorContext {
   usedLockNames = new Set<string>();
   passwordPool = new PasswordFormatPool();
   lockCount = 0;
+  tagUsageCount: Record<string, number> = {};
+  lastSelectedTags: string[] = [];
 
   constructor(maxRooms: number) {
     this.availableThemes = shuffle(ROOM_THEMES).slice(0, maxRooms);
@@ -117,30 +119,74 @@ class GeneratorContext {
   }
 
   /** 從模板池中選擇匹配的鎖模板 */
-  selectLock(trySpatial: boolean, tryComposite: boolean): LockTemplate {
+  selectLock(trySpatial: boolean, tryComposite: boolean, config: GeneratorConfig): LockTemplate {
     if (this.availableLocks.length === 0) {
       this.availableLocks = shuffle([...LOCK_TEMPLATES]);
     }
 
     const targetCategory = trySpatial ? 'spatial' : 'container';
 
-    // 優先匹配：類別 + 組合性
-    let index = this.availableLocks.findIndex(
+    // 收集候選（匹配 category + composite 條件）
+    let candidates = this.availableLocks.filter(
       l => l.category === targetCategory
         && (tryComposite ? l.requiredKeys.length > 1 : l.requiredKeys.length === 1),
     );
-
-    // 退而求其次：只匹配類別
-    if (index === -1) {
-      index = this.availableLocks.findIndex(l => l.category === targetCategory);
+    if (candidates.length === 0) {
+      candidates = this.availableLocks.filter(l => l.category === targetCategory);
+    }
+    if (candidates.length === 0) {
+      candidates = [...this.availableLocks];
     }
 
-    // 最終回退
-    if (index === -1) index = 0;
+    // 加權抽選
+    const selected = this.weightedSelect(candidates, config);
 
-    const template = this.availableLocks[index]!;
-    this.availableLocks.splice(index, 1);
-    return template;
+    // 從池中移除
+    const idx = this.availableLocks.indexOf(selected);
+    if (idx !== -1) this.availableLocks.splice(idx, 1);
+
+    // 更新 tag 追蹤
+    for (const tag of selected.tags) {
+      this.tagUsageCount[tag] = (this.tagUsageCount[tag] ?? 0) + 1;
+    }
+    this.lastSelectedTags = selected.tags;
+
+    return selected;
+  }
+
+  /** 根據 tagDiversityMode 加權抽選候選鎖 */
+  private weightedSelect(candidates: LockTemplate[], config: GeneratorConfig): LockTemplate {
+    const mode = config.tagDiversityMode;
+
+    if (!mode || candidates.length <= 1) {
+      return candidates[Math.floor(Math.random() * candidates.length)]!;
+    }
+
+    const weights = candidates.map(c => {
+      let w = 1.0;
+
+      if (mode === 'balanced') {
+        const minUsage = Math.min(...c.tags.map(t => this.tagUsageCount[t] ?? 0));
+        w = 1.0 / (1 + minUsage);
+      } else if (mode === 'weighted' && config.tagWeights) {
+        const tagW = c.tags.reduce((sum, t) => sum + (config.tagWeights![t] ?? 1.0), 0);
+        w = tagW / c.tags.length;
+      } else if (mode === 'no-repeat') {
+        const overlap = c.tags.filter(t => this.lastSelectedTags.includes(t)).length;
+        w = 1.0 / (1 + overlap * 2);
+      }
+
+      return Math.max(w, 0.01);
+    });
+
+    // 加權隨機抽選
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    let r = Math.random() * totalWeight;
+    for (let i = 0; i < candidates.length; i++) {
+      r -= weights[i]!;
+      if (r <= 0) return candidates[i]!;
+    }
+    return candidates[candidates.length - 1]!;
   }
 }
 
@@ -250,7 +296,7 @@ export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
         && (target.forceSpatial || Math.random() < config.roomGrowthRate);
       const tryComposite = Math.random() < config.compositeRate;
 
-      const lockTemplate = ctx.selectLock(trySpatial, tryComposite);
+      const lockTemplate = ctx.selectLock(trySpatial, tryComposite, config);
       const variation = lockTemplate.variations[Math.floor(Math.random() * lockTemplate.variations.length)]!;
 
       if (lockTemplate.category === 'spatial' && ctx.availableThemes.length > 0) {
