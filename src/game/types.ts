@@ -118,3 +118,28 @@ export interface RoomTheme {
   name: string;
   description: string;
 }
+
+// ─── 模板系統（階段 1）───
+
+export interface KeyTemplate {
+  id: string;
+  name: string;
+  description: string;
+  type: ItemType;
+  reusable: boolean;
+  volume: number;
+}
+
+export interface LockTemplate {
+  id: string;
+  name: string;
+  lockedDescription: string;
+  unlockDescription: string;
+  partialDescription?: string;
+  category: LockCategory;
+  mechanism: LockMechanism;
+  maxItems: number;
+  tags: string[];
+  requiredKeys: string[];       // references KeyTemplate.id
+  variations: FamilyVariation[];
+}
