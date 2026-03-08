@@ -94,24 +94,13 @@ export interface GeneratorConfig {
   depthStaggerVariance: number;
 }
 
-// ─── 謎題家族定義 ───
-
-export interface KeyDefinition {
-  name: string;
-  reusable: boolean;
-}
+// ─── 變體與主題 ───
 
 export interface FamilyVariation {
   name: string;
   lockMsg: string;
   unlockMsg: string;
   partialMsg?: string;
-}
-
-export interface PuzzleFamily {
-  isSpatial: boolean;
-  keys: KeyDefinition[];
-  variations: FamilyVariation[];
 }
 
 export interface RoomTheme {
