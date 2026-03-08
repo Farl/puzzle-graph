@@ -38,6 +38,7 @@ class GeneratorContext {
   usedItemNames = new Set<string>();
   usedLockNames = new Set<string>();
   passwordPool = new PasswordFormatPool();
+  lockCount = 0;
 
   constructor(maxRooms: number) {
     this.availableThemes = shuffle(ROOM_THEMES).slice(0, maxRooms);
@@ -243,7 +244,8 @@ export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
   while (queue.length > 0) {
     const target = queue.shift()!;
 
-    if (target.depth < config.targetDepth) {
+    const lockLimitReached = config.maxLocks != null && ctx.lockCount >= config.maxLocks;
+    if (target.depth < config.targetDepth && !lockLimitReached) {
       const trySpatial = ctx.availableThemes.length > 0
         && (target.forceSpatial || Math.random() < config.roomGrowthRate);
       const tryComposite = Math.random() < config.compositeRate;
@@ -257,6 +259,7 @@ export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
         const newRoom = ctx.createRoom(theme.name, theme.description);
 
         const pathLock = ctx.createLock(variation, true, target.currentRoom);
+        ctx.lockCount++;
         pathLock.targetRoomId = newRoom.id;
         pathLock.containsItems.push(target.itemId);
 
@@ -284,6 +287,7 @@ export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
       } else {
         // ═══ 容器鎖：在當前房間建立鎖 ═══
         const containerLock = ctx.createLock(variation, false, target.currentRoom);
+        ctx.lockCount++;
         containerLock.containsItems.push(target.itemId);
 
         ctx.items[target.itemId]!.initialRoom = target.currentRoom;
