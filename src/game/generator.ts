@@ -7,11 +7,11 @@ import type {
   RoomId,
   ItemId,
   LockId,
-  PuzzleFamily,
   FamilyVariation,
-  KeyDefinition,
+  LockTemplate,
 } from './types';
-import { ROOM_THEMES, ADJECTIVES, ALL_FAMILIES } from './families';
+import { ROOM_THEMES, ADJECTIVES } from './families';
+import { LOCK_TEMPLATES, findKeyTemplate } from './templates';
 import { shuffle, getUniqueName, PasswordFormatPool, generateId, resetIdCounter } from './utils';
 
 // ─── BFS 佇列項目 ───
@@ -32,7 +32,7 @@ class GeneratorContext {
   locks: Record<LockId, Lock> = {};
 
   availableThemes: { name: string; description: string }[];
-  availableFamilies: PuzzleFamily[];
+  availableLocks: LockTemplate[];
   reusableItemCache: Record<string, ItemId> = {};
   consumableCount: Record<string, number> = {};
   usedItemNames = new Set<string>();
@@ -41,7 +41,7 @@ class GeneratorContext {
 
   constructor(maxRooms: number) {
     this.availableThemes = shuffle(ROOM_THEMES).slice(0, maxRooms);
-    this.availableFamilies = shuffle(ALL_FAMILIES);
+    this.availableLocks = shuffle([...LOCK_TEMPLATES]);
   }
 
   createRoom(name: string, description: string): Room {
@@ -97,46 +97,49 @@ class GeneratorContext {
   }
 
   /** 取得或建立可重複使用的道具 */
-  getOrCreateReusableItem(keyDef: KeyDefinition): ItemId {
-    const cached = this.reusableItemCache[keyDef.name];
+  getOrCreateReusableItem(name: string): ItemId {
+    const cached = this.reusableItemCache[name];
     if (cached) return cached;
-    const item = this.createItem(keyDef.name, true);
-    this.reusableItemCache[keyDef.name] = item.id;
+    const item = this.createItem(name, true);
+    this.reusableItemCache[name] = item.id;
     return item.id;
   }
 
   /** 建立消耗型道具（自動處理名稱衝突） */
-  createConsumableItem(keyDef: KeyDefinition): Item {
-    this.consumableCount[keyDef.name] = (this.consumableCount[keyDef.name] ?? 0) + 1;
-    let keyName = keyDef.name;
-    if (this.consumableCount[keyDef.name]! > 1) {
-      keyName = `${keyDef.name} (${String.fromCharCode(64 + this.consumableCount[keyDef.name]!)})`;
+  createConsumableItem(name: string): Item {
+    this.consumableCount[name] = (this.consumableCount[name] ?? 0) + 1;
+    let keyName = name;
+    if (this.consumableCount[name]! > 1) {
+      keyName = `${name} (${String.fromCharCode(64 + this.consumableCount[name]!)})`;
     }
     return this.createItem(keyName, false);
   }
 
-  /** 從家族池中選擇匹配的家族 */
-  selectFamily(trySpatial: boolean, tryComposite: boolean): PuzzleFamily {
-    if (this.availableFamilies.length === 0) {
-      this.availableFamilies = shuffle(ALL_FAMILIES);
+  /** 從模板池中選擇匹配的鎖模板 */
+  selectLock(trySpatial: boolean, tryComposite: boolean): LockTemplate {
+    if (this.availableLocks.length === 0) {
+      this.availableLocks = shuffle([...LOCK_TEMPLATES]);
     }
 
-    // 優先匹配：空間性 + 組合性
-    let index = this.availableFamilies.findIndex(
-      f => f.isSpatial === trySpatial && (tryComposite ? f.keys.length > 1 : f.keys.length === 1),
+    const targetCategory = trySpatial ? 'spatial' : 'container';
+
+    // 優先匹配：類別 + 組合性
+    let index = this.availableLocks.findIndex(
+      l => l.category === targetCategory
+        && (tryComposite ? l.requiredKeys.length > 1 : l.requiredKeys.length === 1),
     );
 
-    // 退而求其次：只匹配空間性
+    // 退而求其次：只匹配類別
     if (index === -1) {
-      index = this.availableFamilies.findIndex(f => f.isSpatial === trySpatial);
+      index = this.availableLocks.findIndex(l => l.category === targetCategory);
     }
 
     // 最終回退
     if (index === -1) index = 0;
 
-    const family = this.availableFamilies[index]!;
-    this.availableFamilies.splice(index, 1);
-    return family;
+    const template = this.availableLocks[index]!;
+    this.availableLocks.splice(index, 1);
+    return template;
   }
 }
 
@@ -145,43 +148,34 @@ class GeneratorContext {
 function enqueueKeysForLock(
   ctx: GeneratorContext,
   lockId: LockId,
-  family: PuzzleFamily,
+  lockTemplate: LockTemplate,
   target: GenerationTarget,
   config: GeneratorConfig,
   queue: GenerationTarget[],
 ): void {
   const lock = ctx.locks[lockId]!;
+  lock.mechanism = lockTemplate.mechanism;
 
-  // 判斷鎖機制：含有密碼紙條的家族視為 password 機制
-  const isPasswordFamily = family.keys.some(k => k.name.includes('密碼'));
-  if (isPasswordFamily) {
-    lock.mechanism = 'password';
+  const isPasswordLock = lockTemplate.mechanism === 'password';
+  if (isPasswordLock) {
     const fmt = ctx.passwordPool.next();
     lock.password = fmt.password;
     lock.passwordHint = fmt.hint;
     lock.lockedDescription += `\n（${fmt.formatDesc}）`;
   }
 
-  if (family.keys.length > 1) {
-    lock.mechanism = 'combination';
-  }
-
-  // 含有可重複使用工具的單鑰匙家族視為 hidden 機制
-  if (family.keys.length === 1 && family.keys[0]!.reusable) {
-    lock.mechanism = 'hidden';
-  }
-
-  family.keys.forEach((keyDef, index) => {
+  lockTemplate.requiredKeys.forEach((keyTemplateId, index) => {
+    const keyTpl = findKeyTemplate(keyTemplateId)!;
     let keyId: ItemId;
 
-    if (keyDef.reusable) {
-      keyId = ctx.getOrCreateReusableItem(keyDef);
+    if (keyTpl.reusable) {
+      keyId = ctx.getOrCreateReusableItem(keyTpl.name);
     } else {
-      const item = ctx.createConsumableItem(keyDef);
+      const item = ctx.createConsumableItem(keyTpl.name);
       keyId = item.id;
 
-      // 密碼家族：將密碼寫入線索物品描述（含格式提示）
-      if (isPasswordFamily && lock.password) {
+      // 密碼鎖：將密碼寫入線索物品描述（含格式提示）
+      if (isPasswordLock && lock.password) {
         item.type = 'clue';
         item.description = `上面寫著：「${lock.password}」（${lock.passwordHint ?? '密碼'}）── 對應 ${lock.name}`;
       }
@@ -190,7 +184,7 @@ function enqueueKeysForLock(
     lock.requiredItems.push(keyId);
 
     // 已快取的可重複道具不需要再次生成
-    if (keyDef.reusable && ctx.reusableItemCache[keyDef.name] === keyId && ctx.items[keyId]!.initialRoom !== '') {
+    if (keyTpl.reusable && ctx.reusableItemCache[keyTpl.name] === keyId && ctx.items[keyId]!.initialRoom !== '') {
       return;
     }
 
@@ -216,7 +210,7 @@ export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
   // 建立出口房間
   const exitTheme = ctx.availableThemes.pop() ?? { name: '最終出口', description: '這裡連接了外面的世界。' };
   const exitRoom = ctx.createRoom(exitTheme.name, exitTheme.description);
-  let startRoomId = exitRoom.id;
+  const startRoomId = exitRoom.id;
 
   // 建立出口鎖
   const exitLock = ctx.createLock(
@@ -254,10 +248,10 @@ export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
         && (target.forceSpatial || Math.random() < config.roomGrowthRate);
       const tryComposite = Math.random() < config.compositeRate;
 
-      const family = ctx.selectFamily(trySpatial, tryComposite);
-      const variation = family.variations[Math.floor(Math.random() * family.variations.length)]!;
+      const lockTemplate = ctx.selectLock(trySpatial, tryComposite);
+      const variation = lockTemplate.variations[Math.floor(Math.random() * lockTemplate.variations.length)]!;
 
-      if (family.isSpatial && ctx.availableThemes.length > 0) {
+      if (lockTemplate.category === 'spatial' && ctx.availableThemes.length > 0) {
         // ═══ 空間鎖：生長新房間 ═══
         const theme = ctx.availableThemes.pop()!;
         const newRoom = ctx.createRoom(theme.name, theme.description);
@@ -282,10 +276,7 @@ export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
         ctx.rooms[target.currentRoom]!.lockIds.push(pathLock.id);
         newRoom.lockIds.push(backLock.id);
 
-        // 起始房間始終是出口房間（玩家從出口開始，往回探索）
-        // 不可將 startRoomId 設為空間鎖的目標房間，否則玩家會繞過空間鎖
-
-        enqueueKeysForLock(ctx, pathLock.id, family, target, config, queue);
+        enqueueKeysForLock(ctx, pathLock.id, lockTemplate, target, config, queue);
 
         // 空間鎖的目標物品直接結算
         finalBaseItems.push({ itemId: target.itemId, roomId: newRoom.id });
@@ -299,7 +290,7 @@ export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
 
         ctx.rooms[target.currentRoom]!.lockIds.push(containerLock.id);
 
-        enqueueKeysForLock(ctx, containerLock.id, family, target, config, queue);
+        enqueueKeysForLock(ctx, containerLock.id, lockTemplate, target, config, queue);
       }
     } else {
       // ═══ 基底情況：物品直接放在地板上 ═══
