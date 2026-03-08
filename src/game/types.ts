@@ -85,6 +85,8 @@ export interface GameState {
 
 // ─── 生成器配置 ───
 
+export type TagDiversityMode = 'weighted' | 'balanced' | 'no-repeat';
+
 export interface GeneratorConfig {
   targetDepth: number;
   maxRooms: number;
@@ -92,6 +94,13 @@ export interface GeneratorConfig {
   compositeRate: number;
   keySpatialSplitRate: number;
   depthStaggerVariance: number;
+
+  // ── Phase 2：選擇演算法 ──
+  maxLocks?: number;                         // 鎖總量上限（不含出口鎖和返回門），與 targetDepth 互補，先到先停
+  tagWeights?: Record<string, number>;       // tag 加權 { 'password': 0.3 }
+  tagDiversityMode?: TagDiversityMode;       // 'weighted' | 'balanced' | 'no-repeat'
+  reuseRate?: number;                        // 0-1，已有可重複工具時復用的機率
+  maxReusesPerTool?: number;                 // 每個工具最多被幾把鎖共用
 }
 
 // ─── 變體與主題 ───

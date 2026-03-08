@@ -8,8 +8,11 @@ interface Props {
   onClose: () => void;
 }
 
+/** 只列出必填的數值欄位，用於 slider UI */
+type NumericConfigKey = 'targetDepth' | 'maxRooms' | 'roomGrowthRate' | 'compositeRate' | 'keySpatialSplitRate' | 'depthStaggerVariance';
+
 interface SliderConfig {
-  key: keyof GeneratorConfig;
+  key: NumericConfigKey;
   label: string;
   min: number;
   max: number;
@@ -29,7 +32,7 @@ const SLIDERS: SliderConfig[] = [
 export default function SettingsModal({ config, onApply, onClose }: Props) {
   const [draft, setDraft] = useState<GeneratorConfig>({ ...config });
 
-  const update = (key: keyof GeneratorConfig, value: number) => {
+  const update = (key: NumericConfigKey, value: number) => {
     setDraft(prev => ({ ...prev, [key]: value }));
   };
 
