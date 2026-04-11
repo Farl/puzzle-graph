@@ -27,6 +27,19 @@ Nesting is recursive with a configurable `maxNestingDepth` limit. No separate `n
 
 ## Data Model Changes
 
+### Item (runtime)
+
+```typescript
+interface Item {
+  // ... existing fields ...
+
+  // NEW
+  volume: number;            // item's volume (copied from KeyTemplate at creation time)
+}
+```
+
+Currently `Item` has no `volume` field — it only exists on `KeyTemplate`. Since the volume system needs to check item volumes at runtime (engine, solver) and during generation, `volume` must be on the runtime `Item` type. The generator's `createItem` / `createConsumableItem` methods will copy `volume` from the `KeyTemplate`.
+
 ### Lock (runtime)
 
 ```typescript
@@ -84,11 +97,17 @@ usedVolume = sum(item.volume for item in contents if item in items)
 canFit(newEntity) = usedVolume + newEntity.volume <= container.capacity
 ```
 
-This replaces the current `maxItems` count-based limit. A container with `capacity: 6` can hold one item of volume 3 + one sub-container of volume 2, or three items of volume 2, etc.
+Note: `LockTemplate.maxItems` exists in the current codebase but is **never enforced** — the generator currently places exactly one item per container lock. The volume system is new enforcement logic, not a replacement of existing enforcement. `maxItems` will be removed and replaced by `capacity`.
 
-## Generator Changes (Phase B)
+A container with `capacity: 6` can hold one item of volume 3 + one sub-container of volume 2, or three items of volume 2, etc.
 
-### Current behavior
+## Generator Changes
+
+### `createLock` signature change
+
+Currently `createLock(variation, isSpatial, roomId, isExit)` takes a `FamilyVariation` only. It must be extended to also receive `capacity` and `volume` from the `LockTemplate`. For spatial locks (doors) and the exit lock, `capacity` and `volume` default to 0 (they cannot contain anything or be nested).
+
+### Phase B: Current behavior
 
 BFS queue contains `PhaseBTarget` (items only). Each item can be wrapped in a container lock. Keys for that lock are enqueued for further wrapping.
 
@@ -100,6 +119,11 @@ The existing `PhaseBTarget` is extended with an optional `lockId` field and a `n
 2. When a lock-target is dequeued, the generator looks for an outer container template where `capacity >= usedVolume + innerLock.volume`.
 3. If a suitable outer container exists, the inner lock's ID is pushed into `outerLock.contents`. The inner lock is removed from `room.lockIds` (it's now hidden).
 4. If no suitable container exists or the budget is exhausted, the lock stays on the room floor as-is (target is discarded).
+
+### Constraints
+
+- **Only container-category locks may be nested.** Spatial locks (doors with `targetRoomId`) cannot be placed inside containers — a door hidden inside a box makes no sense.
+- **Nested locks must share the same `roomId` as their parent container.** This is naturally true since the generator creates both locks in the same room, but must be maintained as an invariant.
 
 ### Cycle prevention
 
@@ -139,9 +163,11 @@ Player experience: open drawer → "You found a safe inside!" → safe appears i
 
 ## Solver Changes
 
+The solver currently adds `containsItems` directly to inventory (bypassing room floor). This is intentional — the solver simulates an optimal player, not the room-by-room engine flow.
+
 When the solver unlocks a container:
 - Items in `contents` → add to inventory (existing behavior, now via lookup)
-- Locks in `contents` → add to the set of available locks in that room, enabling further solve iterations
+- Locks in `contents` → add to the working set of available locks for that room. The solver must re-enter its main loop to attempt solving these newly available locks with the current inventory. Since the child lock shares `roomId` with the parent, reachability is already satisfied.
 
 ## Graph Layout Changes
 
@@ -162,11 +188,17 @@ The current Kahn's topological sort positions nodes in columns by depth. Room gr
 3. Within each room group, stack container sub-groups vertically
 4. Room group boundaries are computed as the bounding box of all contained nodes + padding
 
+Note: nodes from the same room may span multiple columns (e.g., a key at rank 0 and its container at rank 2). Room boundaries may therefore be non-compact rectangles that span columns. Acceptable for initial implementation — rooms are visual context, not strict layout constraints. If overlapping boundaries become a problem, a post-processing pass can adjust y-positions to separate room lanes.
+
 ### Edge routing
 
 - `requires` edges (item → lock) can cross room/container boundaries
 - `contains` edges (lock → contents) stay within the container sub-group (short, downward)
 - Room boundary serves as visual context, not a routing constraint
+
+### Graph edge generation
+
+The current `graph-layout.ts` iterates `lock.containsItems` to build `contains` edges. This must iterate `lock.contents` instead, generating edges to both child items and child locks.
 
 ## Dump Changes
 
@@ -194,9 +226,9 @@ Where `[Lock: D]` indicates a nested container lock with its own label.
 
 | File | Changes |
 |------|---------|
-| `src/game/types.ts` | Lock: rename `containsItems` → `contents`, add `capacity`, `volume`. LockTemplate: replace `maxItems` with `capacity`, `volume`. GeneratorConfig: add `maxNestingDepth` |
+| `src/game/types.ts` | Item: add `volume`. Lock: rename `containsItems` → `contents`, add `capacity`, `volume`. LockTemplate: replace `maxItems` with `capacity`, `volume`. GeneratorConfig: add `maxNestingDepth` |
 | `src/game/templates.ts` | Add `capacity` and `volume` to all LockTemplates. Remove `maxItems`. |
-| `src/game/generator.ts` | Phase B: volume-based capacity check, lock nesting in BFS queue, nestingDepth tracking |
+| `src/game/generator.ts` | `createLock` signature: add capacity/volume params. `createItem`/`createConsumableItem`: copy volume from KeyTemplate. Phase B: volume-based capacity check, lock nesting in BFS queue, nestingDepth tracking |
 | `src/game/engine.ts` | `performUnlock`: dispatch contents by type. Deep clone update. |
 | `src/game/solver.ts` | Handle lock IDs in contents — add to available locks |
 | `src/game/graph-layout.ts` | Room grouping, container sub-groups, bounding box computation |
