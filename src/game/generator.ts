@@ -14,14 +14,24 @@ import { ROOM_THEMES, ADJECTIVES } from './families';
 import { KEY_TEMPLATES, LOCK_TEMPLATES, findKeyTemplate } from './templates';
 import { shuffle, getUniqueName, PasswordFormatPool, generateId, resetIdCounter } from './utils';
 
-// ─── BFS 佇列項目 ───
+// ─── Phase B BFS 佇列項目 ───
 
-interface GenerationTarget {
+interface PhaseBTarget {
   itemId: ItemId;
-  itemName: string;
   currentRoom: RoomId;
+  currentRoomIndex: number;
   depth: number;
-  forceSpatial: boolean;
+  criticalRoomIndex: number;
+}
+
+// ─── Phase A 輸出 ───
+
+interface SkeletonResult {
+  ctx: GeneratorContext;
+  roomIds: RoomId[];
+  startRoomId: RoomId;
+  exitLockId: LockId;
+  floorItems: PhaseBTarget[];
 }
 
 // ─── 生成器內部狀態 ───
@@ -238,15 +248,28 @@ class GeneratorContext {
   }
 }
 
-// ─── 建立鑰匙並推入佇列的共用邏輯 ───
+// ─── 工具函式 ───
+
+function pickRoom(eligible: RoomId[], preferredIdx: number, spreadRate: number): RoomId {
+  if (eligible.length === 0) return '';
+  if (eligible.length === 1) return eligible[0]!;
+  const clampedIdx = Math.min(Math.max(preferredIdx, 0), eligible.length - 1);
+  if (spreadRate <= 0 || Math.random() > spreadRate) {
+    return eligible[clampedIdx]!;
+  }
+  return eligible[Math.floor(Math.random() * eligible.length)]!;
+}
+
+// ─── 建立鑰匙並推入佇列的共用邏輯（Phase B 用） ───
 
 function enqueueKeysForLock(
   ctx: GeneratorContext,
   lockId: LockId,
   lockTemplate: LockTemplate,
-  target: GenerationTarget,
+  target: PhaseBTarget,
   config: GeneratorConfig,
-  queue: GenerationTarget[],
+  roomIds: RoomId[],
+  queue: PhaseBTarget[],
 ): void {
   const lock = ctx.locks[lockId]!;
   lock.mechanism = lockTemplate.mechanism;
@@ -259,6 +282,8 @@ function enqueueKeysForLock(
     lock.lockedDescription += `\n（${fmt.formatDesc}）`;
   }
 
+  const crossRoomRate = config.crossRoomRate ?? 0;
+
   lockTemplate.requiredKeys.forEach((keyTemplateId, index) => {
     const keyTpl = findKeyTemplate(keyTemplateId)!;
     let keyId: ItemId;
@@ -269,7 +294,6 @@ function enqueueKeysForLock(
       const item = ctx.createConsumableItem(keyTpl.name);
       keyId = item.id;
 
-      // 密碼鎖：將密碼寫入線索物品描述（含格式提示）
       if (isPasswordLock && lock.password) {
         item.type = 'clue';
         item.description = `上面寫著：「${lock.password}」（${lock.passwordHint ?? '密碼'}）── 對應 ${lock.name}`;
@@ -278,143 +302,141 @@ function enqueueKeysForLock(
 
     lock.requiredItems.push(keyId);
 
-    // 追蹤 reusable tool 的復用次數
     if (keyTpl.reusable) {
       ctx.toolReuseCount[keyId] = (ctx.toolReuseCount[keyId] ?? 0) + 1;
     }
 
-    // 已快取的可重複道具不需要再次生成
     if (keyTpl.reusable && ctx.reusableItemCache[keyTpl.name] === keyId && ctx.items[keyId]!.initialRoom !== '') {
       return;
     }
+
+    const maxIdx = Math.min(target.criticalRoomIndex - 1, roomIds.length - 1);
+    const eligible = roomIds.slice(0, maxIdx + 1);
+    const preferredIdx = eligible.indexOf(target.currentRoom);
+
+    const keyRoomId = pickRoom(eligible, preferredIdx >= 0 ? preferredIdx : eligible.length - 1, crossRoomRate);
+    const keyRoomIndex = roomIds.indexOf(keyRoomId);
+
+    ctx.items[keyId]!.initialRoom = keyRoomId;
+    ctx.rooms[keyRoomId]!.visibleItems.push(keyId);
 
     const staggerAmount = index > 0 ? Math.random() * config.depthStaggerVariance : 0;
     const nextDepth = target.depth + 1 - staggerAmount;
 
     queue.push({
       itemId: keyId,
-      itemName: ctx.items[keyId]!.name,
-      currentRoom: target.currentRoom,
+      currentRoom: keyRoomId,
+      currentRoomIndex: keyRoomIndex,
       depth: nextDepth,
-      forceSpatial: index > 0 && Math.random() < config.keySpatialSplitRate,
+      criticalRoomIndex: target.criticalRoomIndex,
     });
   });
 }
 
-// ─── 主生成函式 ───
+// ─── Phase A：建立房間骨架 ───
 
-export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
-  resetIdCounter();
+export function generateRoomSkeleton(config: GeneratorConfig): SkeletonResult {
   const ctx = new GeneratorContext(config.maxRooms);
+  const floorItems: PhaseBTarget[] = [];
+  const roomIds: RoomId[] = [];
 
-  // 建立出口房間
-  const exitTheme = ctx.availableThemes.pop() ?? { name: '最終出口', description: '這裡連接了外面的世界。' };
-  const exitRoom = ctx.createRoom(exitTheme.name, exitTheme.description);
-  const startRoomId = exitRoom.id;
+  const keySpreadRate = config.keySpreadRate ?? 0.5;
 
-  // 建立出口鎖
+  // 建立所有房間
+  for (let i = 0; i < config.maxRooms; i++) {
+    const theme = ctx.availableThemes.pop() ?? { name: `房間 ${i + 1}`, description: '一個房間。' };
+    const room = ctx.createRoom(theme.name, theme.description);
+    roomIds.push(room.id);
+  }
+
+  const startRoomId = roomIds[0]!;
+  const exitRoomId = roomIds[roomIds.length - 1]!;
+
+  // 建立 N-1 道門鎖（連接相鄰房間）
+  for (let i = 0; i < config.maxRooms - 1; i++) {
+    const fromRoomId = roomIds[i]!;
+    const toRoomId = roomIds[i + 1]!;
+
+    const lockTemplate = ctx.selectLock(true, false, config);
+    const variation = lockTemplate.variations[Math.floor(Math.random() * lockTemplate.variations.length)]!;
+
+    const doorLock = ctx.createLock(variation, true, fromRoomId);
+    doorLock.targetRoomId = toRoomId;
+    ctx.rooms[fromRoomId]!.lockIds.push(doorLock.id);
+
+    // 選擇此門的鑰匙模板並建立鑰匙
+    const keyTemplateId = lockTemplate.requiredKeys[0]!;
+    const keyTpl = findKeyTemplate(keyTemplateId)!;
+    let keyId: ItemId;
+    if (keyTpl.reusable) {
+      keyId = ctx.getOrCreateReusableItem(keyTpl.name);
+    } else {
+      keyId = ctx.createConsumableItem(keyTpl.name).id;
+    }
+    doorLock.requiredItems.push(keyId);
+
+    // 根據 keySpreadRate 決定鑰匙放置的房間
+    const eligible = roomIds.slice(0, i + 1);
+    const keyRoomId = pickRoom(eligible, eligible.length - 1, keySpreadRate);
+    ctx.items[keyId]!.initialRoom = keyRoomId;
+    ctx.rooms[keyRoomId]!.visibleItems.push(keyId);
+
+    floorItems.push({
+      itemId: keyId,
+      currentRoom: keyRoomId,
+      currentRoomIndex: roomIds.indexOf(keyRoomId),
+      depth: 0,
+      criticalRoomIndex: i + 1,
+    });
+  }
+
+  // 建立出口鎖（spatial，在最後一個房間）
   const exitLock = ctx.createLock(
     {
       name: '逃生大門',
       lockMsg: '鎖著厚重鐵鍊與精密電子鎖的裝甲門，是逃離這裡的唯一出口。',
       unlockMsg: '大門發出洩壓的巨大聲響，刺眼的陽光灑落，你重獲自由了！',
     },
-    false,
-    exitRoom.id,
-    true,
+    true,   // isSpatial=true，讓出口鎖計入 spatial 類別（N-1 門 + 1 出口 = N 個 spatial 鎖）
+    exitRoomId,
+    true,   // isExit=true
   );
-  exitRoom.lockIds.push(exitLock.id);
+  ctx.rooms[exitRoomId]!.lockIds.push(exitLock.id);
 
   // 建立出口鑰匙
   const exitKey = ctx.createItem('終極逃生卡', false, '帶有最高權限的特殊磁卡。');
   exitLock.requiredItems.push(exitKey.id);
 
-  // BFS 佇列
-  const queue: GenerationTarget[] = [{
+  const exitKeyRoom = pickRoom(roomIds, roomIds.length - 1, keySpreadRate);
+  exitKey.initialRoom = exitKeyRoom;
+  ctx.rooms[exitKeyRoom]!.visibleItems.push(exitKey.id);
+
+  floorItems.push({
     itemId: exitKey.id,
-    itemName: exitKey.name,
-    currentRoom: exitRoom.id,
+    currentRoom: exitKeyRoom,
+    currentRoomIndex: roomIds.indexOf(exitKeyRoom),
     depth: 0,
-    forceSpatial: false,
-  }];
+    criticalRoomIndex: roomIds.length,
+  });
 
-  const finalBaseItems: { itemId: ItemId; roomId: RoomId }[] = [];
+  return { ctx, roomIds, startRoomId, exitLockId: exitLock.id, floorItems };
+}
 
-  while (queue.length > 0) {
-    const target = queue.shift()!;
+// ─── 主生成函式（Phase B stub） ───
 
-    const lockLimitReached = config.maxLocks != null && ctx.lockCount >= config.maxLocks;
-    if (target.depth < config.targetDepth && !lockLimitReached) {
-      const trySpatial = ctx.availableThemes.length > 0
-        && (target.forceSpatial || Math.random() < config.roomGrowthRate);
-      const tryComposite = Math.random() < config.compositeRate;
+export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
+  resetIdCounter();
 
-      const lockTemplate = ctx.selectLock(trySpatial, tryComposite, config);
-      const variation = lockTemplate.variations[Math.floor(Math.random() * lockTemplate.variations.length)]!;
+  const { ctx, roomIds: _roomIds, startRoomId, exitLockId, floorItems: _floorItems } = generateRoomSkeleton(config);
 
-      if (lockTemplate.category === 'spatial' && ctx.availableThemes.length > 0) {
-        // ═══ 空間鎖：生長新房間 ═══
-        const theme = ctx.availableThemes.pop()!;
-        const newRoom = ctx.createRoom(theme.name, theme.description);
-
-        const pathLock = ctx.createLock(variation, true, target.currentRoom);
-        ctx.lockCount++;
-        pathLock.targetRoomId = newRoom.id;
-        pathLock.containsItems.push(target.itemId);
-
-        // 空間鎖隱藏的道具在生成時直接放入目標房間
-        ctx.items[target.itemId]!.initialRoom = newRoom.id;
-
-        // 建立返回門
-        const backLock = ctx.createLock(
-          { name: `返回：${ctx.rooms[target.currentRoom]!.name}`, lockMsg: '一扇已開啟的門。', unlockMsg: '' },
-          true,
-          newRoom.id,
-        );
-        backLock.targetRoomId = target.currentRoom;
-        backLock.isLocked = false;
-
-        // 註冊到房間
-        ctx.rooms[target.currentRoom]!.lockIds.push(pathLock.id);
-        newRoom.lockIds.push(backLock.id);
-
-        enqueueKeysForLock(ctx, pathLock.id, lockTemplate, target, config, queue);
-
-        // 空間鎖的目標物品直接結算
-        finalBaseItems.push({ itemId: target.itemId, roomId: newRoom.id });
-
-      } else {
-        // ═══ 容器鎖：在當前房間建立鎖 ═══
-        const containerLock = ctx.createLock(variation, false, target.currentRoom);
-        ctx.lockCount++;
-        containerLock.containsItems.push(target.itemId);
-
-        ctx.items[target.itemId]!.initialRoom = target.currentRoom;
-
-        ctx.rooms[target.currentRoom]!.lockIds.push(containerLock.id);
-
-        enqueueKeysForLock(ctx, containerLock.id, lockTemplate, target, config, queue);
-      }
-    } else {
-      // ═══ 基底情況：物品直接放在地板上 ═══
-      ctx.items[target.itemId]!.initialRoom = target.currentRoom;
-      finalBaseItems.push({ itemId: target.itemId, roomId: target.currentRoom });
-    }
-  }
-
-  // 將所有基底物品放入房間的 visibleItems
-  for (const { itemId, roomId } of finalBaseItems) {
-    const room = ctx.rooms[roomId];
-    if (room && !room.visibleItems.includes(itemId)) {
-      room.visibleItems.push(itemId);
-    }
-  }
+  // Phase B stub: items stay on floor (Phase B implemented in next task)
+  // floorItems are already placed in visibleItems by generateRoomSkeleton
 
   return {
     rooms: ctx.rooms,
     items: ctx.items,
     locks: ctx.locks,
     startRoomId,
-    exitLockId: exitLock.id,
+    exitLockId,
   };
 }
