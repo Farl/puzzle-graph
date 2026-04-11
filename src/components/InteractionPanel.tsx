@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Key, Search, DoorOpen, Map as MapIcon } from 'lucide-react';
 import type { GameState, ItemId, LockId } from '../game/types';
+import { getReturnDoors } from '../game/engine';
 import PasswordModal from './PasswordModal';
 
 interface Props {
@@ -27,7 +28,8 @@ export default function InteractionPanel({
   const { puzzle, currentRoomId } = gameState;
   const room = puzzle.rooms[currentRoomId]!;
   const visibleItems = room.visibleItems.map(id => puzzle.items[id]!);
-  const locks = room.lockIds.map(id => puzzle.locks[id]!);
+  const localLocks = room.lockIds.map(id => puzzle.locks[id]!);
+  const locks = [...localLocks, ...getReturnDoors(puzzle, currentRoomId)];
 
   const passwordLock = passwordLockId ? puzzle.locks[passwordLockId] : null;
 
@@ -93,16 +95,24 @@ export default function InteractionPanel({
             {locks.map(lock => {
               const isSpatial = lock.category === 'spatial';
               const isUnlocked = !lock.isLocked;
+              const isLocal = lock.roomId === currentRoomId;
               const progStr = (lock.isLocked && lock.insertedItems.length > 0)
                 ? `(${lock.insertedItems.length}/${lock.requiredItems.length})`
                 : '';
+              const destRoomId = isSpatial && lock.targetRoomId
+                ? (isLocal ? lock.targetRoomId : lock.roomId)
+                : null;
+              const destName = destRoomId ? puzzle.rooms[destRoomId]?.name : null;
 
               return (
                 <div key={lock.id} className="flex gap-1">
-                  {/* Inspect button (the main label) */}
                   <button
                     onClick={() => onInspect(lock.id)}
-                    className="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-amber-200 px-2.5 py-2 rounded text-[11px] md:text-xs border border-slate-700 flex-1 text-left flex items-center gap-1.5 truncate shadow-sm"
+                    className={`px-2.5 py-2 rounded text-[11px] md:text-xs border flex-1 text-left flex items-center gap-1.5 truncate shadow-sm ${
+                      isSpatial && !isLocal
+                        ? 'bg-sky-950 hover:bg-sky-900 active:bg-sky-800 text-sky-200 border-sky-800'
+                        : 'bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-amber-200 border-slate-700'
+                    }`}
                   >
                     {isSpatial
                       ? <DoorOpen size={14} className="shrink-0 opacity-70" />
@@ -111,13 +121,14 @@ export default function InteractionPanel({
                     <span className="truncate">
                       {lock.name}
                       {isUnlocked
-                        ? <span className="text-emerald-400 ml-1">(已解開)</span>
+                        ? <span className={`ml-1 ${isSpatial && !isLocal ? 'text-sky-400' : 'text-emerald-400'}`}>
+                            (已解開){destName ? ` → ${destName}` : ''}
+                          </span>
                         : <span className="text-slate-400 ml-1">{progStr}</span>
                       }
                     </span>
                   </button>
 
-                  {/* Use button */}
                   {lock.isLocked && (
                     <button
                       onClick={() => handleUse(lock.id)}
@@ -134,13 +145,16 @@ export default function InteractionPanel({
                     </button>
                   )}
 
-                  {/* Enter button for unlocked spatial locks */}
                   {isSpatial && isUnlocked && lock.targetRoomId && (
                     <button
                       onClick={() => onMoveToRoom(lock.id)}
-                      className="bg-emerald-900 hover:bg-emerald-800 active:bg-emerald-700 border-emerald-700 text-emerald-100 px-3 py-2 rounded text-[11px] md:text-xs border shrink-0 font-bold shadow-sm"
+                      className={`px-3 py-2 rounded text-[11px] md:text-xs border shrink-0 font-bold shadow-sm ${
+                        isLocal
+                          ? 'bg-emerald-900 hover:bg-emerald-800 active:bg-emerald-700 border-emerald-700 text-emerald-100'
+                          : 'bg-sky-900 hover:bg-sky-800 active:bg-sky-700 border-sky-700 text-sky-100'
+                      }`}
                     >
-                      進入
+                      {isLocal ? '進入' : '前往'}
                     </button>
                   )}
                 </div>

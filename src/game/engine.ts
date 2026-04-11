@@ -1,4 +1,4 @@
-import type { GameState, PuzzleDefinition, HistoryEntry, ItemId, LockId, Lock, Room } from './types';
+import type { GameState, PuzzleDefinition, HistoryEntry, ItemId, LockId, RoomId, Lock, Room } from './types';
 
 // ─── 歷史訊息工具 ───
 
@@ -36,13 +36,36 @@ function findInventoryItem(name: string, state: GameState) {
 
 // ─── 房間描述 ───
 
+/** 找出從指定房間可通行的回程門（已解鎖、從其他房間連過來的空間鎖） */
+export function getReturnDoors(puzzle: PuzzleDefinition, roomId: RoomId): Lock[] {
+  return Object.values(puzzle.locks).filter(
+    l => l.category === 'spatial' && !l.isExit && !l.isLocked
+      && l.targetRoomId === roomId && l.roomId !== roomId,
+  );
+}
+
+/** 找出從當前房間可使用的所有空間鎖（本房間的門 + 回程門） */
+function findReachableDoors(state: GameState): Lock[] {
+  const roomId = state.currentRoomId;
+  const doors: Lock[] = [];
+  for (const lock of Object.values(state.puzzle.locks)) {
+    if (lock.category !== 'spatial' || !lock.targetRoomId || lock.isExit) continue;
+    if (lock.roomId === roomId || lock.targetRoomId === roomId) {
+      doors.push(lock);
+    }
+  }
+  return doors;
+}
+
 function getRoomLookText(room: Room, puzzle: PuzzleDefinition): string {
   let text = '';
   const lockedLocks = room.lockIds
     .map(id => puzzle.locks[id]!)
     .filter(l => l.isLocked || l.category === 'spatial');
 
-  if (lockedLocks.length > 0) {
+  const returnDoors = getReturnDoors(puzzle, room.id);
+
+  if (lockedLocks.length > 0 || returnDoors.length > 0) {
     text += '你看到了以下機關：\n';
     for (const lock of lockedLocks) {
       const status = lock.isLocked ? '已上鎖' : '已解開';
@@ -50,6 +73,9 @@ function getRoomLookText(room: Room, puzzle: PuzzleDefinition): string {
         ? ` (通往 ${puzzle.rooms[lock.targetRoomId]?.name ?? '未知'})`
         : '';
       text += `- [機關] ${lock.name} (${status})${suffix}\n`;
+    }
+    for (const lock of returnDoors) {
+      text += `- [通道] ${lock.name} (已解開) (通往 ${puzzle.rooms[lock.roomId]?.name ?? '未知'})\n`;
     }
   }
 
@@ -273,8 +299,19 @@ export function moveToRoom(state: GameState, lockId: LockId): GameState {
     return newState;
   }
 
-  newState.currentRoomId = lock.targetRoomId;
-  const targetRoom = newState.puzzle.rooms[lock.targetRoomId]!;
+  // 雙向通行：玩家可從門的任一端穿過
+  let destRoomId: string;
+  if (newState.currentRoomId === lock.roomId) {
+    destRoomId = lock.targetRoomId;
+  } else if (newState.currentRoomId === lock.targetRoomId) {
+    destRoomId = lock.roomId;
+  } else {
+    addLog(newState, 'error', '你無法從這裡使用該通道。');
+    return newState;
+  }
+
+  newState.currentRoomId = destRoomId;
+  const targetRoom = newState.puzzle.rooms[destRoomId]!;
   addLog(newState, 'success', `你穿過了 ${lock.name}，來到了 ${targetRoom.name}。`);
   addLog(newState, 'room', `[${targetRoom.name}] ${targetRoom.description}`);
   addLog(newState, 'system', getRoomLookText(targetRoom, newState.puzzle));
@@ -404,35 +441,28 @@ export function executeCommand(cmd: string, state: GameState): GameState {
 
     case 'go': {
       if (!rest) { addLog(newState, 'error', '你要去哪裡？'); break; }
-      let lock = findInRoom(rest, newState);
+      // 搜尋當前房間的門 + 從其他房間通往當前房間的回程門
+      const reachableDoors = findReachableDoors(newState);
+      let lock = reachableDoors.find(l => l.name.includes(rest));
 
       // 嘗試用房間名稱查找通道
       if (!lock) {
-        const room = newState.puzzle.rooms[newState.currentRoomId]!;
-        for (const lid of room.lockIds) {
-          const l = newState.puzzle.locks[lid]!;
-          if (l.category === 'spatial' && l.targetRoomId) {
-            const target = newState.puzzle.rooms[l.targetRoomId];
-            if (target && target.name.includes(rest)) {
-              lock = l;
-              break;
-            }
-          }
+        for (const l of reachableDoors) {
+          const destId = l.roomId === newState.currentRoomId ? l.targetRoomId! : l.roomId;
+          const dest = newState.puzzle.rooms[destId];
+          if (dest && dest.name.includes(rest)) { lock = l; break; }
         }
       }
 
       if (!lock) { addLog(newState, 'error', `找不到名為「${rest}」的通道。`); break; }
-      if (lock.category !== 'spatial' || !lock.targetRoomId) {
-        addLog(newState, 'error', `${lock.name} 不是一個通道。`);
-        break;
-      }
       if (lock.isLocked) {
         addLog(newState, 'error', `${lock.name} 是鎖著的，你必須先解開它。`);
         break;
       }
 
-      newState.currentRoomId = lock.targetRoomId;
-      const targetRoom = newState.puzzle.rooms[lock.targetRoomId]!;
+      const destRoomId = lock.roomId === newState.currentRoomId ? lock.targetRoomId! : lock.roomId;
+      newState.currentRoomId = destRoomId;
+      const targetRoom = newState.puzzle.rooms[destRoomId]!;
       addLog(newState, 'success', `你穿過了 ${lock.name}，來到了 ${targetRoom.name}。`);
       addLog(newState, 'room', `[${targetRoom.name}] ${targetRoom.description}`);
       addLog(newState, 'system', getRoomLookText(targetRoom, newState.puzzle));
