@@ -17,6 +17,11 @@ export default function CanvasGraph({ puzzle }: Props) {
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 });
 
   const layout = useMemo(() => buildGraphLayout(puzzle), [puzzle]);
+  const nodeMap = useMemo(() => {
+    const map = new Map<string, (typeof layout.nodes)[number]>();
+    for (const n of layout.nodes) map.set(n.id, n);
+    return map;
+  }, [layout]);
 
   // Pan handlers
   const handleMouseDown = (e: MouseEvent) => {
@@ -106,7 +111,12 @@ export default function CanvasGraph({ puzzle }: Props) {
       <div className="absolute top-4 left-4 z-20 text-[10px] text-slate-400 bg-slate-900/80 px-3 py-2 rounded border border-slate-800 pointer-events-none space-y-1">
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" /> 物品</div>
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" /> 容器鎖</div>
-        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500" /> 空間鎖</div>
+        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500" /> 空間鎖（門）</div>
+        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" /> 出口</div>
+        <div className="mt-1.5 pt-1.5 border-t border-slate-700 space-y-1">
+          <div className="flex items-center gap-1.5"><span className="w-3 border-t-2 border-slate-400" /> 需要（物品→鎖）</div>
+          <div className="flex items-center gap-1.5"><span className="w-3 border-t-2 border-dashed border-cyan-600" /> 隱藏（鎖→物品）</div>
+        </div>
       </div>
 
       {/* Transform layer */}
@@ -117,13 +127,16 @@ export default function CanvasGraph({ puzzle }: Props) {
         {/* Edges */}
         <svg className="absolute top-0 left-0 overflow-visible z-0 pointer-events-none">
           <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <marker id="arrow-req" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
+            </marker>
+            <marker id="arrow-contains" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#0891b2" />
             </marker>
           </defs>
           {layout.edges.map((edge, i) => {
-            const source = layout.nodes.find(n => n.id === edge.source);
-            const target = layout.nodes.find(n => n.id === edge.target);
+            const source = nodeMap.get(edge.source);
+            const target = nodeMap.get(edge.target);
             if (!source || !target) return null;
 
             const startX = source.x + NODE_W;
@@ -132,15 +145,18 @@ export default function CanvasGraph({ puzzle }: Props) {
             const endY = target.y + NODE_H / 2;
             const cpX = startX + (endX - startX) / 2;
 
+            const isContains = edge.type === 'contains';
+
             return (
               <path
                 key={i}
                 d={`M ${startX} ${startY} C ${cpX} ${startY}, ${cpX} ${endY}, ${endX} ${endY}`}
                 fill="none"
-                stroke="#475569"
+                stroke={isContains ? '#0891b2' : '#475569'}
                 strokeWidth="2"
-                markerEnd="url(#arrow)"
-                className="opacity-60"
+                strokeDasharray={isContains ? '6 3' : 'none'}
+                markerEnd={isContains ? 'url(#arrow-contains)' : 'url(#arrow-req)'}
+                className={isContains ? 'opacity-70' : 'opacity-60'}
               />
             );
           })}
@@ -152,7 +168,10 @@ export default function CanvasGraph({ puzzle }: Props) {
           let dotColor = 'bg-emerald-500 shadow-emerald-500/50';
 
           if (node.entityType === 'lock') {
-            if (node.category === 'spatial') {
+            if (node.isExit) {
+              borderColor = 'border-amber-700/60';
+              dotColor = 'bg-amber-500 shadow-amber-500/50';
+            } else if (node.category === 'spatial') {
               borderColor = 'border-purple-900/60';
               dotColor = 'bg-purple-500 shadow-purple-500/50';
             } else {

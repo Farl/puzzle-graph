@@ -13,6 +13,7 @@ type MobileTab = 'controls' | 'view';
 export default function App() {
   const {
     gameState,
+    originalPuzzle,
     config,
     selectedItem,
     setSelectedItem,
@@ -116,7 +117,7 @@ export default function App() {
             </div>
           ) : (
             <div className="flex-1 w-full h-full relative">
-              <CanvasGraph puzzle={gameState.puzzle} />
+              <CanvasGraph puzzle={originalPuzzle ?? gameState.puzzle} />
             </div>
           )}
         </div>

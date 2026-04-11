@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { GameState, GeneratorConfig, ItemId, LockId } from '../game/types';
+import type { GameState, GeneratorConfig, PuzzleDefinition, ItemId, LockId } from '../game/types';
 import { generatePuzzle } from '../game/generator';
 import { dumpPuzzle } from '../game/dump';
 import {
@@ -25,12 +25,15 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
 
 export function useGameState(initialConfig: GeneratorConfig = DEFAULT_CONFIG) {
   const [gameState, setGameState] = useState<GameState | null>(null);
+  // 保存原始 puzzle（engine 會 mutate clone，原始資料供 dump 和圖譜使用）
+  const [originalPuzzle, setOriginalPuzzle] = useState<PuzzleDefinition | null>(null);
   const [config, setConfig] = useState<GeneratorConfig>(initialConfig);
   const [selectedItem, setSelectedItem] = useState<ItemId | null>(null);
 
   const startNewGame = useCallback((overrideConfig?: GeneratorConfig) => {
     const cfg = overrideConfig ?? config;
     const puzzle = generatePuzzle(cfg);
+    setOriginalPuzzle(puzzle);
     const state = initGame(puzzle);
     setGameState(state);
     setSelectedItem(null);
@@ -73,11 +76,12 @@ export function useGameState(initialConfig: GeneratorConfig = DEFAULT_CONFIG) {
   }, []);
 
   const dump = useCallback(() => {
-    return gameState ? dumpPuzzle(gameState.puzzle) : '';
-  }, [gameState]);
+    return originalPuzzle ? dumpPuzzle(originalPuzzle) : '';
+  }, [originalPuzzle]);
 
   return {
     gameState,
+    originalPuzzle,
     config,
     selectedItem,
     setSelectedItem,

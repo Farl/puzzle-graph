@@ -8,6 +8,7 @@ export interface LayoutNode {
   y: number;
   entityType: 'item' | 'lock';
   category?: LockCategory;
+  isExit?: boolean;
   name: string;
   roomName: string;
 }
@@ -15,6 +16,7 @@ export interface LayoutNode {
 export interface LayoutEdge {
   source: string;
   target: string;
+  type: 'requires' | 'contains';
 }
 
 export interface GraphLayout {
@@ -35,8 +37,6 @@ const Y_GAP = 90;
 export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
   const edges: LayoutEdge[] = [];
   const inDegree: Record<string, number> = {};
-
-  // 收集所有需要佈局的節點：物品 + 有需求的鎖
   const nodeIds: string[] = [];
 
   for (const item of Object.values(puzzle.items)) {
@@ -44,36 +44,62 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     inDegree[item.id] = 0;
   }
 
-  for (const lock of Object.values(puzzle.locks)) {
+  const allLocks = Object.values(puzzle.locks);
+
+  for (const lock of allLocks) {
     if (lock.requiredItems.length > 0) {
       nodeIds.push(lock.id);
       inDegree[lock.id] = 0;
     }
   }
 
-  // 建立邊：item → lock（物品被鎖需要）
-  for (const lock of Object.values(puzzle.locks)) {
+  // 單次遍歷建立所有邊
+  for (const lock of allLocks) {
     if (!inDegree.hasOwnProperty(lock.id)) continue;
+
+    // item → lock（物品被鎖需要）
     for (const reqId of lock.requiredItems) {
       if (inDegree.hasOwnProperty(reqId)) {
-        edges.push({ source: reqId, target: lock.id });
+        edges.push({ source: reqId, target: lock.id, type: 'requires' });
         inDegree[lock.id]!++;
       }
     }
-  }
 
-  // 建立邊：lock → item（鎖隱藏物品）
-  for (const lock of Object.values(puzzle.locks)) {
-    if (!inDegree.hasOwnProperty(lock.id)) continue;
+    // lock → item（容器鎖隱藏物品）
     for (const hiddenId of lock.containsItems) {
       if (inDegree.hasOwnProperty(hiddenId)) {
-        edges.push({ source: lock.id, target: hiddenId });
+        edges.push({ source: lock.id, target: hiddenId, type: 'contains' });
         inDegree[hiddenId]!++;
+      }
+    }
+
+    // spatial lock → 目標房間的鎖和地板物品（門連通房間後可存取的一切）
+    if (lock.category === 'spatial' && lock.targetRoomId) {
+      const targetRoom = puzzle.rooms[lock.targetRoomId];
+      if (targetRoom) {
+        for (const lockId of targetRoom.lockIds) {
+          if (inDegree.hasOwnProperty(lockId) && lockId !== lock.id) {
+            edges.push({ source: lock.id, target: lockId, type: 'contains' });
+            inDegree[lockId]!++;
+          }
+        }
+        for (const itemId of targetRoom.visibleItems) {
+          if (inDegree.hasOwnProperty(itemId)) {
+            edges.push({ source: lock.id, target: itemId, type: 'contains' });
+            inDegree[itemId]!++;
+          }
+        }
       }
     }
   }
 
-  // Kahn 拓撲排序：計算每個節點的 rank（最長路徑）
+  // 建立鄰接表（O(V+E) Kahn 拓撲排序用）
+  const adj: Record<string, LayoutEdge[]> = {};
+  for (const id of nodeIds) adj[id] = [];
+  for (const edge of edges) {
+    adj[edge.source]?.push(edge);
+  }
+
   const ranks: Record<string, number> = {};
   for (const id of nodeIds) ranks[id] = 0;
 
@@ -81,8 +107,7 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
 
   while (queue.length > 0) {
     const u = queue.shift()!;
-    for (const edge of edges) {
-      if (edge.source !== u) continue;
+    for (const edge of adj[u]!) {
       const v = edge.target;
       ranks[v] = Math.max(ranks[v]!, (ranks[u] ?? 0) + 1);
       inDegree[v]!--;
@@ -118,6 +143,7 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
       let name: string;
       let roomName: string;
       let category: LockCategory | undefined;
+      let isExit: boolean | undefined;
 
       if (item) {
         entityType = 'item';
@@ -127,12 +153,13 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
         entityType = 'lock';
         name = lock.name;
         category = lock.category;
+        isExit = lock.isExit;
         roomName = puzzle.rooms[lock.roomId]?.name ?? '';
       } else {
         return;
       }
 
-      layoutNodes.push({ id, x, y, entityType, category, name, roomName });
+      layoutNodes.push({ id, x, y, entityType, category, isExit, name, roomName });
 
       if (x > maxX) maxX = x;
       if (Math.abs(y) > maxY) maxY = Math.abs(y);
