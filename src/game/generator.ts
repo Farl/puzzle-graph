@@ -129,11 +129,21 @@ class GeneratorContext {
     return this.createItem(keyName, false);
   }
 
+  /** 確認選取：從池中移除模板並更新 tag 追蹤 */
+  private commitSelection(selected: LockTemplate): void {
+    const idx = this.availableLocks.indexOf(selected);
+    if (idx !== -1) this.availableLocks.splice(idx, 1);
+    for (const tag of selected.tags) {
+      this.tagUsageCount[tag] = (this.tagUsageCount[tag] ?? 0) + 1;
+    }
+    this.lastSelectedTags = selected.tags;
+  }
+
   /** 從模板池中選擇匹配的鎖模板 */
-  selectLock(trySpatial: boolean, tryComposite: boolean, config: GeneratorConfig): LockTemplate {
+  selectLock(trySpatial: boolean, tryComposite: boolean, config: GeneratorConfig, lockedItems?: Set<ItemId>): LockTemplate {
     // ── 復用路徑：嘗試用已有的 reusable tool 開新鎖 ──
     if (config.reuseRate != null && config.reuseRate > 0 && Math.random() < config.reuseRate) {
-      const reuseLock = this.tryReusePath(trySpatial, config);
+      const reuseLock = this.tryReusePath(trySpatial, config, lockedItems);
       if (reuseLock) return reuseLock;
     }
 
@@ -143,7 +153,6 @@ class GeneratorContext {
 
     const targetCategory = trySpatial ? 'spatial' : 'container';
 
-    // 收集候選（匹配 category + composite 條件）
     let candidates = this.availableLocks.filter(
       l => l.category === targetCategory
         && (tryComposite ? l.requiredKeys.length > 1 : l.requiredKeys.length === 1),
@@ -155,60 +164,37 @@ class GeneratorContext {
       candidates = [...this.availableLocks];
     }
 
-    // 加權抽選
     const selected = this.weightedSelect(candidates, config);
-
-    // 從池中移除
-    const idx = this.availableLocks.indexOf(selected);
-    if (idx !== -1) this.availableLocks.splice(idx, 1);
-
-    // 更新 tag 追蹤
-    for (const tag of selected.tags) {
-      this.tagUsageCount[tag] = (this.tagUsageCount[tag] ?? 0) + 1;
-    }
-    this.lastSelectedTags = selected.tags;
-
+    this.commitSelection(selected);
     return selected;
   }
 
   /** 嘗試復用已有的 reusable tool 來選擇相容的鎖 */
-  private tryReusePath(trySpatial: boolean, config: GeneratorConfig): LockTemplate | null {
+  private tryReusePath(trySpatial: boolean, config: GeneratorConfig, lockedItems?: Set<ItemId>): LockTemplate | null {
     const maxReuses = config.maxReusesPerTool ?? Infinity;
     const targetCategory = trySpatial ? 'spatial' : 'container';
 
-    // 收集可復用的 tool（已建立、未達上限）
     const reusableToolNames = Object.entries(this.reusableItemCache)
-      .filter(([_, itemId]) => (this.toolReuseCount[itemId] ?? 0) < maxReuses)
+      .filter(([_, itemId]) => {
+        if ((this.toolReuseCount[itemId] ?? 0) >= maxReuses) return false;
+        if (lockedItems?.has(itemId)) return false;
+        return true;
+      })
       .map(([name, _]) => name);
 
     if (reusableToolNames.length === 0) return null;
 
-    // 隨機選一個 tool
     const toolName = reusableToolNames[Math.floor(Math.random() * reusableToolNames.length)]!;
-
-    // 找到對應的 KeyTemplate id
     const keyTpl = KEY_TEMPLATES.find(k => k.name === toolName && k.reusable);
     if (!keyTpl) return null;
 
-    // 找到相容且符合 category 的 LockTemplate
     const compatibleLocks = LOCK_TEMPLATES.filter(
       l => l.category === targetCategory && l.requiredKeys.includes(keyTpl.id),
     );
-
     if (compatibleLocks.length === 0) return null;
 
     const selected = compatibleLocks[Math.floor(Math.random() * compatibleLocks.length)]!;
-
-    // 從 availableLocks 移除（如果還在裡面）
-    const idx = this.availableLocks.indexOf(selected);
-    if (idx !== -1) this.availableLocks.splice(idx, 1);
-
-    // 更新 tag 追蹤
-    for (const tag of selected.tags) {
-      this.tagUsageCount[tag] = (this.tagUsageCount[tag] ?? 0) + 1;
-    }
-    this.lastSelectedTags = selected.tags;
-
+    this.commitSelection(selected);
     return selected;
   }
 
@@ -307,6 +293,30 @@ function enqueueKeysForLock(
     }
 
     if (keyTpl.reusable && ctx.reusableItemCache[keyTpl.name] === keyId && ctx.items[keyId]!.initialRoom !== '') {
+      // 工具已被放置（在地板或佇列中）。若當前限制比工具的已知限制更嚴格，
+      // 就更新工具在佇列中的 criticalRoomIndex（並視需要移動工具到合法房間）。
+      // 這防止工具後來被包裹在容器鎖時，把它的鑰匙放在玩家無法在需要前取得的房間。
+      const newCritical = target.criticalRoomIndex;
+      for (const entry of queue) {
+        if (entry.itemId === keyId && entry.criticalRoomIndex > newCritical) {
+          entry.criticalRoomIndex = newCritical;
+          const currentIdx = roomIds.indexOf(entry.currentRoom);
+          if (currentIdx >= newCritical) {
+            const newRoomIdx = Math.min(newCritical - 1, roomIds.length - 1);
+            const newRoomId = roomIds[newRoomIdx]!;
+            const oldRoom = ctx.rooms[entry.currentRoom];
+            if (oldRoom) {
+              const vIdx = oldRoom.visibleItems.indexOf(keyId);
+              if (vIdx !== -1) oldRoom.visibleItems.splice(vIdx, 1);
+            }
+            ctx.items[keyId]!.initialRoom = newRoomId;
+            ctx.rooms[newRoomId]!.visibleItems.push(keyId);
+            entry.currentRoom = newRoomId;
+            entry.currentRoomIndex = newRoomIdx;
+          }
+          break;
+        }
+      }
       return;
     }
 
@@ -431,6 +441,8 @@ export function generatePuzzleContent(
   initialTargets: PhaseBTarget[],
 ): void {
   const queue: PhaseBTarget[] = [...initialTargets];
+  // 追蹤目前被鎖在 container 內的物品，防止間接循環依賴
+  const itemsInContainers = new Set<ItemId>();
 
   // Phase A 已把 item 放進 visibleItems，Phase B 會重新決定最終歸宿
   for (const target of initialTargets) {
@@ -442,33 +454,53 @@ export function generatePuzzleContent(
   while (queue.length > 0) {
     const target = queue.shift()!;
 
+    // targetDepth 作為全域 container 鎖預算（控制整體解謎長度，而非單條鏈深度）
+    const depthBudgetReached = ctx.lockCount >= config.targetDepth;
     const lockLimitReached = config.maxLocks != null && ctx.lockCount >= config.maxLocks;
 
-    if (target.depth < config.targetDepth && !lockLimitReached) {
+    if (!depthBudgetReached && !lockLimitReached) {
       const tryComposite = Math.random() < config.compositeRate;
-      const lockTemplate = ctx.selectLock(false, tryComposite, config);
-      const variation = lockTemplate.variations[Math.floor(Math.random() * lockTemplate.variations.length)]!;
+      // 傳入 itemsInContainers，讓 reuse 路徑跳過已鎖住的工具（防間接循環）
+      const lockTemplate = ctx.selectLock(false, tryComposite, config, itemsInContainers);
 
-      const containerLock = ctx.createLock(variation, false, target.currentRoom);
-      ctx.lockCount++;
-      containerLock.containsItems.push(target.itemId);
-      ctx.items[target.itemId]!.initialRoom = target.currentRoom;
+      // 驗證鎖模板的 reusable tool 依賴是否合法（單次遍歷）
+      // - 直接循環：模板需要的工具就是正在被包裹的物品本身
+      // - 空間錯誤：工具已放在 criticalRoomIndex 範圍外（玩家在需要前無法取得）
+      const eligibleRooms = new Set(roomIds.slice(0, target.criticalRoomIndex));
+      const canWrap = lockTemplate.requiredKeys.every(keyTplId => {
+        const keyTpl = findKeyTemplate(keyTplId)!;
+        if (!keyTpl.reusable) return true;
+        if (ctx.reusableItemCache[keyTpl.name] === target.itemId) return false;
+        const existingId = ctx.reusableItemCache[keyTpl.name];
+        if (!existingId) return true;
+        const placedRoom = ctx.items[existingId]!.initialRoom;
+        if (!placedRoom) return true;
+        return eligibleRooms.has(placedRoom);
+      });
 
-      // 從地板移除（enqueueKeysForLock 暫時加進 visibleItems，現在要鎖起來）
-      const targetRoom = ctx.rooms[target.currentRoom]!;
-      const vIdx = targetRoom.visibleItems.indexOf(target.itemId);
-      if (vIdx !== -1) targetRoom.visibleItems.splice(vIdx, 1);
+      if (canWrap) {
+        const variation = lockTemplate.variations[Math.floor(Math.random() * lockTemplate.variations.length)]!;
+        const containerLock = ctx.createLock(variation, false, target.currentRoom);
+        ctx.lockCount++;
+        containerLock.containsItems.push(target.itemId);
+        itemsInContainers.add(target.itemId);
+        ctx.items[target.itemId]!.initialRoom = target.currentRoom;
 
-      targetRoom.lockIds.push(containerLock.id);
+        const targetRoom = ctx.rooms[target.currentRoom]!;
+        const vIdx = targetRoom.visibleItems.indexOf(target.itemId);
+        if (vIdx !== -1) targetRoom.visibleItems.splice(vIdx, 1);
 
-      enqueueKeysForLock(ctx, containerLock.id, lockTemplate, target, config, roomIds, queue);
-    } else {
-      // base case：物品直接留在地板
-      ctx.items[target.itemId]!.initialRoom = target.currentRoom;
-      const room = ctx.rooms[target.currentRoom]!;
-      if (!room.visibleItems.includes(target.itemId)) {
-        room.visibleItems.push(target.itemId);
+        targetRoom.lockIds.push(containerLock.id);
+        enqueueKeysForLock(ctx, containerLock.id, lockTemplate, target, config, roomIds, queue);
+        continue;
       }
+    }
+
+    // base case：物品直接留在地板
+    ctx.items[target.itemId]!.initialRoom = target.currentRoom;
+    const room = ctx.rooms[target.currentRoom]!;
+    if (!room.visibleItems.includes(target.itemId)) {
+      room.visibleItems.push(target.itemId);
     }
   }
 }

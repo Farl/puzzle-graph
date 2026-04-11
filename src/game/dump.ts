@@ -83,7 +83,10 @@ export function dumpPuzzle(puzzle: PuzzleDefinition): string {
   } else {
     for (const lock of containerLocks) {
       const roomIdx = roomIds.indexOf(lock.roomId);
-      const hidesLabels = lock.containsItems.map(id => `(${itemLabel.get(id)})`).join(', ');
+      const hidesLabels = lock.containsItems.map(id => {
+        const item = items[id]!;
+        return `(${itemLabel.get(id)}${item.reusable ? '[TOOL]' : ''})`;
+      }).join(', ');
       const reqParts = lock.requiredItems.map(id => {
         const item = items[id]!;
         const itemRoomIdx = roomIds.indexOf(item.initialRoom);
