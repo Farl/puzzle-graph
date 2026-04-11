@@ -821,6 +821,300 @@ git commit -m "feat: Phase 3 two-phase generation complete"
 
 ---
 
+## Task 8：Puzzle Dump 格式（驗證工具）
+
+**Files:**
+- Create: `src/game/dump.ts`
+- Modify: `src/game/generator.ts` （export `generatePuzzle` 時附帶 dump 輸出）
+
+目的：讓每次生成的謎題能以符號化格式輸出，供快速目視驗證。不含真實文字描述，只顯示邏輯結構。
+
+### Dump 格式範例
+
+```
+=== PUZZLE [2026-04-11] ===
+Config: maxRooms=3 targetDepth=3 crossRoomRate=0.3 keySpreadRate=0.5
+
+ROOMS
+  R0 "書房" [START]
+  R1 "倉庫"
+  R2 "大廳" [EXIT]
+
+SPATIAL (doors)
+  R0 ──(a)──► R1
+  R1 ──(b)──► R2
+  R2  EXIT needs (x)
+
+CONTAINER LOCKS
+  R0: {c → a}          c is in R0
+  R0: {d·e → x}        d in R0, e in R1  ★CROSS
+  R1: {f → b}          f in R0           ★CROSS
+  R0: {g → c}          g in R0
+  R0: {h·i → d}        h in R0, i in R0  [composite]
+
+FLOOR (final)
+  R0: e  g  h  i
+  R1: f
+  R2: (empty)
+
+REUSABLE TOOLS: (none)
+
+★ CROSS-ROOM DEPS:
+  e(R1) ← needed by lock in R0
+  f(R0) ← needed by lock in R1
+```
+
+格式說明：
+- `(a)` = 空間鎖鑰匙標籤（小寫字母）
+- `{c → a}` = 容器鎖：用 c 解鎖，得到 a
+- `{d·e → x}` = 組合鎖：需要 d 和 e，得到 x
+- 可重複工具標示為 `[TOOL]`，例如 `(t1[TOOL])` 代表 t1 是 reusable
+- `★CROSS` = 鑰匙和它的鎖在不同房間
+- 房間標籤用 R0/R1/... 加房間名，物品用單字母（a, b, c...）或字母+數字（a1, a2...）
+
+- [ ] **Step 1：寫 dump.ts**
+
+```typescript
+// src/game/dump.ts
+import type { PuzzleDefinition, ItemId, LockId, RoomId } from './types';
+
+export function dumpPuzzle(puzzle: PuzzleDefinition): string {
+  const { rooms, items, locks, startRoomId, exitLockId } = puzzle;
+
+  // 指派短標籤給每個 item 和 lock
+  const itemLabel = new Map<ItemId, string>();
+  const lockLabel = new Map<LockId, string>();
+  let itemCounter = 0;
+  let lockCounter = 0;
+
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+  const nextItemLabel = () => {
+    const idx = itemCounter % 26;
+    const round = Math.floor(itemCounter / 26);
+    itemCounter++;
+    return alphabet[idx]! + (round > 0 ? String(round) : '');
+  };
+  const nextLockLabel = () => {
+    const idx = lockCounter % 26;
+    const round = Math.floor(lockCounter / 26);
+    lockCounter++;
+    return 'L' + alphabet[idx]!.toUpperCase() + (round > 0 ? String(round) : '');
+  };
+
+  // 依 roomId 順序排列
+  const roomIds = Object.keys(rooms);
+  // 找出 startRoomId 的 index
+  const startIdx = roomIds.indexOf(startRoomId);
+  if (startIdx > 0) {
+    roomIds.splice(startIdx, 1);
+    roomIds.unshift(startRoomId);
+  }
+
+  // 先標記所有 items
+  for (const [itemId] of Object.entries(items)) {
+    itemLabel.set(itemId, nextItemLabel());
+  }
+
+  // 標記所有 locks（空間鎖用 D 前綴，容器鎖用 C 前綴）
+  const spatialLocks = Object.values(locks).filter(l => l.category === 'spatial' && !l.isExit && l.isLocked);
+  const containerLocks = Object.values(locks).filter(l => l.category === 'container' && l.isLocked && !l.isExit);
+  const exitLock = locks[exitLockId]!;
+
+  for (const l of spatialLocks) lockLabel.set(l.id, 'D' + nextLockLabel().slice(1));
+  for (const l of containerLocks) lockLabel.set(l.id, 'C' + nextLockLabel().slice(1));
+
+  const lines: string[] = [];
+
+  lines.push('=== PUZZLE ===');
+
+  // Rooms
+  lines.push('\nROOMS');
+  for (const roomId of roomIds) {
+    const room = rooms[roomId]!;
+    const tag = roomId === startRoomId ? ' [START]' : '';
+    lines.push(`  R${roomIds.indexOf(roomId)} "${room.name}"${tag}`);
+  }
+
+  // Spatial (doors)
+  lines.push('\nSPATIAL (doors)');
+  for (const lock of spatialLocks) {
+    const fromIdx = roomIds.indexOf(lock.roomId);
+    const toIdx = lock.targetRoomId ? roomIds.indexOf(lock.targetRoomId) : '?';
+    const reqLabels = lock.requiredItems.map(id => {
+      const item = items[id]!;
+      return `(${itemLabel.get(id)}${item.reusable ? '[TOOL]' : ''})`;
+    }).join(', ');
+    lines.push(`  R${fromIdx} ──${reqLabels}──► R${toIdx}`);
+  }
+
+  // Exit
+  const exitReqLabels = exitLock.requiredItems.map(id => {
+    const item = items[id]!;
+    return `(${itemLabel.get(id)}${item.reusable ? '[TOOL]' : ''})`;
+  }).join(', ');
+  const exitRoomIdx = roomIds.indexOf(exitLock.roomId);
+  lines.push(`  R${exitRoomIdx}  EXIT needs ${exitReqLabels}`);
+
+  // Container Locks
+  lines.push('\nCONTAINER LOCKS');
+  const crossDeps: string[] = [];
+
+  if (containerLocks.length === 0) {
+    lines.push('  (none)');
+  } else {
+    for (const lock of containerLocks) {
+      const roomIdx = roomIds.indexOf(lock.roomId);
+      const hidesLabels = lock.containsItems.map(id => `(${itemLabel.get(id)})`).join(', ');
+      const reqParts = lock.requiredItems.map(id => {
+        const item = items[id]!;
+        const itemRoomIdx = roomIds.indexOf(item.initialRoom);
+        const isCross = item.initialRoom !== lock.roomId;
+        const label = itemLabel.get(id)! + (item.reusable ? '[TOOL]' : '');
+        if (isCross) crossDeps.push(`  (${label}) in R${itemRoomIdx} ← needed by lock in R${roomIdx}`);
+        return label + (isCross ? '★' : '');
+      });
+      const composite = lock.requiredItems.length > 1;
+      const reqStr = composite ? reqParts.join('·') : reqParts[0]!;
+      lines.push(`  R${roomIdx}: {${reqStr} → ${hidesLabels}}`);
+    }
+  }
+
+  // Floor items (final)
+  lines.push('\nFLOOR (final)');
+  for (const roomId of roomIds) {
+    const room = rooms[roomId]!;
+    const idx = roomIds.indexOf(roomId);
+    const visLabels = room.visibleItems.map(id => {
+      const item = items[id]!;
+      return `(${itemLabel.get(id)}${item.reusable ? '[TOOL]' : ''})`;
+    }).join('  ');
+    lines.push(`  R${idx}: ${visLabels || '(empty)'}`);
+  }
+
+  // Reusable tools
+  const reusableItems = Object.values(items).filter(i => i.reusable);
+  if (reusableItems.length > 0) {
+    lines.push('\nREUSABLE TOOLS');
+    for (const item of reusableItems) {
+      const usedBy = Object.values(locks).filter(l => l.requiredItems.includes(item.id));
+      const roomIdx = roomIds.indexOf(item.initialRoom);
+      lines.push(`  (${itemLabel.get(item.id)}[TOOL]) in R${roomIdx}, used by ${usedBy.length} lock(s)`);
+    }
+  }
+
+  // Cross-room deps summary
+  if (crossDeps.length > 0) {
+    lines.push('\n★ CROSS-ROOM DEPS:');
+    lines.push(...crossDeps);
+  }
+
+  return lines.join('\n');
+}
+```
+
+- [ ] **Step 2：在 generatePuzzle 加 console.log（開發期間）**
+
+在 `generator.ts` 的 `generatePuzzle` 函式最後 return 之前加入（開發期間輸出，之後可移除）：
+
+```typescript
+// 開發期間驗證用
+if (typeof process !== 'undefined' && process.env['NODE_ENV'] === 'test') {
+  // 測試時不輸出
+} else {
+  // 可在 browser console 手動呼叫 window.__dumpPuzzle()
+}
+```
+
+實際上，`dumpPuzzle` 作為 export 函式供外部呼叫即可，不需要自動輸出。
+
+- [ ] **Step 3：在瀏覽器 UI 加一個 "Dump" 按鈕（暫時性）**
+
+在 `src/hooks/useGameState.ts` export `dumpPuzzle` 的呼叫：
+
+```typescript
+// 在 useGameState 的 return 中加入
+import { dumpPuzzle } from '../game/dump';
+
+// return 中加：
+dump: () => gameState ? dumpPuzzle(gameState.puzzle) : '',
+```
+
+在 App 或 GameControls 加一個按鈕：
+```typescript
+<button onClick={() => console.log(dump())}>Dump Puzzle</button>
+```
+
+- [ ] **Step 4：寫 dump 的基本測試**
+
+```typescript
+// src/game/__tests__/dump.test.ts
+import { describe, it, expect } from 'vitest';
+import { generatePuzzle } from '../generator';
+import { dumpPuzzle } from '../dump';
+import type { GeneratorConfig } from '../types';
+
+const BASE: GeneratorConfig = {
+  targetDepth: 3,
+  maxRooms: 3,
+  compositeRate: 0.3,
+  depthStaggerVariance: 0,
+};
+
+describe('dumpPuzzle', () => {
+  it('產生非空字串', () => {
+    const puzzle = generatePuzzle(BASE);
+    const dump = dumpPuzzle(puzzle);
+    expect(dump.length).toBeGreaterThan(0);
+  });
+
+  it('包含所有房間', () => {
+    const puzzle = generatePuzzle(BASE);
+    const dump = dumpPuzzle(puzzle);
+    expect(dump).toContain('R0');
+    expect(dump).toContain('R1');
+    expect(dump).toContain('R2');
+  });
+
+  it('包含 START 標記', () => {
+    const puzzle = generatePuzzle(BASE);
+    const dump = dumpPuzzle(puzzle);
+    expect(dump).toContain('[START]');
+  });
+
+  it('包含 EXIT 標記', () => {
+    const puzzle = generatePuzzle(BASE);
+    const dump = dumpPuzzle(puzzle);
+    expect(dump).toContain('EXIT');
+  });
+
+  it('有 cross-room dep 時標示 ★', () => {
+    // crossRoomRate=1 強制產生跨房間
+    let foundCross = false;
+    for (let i = 0; i < 50 && !foundCross; i++) {
+      const puzzle = generatePuzzle({ ...BASE, targetDepth: 4, crossRoomRate: 1 });
+      const dump = dumpPuzzle(puzzle);
+      if (dump.includes('★')) foundCross = true;
+    }
+    expect(foundCross).toBe(true);
+  });
+});
+```
+
+- [ ] **Step 5：跑測試確認通過**
+
+```bash
+npx vitest run src/game/__tests__/dump.test.ts 2>&1 | tail -20
+```
+
+- [ ] **Step 6：Commit**
+
+```bash
+git add src/game/dump.ts src/game/__tests__/dump.test.ts src/hooks/useGameState.ts
+git commit -m "feat: add dumpPuzzle for symbolic puzzle structure verification"
+```
+
+---
+
 ## 自我審查
 
 **Spec coverage check:**
@@ -830,6 +1124,7 @@ git commit -m "feat: Phase 3 two-phase generation complete"
 - ✓ roomGrowthRate 移除（Task 1）
 - ✓ 可解性保證（criticalRoomIndex 機制，Task 4/6）
 - ✓ 出口也是一道門（Task 4，exitLock 用 createLock）
+- ✓ Dump 格式供驗證（Task 8）
 
 **潛在問題：**
 - Task 4 中，`generateRoomSkeleton` 的 `selectLock(true, false, config)` 只選空間鎖模板。需確認 `LOCK_TEMPLATES` 中有足夠的 spatial 模板（最多需 maxRooms-1 個不重複）。若不夠，`availableLocks` 會重新洗牌補充，行為正確但可能出現重複模板。這是可接受的已知限制。
