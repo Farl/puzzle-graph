@@ -11,7 +11,7 @@ const BASE_CONFIG: GeneratorConfig = {
 
 function countContentLocks(puzzle: ReturnType<typeof generatePuzzle>): number {
   return Object.values(puzzle.locks).filter(
-    l => l.isLocked && !l.isExit,
+    l => l.category === 'container' && l.isLocked && !l.isExit,
   ).length;
 }
 

@@ -24,8 +24,8 @@ describe('Phase 2 integration: all features combined', () => {
       expect(puzzle.locks[puzzle.exitLockId]).toBeDefined();
       expect(puzzle.locks[puzzle.exitLockId]!.isExit).toBe(true);
 
-      // maxLocks 約束
-      const contentLocks = Object.values(puzzle.locks).filter(l => l.isLocked && !l.isExit);
+      // maxLocks 約束（只計算容器鎖，不含門鎖）
+      const contentLocks = Object.values(puzzle.locks).filter(l => l.category === 'container' && l.isLocked && !l.isExit);
       expect(contentLocks.length).toBeLessThanOrEqual(5);
 
       // 引用完整性
@@ -67,9 +67,9 @@ describe('Phase 2 integration: all features combined', () => {
     }
   });
 
-  it('extreme: maxLocks=0 produces puzzle with only exit lock', () => {
+  it('extreme: maxLocks=0 produces puzzle with no container locks', () => {
     const puzzle = generatePuzzle({ ...FULL_CONFIG, maxLocks: 0 });
-    const contentLocks = Object.values(puzzle.locks).filter(l => l.isLocked && !l.isExit);
+    const contentLocks = Object.values(puzzle.locks).filter(l => l.category === 'container' && l.isLocked && !l.isExit);
     expect(contentLocks.length).toBe(0);
     expect(puzzle.locks[puzzle.exitLockId]!.isExit).toBe(true);
   });

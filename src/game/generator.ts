@@ -262,7 +262,7 @@ function pickRoom(eligible: RoomId[], preferredIdx: number, spreadRate: number):
 
 // ─── 建立鑰匙並推入佇列的共用邏輯（Phase B 用） ───
 
-function _enqueueKeysForLock(
+function enqueueKeysForLock(
   ctx: GeneratorContext,
   lockId: LockId,
   lockTemplate: LockTemplate,
@@ -422,15 +422,58 @@ export function generateRoomSkeleton(config: GeneratorConfig): SkeletonResult {
   return { ctx, roomIds, startRoomId, exitLockId: exitLock.id, floorItems };
 }
 
-// ─── 主生成函式（Phase B stub） ───
+// ─── Phase B：謎題內容填充 ───
+
+export function generatePuzzleContent(
+  config: GeneratorConfig,
+  ctx: GeneratorContext,
+  roomIds: RoomId[],
+  initialTargets: PhaseBTarget[],
+): void {
+  const queue: PhaseBTarget[] = [...initialTargets];
+
+  // Phase A 已把 item 放進 visibleItems，Phase B 會重新決定最終歸宿
+  for (const target of initialTargets) {
+    const room = ctx.rooms[target.currentRoom]!;
+    const idx = room.visibleItems.indexOf(target.itemId);
+    if (idx !== -1) room.visibleItems.splice(idx, 1);
+  }
+
+  while (queue.length > 0) {
+    const target = queue.shift()!;
+
+    const lockLimitReached = config.maxLocks != null && ctx.lockCount >= config.maxLocks;
+
+    if (target.depth < config.targetDepth && !lockLimitReached) {
+      const tryComposite = Math.random() < config.compositeRate;
+      const lockTemplate = ctx.selectLock(false, tryComposite, config);
+      const variation = lockTemplate.variations[Math.floor(Math.random() * lockTemplate.variations.length)]!;
+
+      const containerLock = ctx.createLock(variation, false, target.currentRoom);
+      ctx.lockCount++;
+      containerLock.containsItems.push(target.itemId);
+      ctx.items[target.itemId]!.initialRoom = target.currentRoom;
+      ctx.rooms[target.currentRoom]!.lockIds.push(containerLock.id);
+
+      enqueueKeysForLock(ctx, containerLock.id, lockTemplate, target, config, roomIds, queue);
+    } else {
+      // base case：物品直接留在地板
+      ctx.items[target.itemId]!.initialRoom = target.currentRoom;
+      const room = ctx.rooms[target.currentRoom]!;
+      if (!room.visibleItems.includes(target.itemId)) {
+        room.visibleItems.push(target.itemId);
+      }
+    }
+  }
+}
+
+// ─── 主生成函式 ───
 
 export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
   resetIdCounter();
 
-  const { ctx, roomIds: _roomIds, startRoomId, exitLockId, floorItems: _floorItems } = generateRoomSkeleton(config);
-
-  // Phase B stub: items stay on floor (Phase B implemented in next task)
-  // floorItems are already placed in visibleItems by generateRoomSkeleton
+  const { ctx, roomIds, startRoomId, exitLockId, floorItems } = generateRoomSkeleton(config);
+  generatePuzzleContent(config, ctx, roomIds, floorItems);
 
   return {
     rooms: ctx.rooms,

@@ -70,9 +70,8 @@ describe('generateRoomSkeleton (Phase A)', () => {
 
     for (let run = 0; run < 30; run++) {
       const result = generateRoomSkeleton(config);
-      const lastDoorKey = result.floorItems
-        .filter(t => t.criticalRoomIndex === config.maxRooms - 1)
-        .at(0);
+      const doorKeys = result.floorItems.filter(t => t.criticalRoomIndex === config.maxRooms - 1);
+      const lastDoorKey = doorKeys[0];
       if (lastDoorKey) {
         const itemRoom = result.ctx.items[lastDoorKey.itemId]!.initialRoom;
         roomSets.add(itemRoom);
