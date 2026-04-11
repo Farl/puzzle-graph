@@ -262,7 +262,7 @@ function pickRoom(eligible: RoomId[], preferredIdx: number, spreadRate: number):
 
 // ─── 建立鑰匙並推入佇列的共用邏輯（Phase B 用） ───
 
-function enqueueKeysForLock(
+function _enqueueKeysForLock(
   ctx: GeneratorContext,
   lockId: LockId,
   lockTemplate: LockTemplate,

@@ -9,7 +9,7 @@ interface Props {
 }
 
 /** 只列出必填的數值欄位，用於 slider UI */
-type NumericConfigKey = 'targetDepth' | 'maxRooms' | 'roomGrowthRate' | 'compositeRate' | 'keySpatialSplitRate' | 'depthStaggerVariance';
+type NumericConfigKey = 'targetDepth' | 'maxRooms' | 'compositeRate' | 'depthStaggerVariance' | 'keySpreadRate' | 'crossRoomRate';
 
 interface SliderConfig {
   key: NumericConfigKey;
@@ -23,10 +23,10 @@ interface SliderConfig {
 const SLIDERS: SliderConfig[] = [
   { key: 'targetDepth', label: '謎題深度', min: 1, max: 10, step: 1, color: 'accent-purple-500' },
   { key: 'maxRooms', label: '最大房間數', min: 3, max: 10, step: 1, color: 'accent-cyan-500' },
-  { key: 'roomGrowthRate', label: '新房間機率', min: 0, max: 1, step: 0.1, color: 'accent-emerald-500' },
   { key: 'compositeRate', label: '組合鎖機率', min: 0, max: 1, step: 0.1, color: 'accent-amber-500' },
-  { key: 'keySpatialSplitRate', label: '鑰匙分散機率', min: 0, max: 1, step: 0.1, color: 'accent-rose-500' },
   { key: 'depthStaggerVariance', label: '深度偏差', min: 0, max: 2, step: 0.1, color: 'accent-blue-500' },
+  { key: 'keySpreadRate', label: '門鑰匙分散率', min: 0, max: 1, step: 0.1, color: 'accent-emerald-500' },
+  { key: 'crossRoomRate', label: '跨房間鑰匙率', min: 0, max: 1, step: 0.1, color: 'accent-rose-500' },
 ];
 
 export default function SettingsModal({ config, onApply, onClose }: Props) {
