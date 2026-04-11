@@ -4,10 +4,8 @@ import type { GeneratorConfig } from '../types';
 
 const DEFAULT_CONFIG: GeneratorConfig = {
   targetDepth: 3,
-  maxRooms: 5,
-  roomGrowthRate: 0.3,
+  maxRooms: 3,
   compositeRate: 0.3,
-  keySpatialSplitRate: 0.2,
   depthStaggerVariance: 1,
 };
 

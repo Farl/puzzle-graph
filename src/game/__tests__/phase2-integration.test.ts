@@ -5,10 +5,8 @@ import type { GeneratorConfig } from '../types';
 describe('Phase 2 integration: all features combined', () => {
   const FULL_CONFIG: GeneratorConfig = {
     targetDepth: 4,
-    maxRooms: 6,
-    roomGrowthRate: 0.3,
+    maxRooms: 3,
     compositeRate: 0.3,
-    keySpatialSplitRate: 0.2,
     depthStaggerVariance: 1,
     maxLocks: 5,
     tagDiversityMode: 'balanced',
@@ -58,10 +56,8 @@ describe('Phase 2 integration: all features combined', () => {
   it('backward compatible: no Phase 2 params = same as before', () => {
     const OLD_CONFIG: GeneratorConfig = {
       targetDepth: 3,
-      maxRooms: 5,
-      roomGrowthRate: 0.3,
+      maxRooms: 3,
       compositeRate: 0.3,
-      keySpatialSplitRate: 0.2,
       depthStaggerVariance: 1,
     };
     for (let i = 0; i < 20; i++) {
