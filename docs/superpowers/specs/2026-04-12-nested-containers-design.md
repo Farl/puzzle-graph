@@ -2,11 +2,11 @@
 
 ## Summary
 
-Support containers inside containers (e.g. drawer containing a safe), with a volume-based capacity system to determine what fits where, and room-based grouping in the graph visualization.
+Support containers inside containers (e.g. drawer containing a safe), with a three-layer volume-based capacity system (room → container → item) to determine what fits where, and room-based grouping in the graph visualization.
 
 ## Context
 
-Currently `Lock.containsItems: ItemId[]` only holds items. All container locks are flat on the room floor — there is no spatial nesting. `KeyTemplate` has a `volume` field (1-3) but nothing consumes it. `LockTemplate` has `maxItems` but no volume/capacity concept.
+Currently `Lock.containsItems: ItemId[]` only holds items, and exactly one item per container. All container locks are flat on the room floor — there is no spatial nesting. `KeyTemplate` has a `volume` field (1-3) but nothing consumes it. `LockTemplate` has `maxItems` but no volume/capacity concept. Rooms have no capacity limit.
 
 ## Design Decisions
 
@@ -21,11 +21,75 @@ A container lock's hidden contents (items and child locks) are stored in a singl
 
 This is distinct from `targetRoomId` (spatial connectivity), which remains separate because it has fundamentally different semantics — gating traversal to another space vs revealing hidden content in the current room.
 
+### Three-layer volume system
+
+Volume uses **liters (L)** as the unit, simplified for game purposes (not physically accurate, but proportionally intuitive). The system enforces capacity at three levels:
+
+```
+Room (capacity L)
+  ├─ Container A (volume L, capacity L)
+  │    ├─ Item X (volume L)
+  │    ├─ Item Y (volume L)
+  │    └─ Container B (volume L, capacity L)   ← nested
+  │         └─ Item Z (volume L)
+  ├─ Container C (volume L, capacity L)
+  └─ Loose item W (volume L)
+```
+
+- **Room capacity**: limits total volume of all containers and loose items on the floor
+- **Container capacity**: limits total volume of contents (items + sub-containers)
+- **Item/container volume**: how much space it occupies in its parent
+
+A container can hold **multiple items and/or sub-containers**, as long as the total volume fits. This replaces the current one-item-per-container limitation.
+
+### Volume reference table (L)
+
+**Items:**
+
+| Volume | Size reference | Examples |
+|--------|---------------|---------|
+| 0.5L | Pocket-sized | Notes, keycards, USB drives |
+| 1L | One hand | Keys, small gears |
+| 2L | Handheld | Flashlight, bottles, door handles |
+| 3L | Two hands | Hammer, crowbar, large gears |
+
+**Containers (self-volume / internal capacity):**
+
+| Volume | Capacity | Size reference | Examples |
+|--------|----------|---------------|---------|
+| 3L | 4L | Shoebox | Small drawer, dark corner |
+| 5L | 8L | Suitcase | Chest, toolbox, password safe |
+| 8L | 14L | Mini-fridge | Large crate, high-tech safe |
+| 12L | 20L | Wardrobe | Cabinet, cargo container |
+
+**Rooms:**
+
+| Capacity | Size reference | Examples |
+|----------|---------------|---------|
+| 30L | Closet | Tight storage room |
+| 50L | Bedroom | Standard room |
+| 80L | Warehouse | Large open space |
+
+Example mental math: "Toolbox (5L) + safe (8L) + loose key (1L) = 14L. Fits in a standard room (50L), 36L left. Does the safe (capacity 14L) fit a hammer (3L) + a small drawer (3L)? 3+3=6 < 14, yes."
+
 ### Nesting depth controlled by config
 
 Nesting is recursive with a configurable `maxNestingDepth` limit. No separate `nestingRate` parameter — nesting happens naturally within the existing `targetDepth` budget, as long as a suitable outer container exists (volume check passes).
 
 ## Data Model Changes
+
+### Room (runtime)
+
+```typescript
+interface Room {
+  // ... existing fields ...
+
+  // NEW
+  capacity: number;          // total volume (L) the room floor can hold
+}
+```
+
+Room capacity limits the combined volume of all containers and loose items placed on the room floor. The generator checks room capacity when placing items and containers during Phase A and Phase B.
 
 ### Item (runtime)
 
@@ -34,7 +98,7 @@ interface Item {
   // ... existing fields ...
 
   // NEW
-  volume: number;            // item's volume (copied from KeyTemplate at creation time)
+  volume: number;            // item's volume in L (copied from KeyTemplate at creation time)
 }
 ```
 
@@ -76,30 +140,40 @@ interface GeneratorConfig {
 }
 ```
 
-### Template data (examples)
+### Template data
 
-| Container | volume (self) | capacity |
-|-----------|--------------|----------|
-| Dark corner / small box | 2 | 3 |
-| Locked chest / toolbox | 4 | 6 |
-| Nailed crate / high-tech safe | 5 | 8 |
-
-Items retain existing volume values (1-3).
+See the "Volume reference table" in Design Decisions for the full breakdown of item volumes (0.5-3L), container volumes/capacities (3-12L / 4-20L), and room capacities (30-80L). Existing `KeyTemplate.volume` values (1-3) will be updated to match the L-based scale. `LockTemplate` entries will receive `volume` and `capacity` values based on their thematic size.
 
 ## Volume Rules
+
+### Container level
 
 When the generator places content inside a container:
 
 ```
-usedVolume = sum(item.volume for item in contents if item in items)
-           + sum(lock.volume for lock in contents if lock in locks)
-
+usedVolume = sum(entity.volume for entity in container.contents)
 canFit(newEntity) = usedVolume + newEntity.volume <= container.capacity
 ```
 
-Note: `LockTemplate.maxItems` exists in the current codebase but is **never enforced** — the generator currently places exactly one item per container lock. The volume system is new enforcement logic, not a replacement of existing enforcement. `maxItems` will be removed and replaced by `capacity`.
+Entity volume is looked up via `items[id].volume` or `locks[id].volume` depending on the ID.
 
-A container with `capacity: 6` can hold one item of volume 3 + one sub-container of volume 2, or three items of volume 2, etc.
+A container can hold **multiple items and sub-containers** as long as total volume fits. A container with `capacity: 8L` can hold: one item (3L) + one sub-container (3L) + one item (2L) = 8L.
+
+### Room level
+
+When the generator places a container or loose item on the room floor:
+
+```
+usedFloorVolume = sum(lock.volume for lock in room.lockIds if lock is container)
+               + sum(item.volume for item in room.visibleItems)
+canPlaceOnFloor(entity) = usedFloorVolume + entity.volume <= room.capacity
+```
+
+Spatial locks (doors) do not consume room floor volume — they represent passages, not physical objects.
+
+### Note on maxItems
+
+`LockTemplate.maxItems` exists in the current codebase but is **never enforced** — the generator currently places exactly one item per container lock. The volume system is new enforcement logic, not a replacement of existing enforcement. `maxItems` will be removed and replaced by `capacity`.
 
 ## Generator Changes
 
@@ -226,9 +300,9 @@ Where `[Lock: D]` indicates a nested container lock with its own label.
 
 | File | Changes |
 |------|---------|
-| `src/game/types.ts` | Item: add `volume`. Lock: rename `containsItems` → `contents`, add `capacity`, `volume`. LockTemplate: replace `maxItems` with `capacity`, `volume`. GeneratorConfig: add `maxNestingDepth` |
+| `src/game/types.ts` | Room: add `capacity`. Item: add `volume`. Lock: rename `containsItems` → `contents`, add `capacity`, `volume`. LockTemplate: replace `maxItems` with `capacity`, `volume`. GeneratorConfig: add `maxNestingDepth` |
 | `src/game/templates.ts` | Add `capacity` and `volume` to all LockTemplates. Remove `maxItems`. |
-| `src/game/generator.ts` | `createLock` signature: add capacity/volume params. `createItem`/`createConsumableItem`: copy volume from KeyTemplate. Phase B: volume-based capacity check, lock nesting in BFS queue, nestingDepth tracking |
+| `src/game/generator.ts` | `createRoom`: assign capacity. `createLock` signature: add capacity/volume params. `createItem`/`createConsumableItem`: copy volume from KeyTemplate. Phase A+B: room floor volume check. Phase B: container volume check, multi-item containers, lock nesting in BFS queue, nestingDepth tracking |
 | `src/game/engine.ts` | `performUnlock`: dispatch contents by type. Deep clone update. |
 | `src/game/solver.ts` | Handle lock IDs in contents — add to available locks |
 | `src/game/graph-layout.ts` | Room grouping, container sub-groups, bounding box computation |
