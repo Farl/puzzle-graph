@@ -200,6 +200,7 @@ export default function App() {
       {isSettingsOpen && (
         <SettingsModal
           config={config}
+          defaultConfig={DEFAULT_CONFIG}
           onApply={cfg => startNewGame(cfg)}
           onClose={() => setIsSettingsOpen(false)}
         />

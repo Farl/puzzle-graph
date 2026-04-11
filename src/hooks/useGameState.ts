@@ -23,11 +23,33 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
   crossRoomRate: 0.3,
 };
 
+const STORAGE_KEY = 'puzzle-graph:config';
+
+function loadConfig(): GeneratorConfig {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_CONFIG;
+    const saved = JSON.parse(raw) as Partial<GeneratorConfig>;
+    // 以 DEFAULT_CONFIG 為底，覆蓋已儲存的值（防止新增欄位遺漏）
+    return { ...DEFAULT_CONFIG, ...saved };
+  } catch {
+    return DEFAULT_CONFIG;
+  }
+}
+
+function saveConfig(config: GeneratorConfig): void {
+  try {
+    // seed 不存入 localStorage（每次應重新隨機或由使用者指定）
+    const { seed: _, ...rest } = config;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+  } catch { /* quota exceeded etc. */ }
+}
+
 export function useGameState(initialConfig: GeneratorConfig = DEFAULT_CONFIG) {
   const [gameState, setGameState] = useState<GameState | null>(null);
   // 保存原始 puzzle（engine 會 mutate clone，原始資料供 dump 和圖譜使用）
   const [originalPuzzle, setOriginalPuzzle] = useState<PuzzleDefinition | null>(null);
-  const [config, setConfig] = useState<GeneratorConfig>(initialConfig);
+  const [config, setConfig] = useState<GeneratorConfig>(() => loadConfig() ?? initialConfig);
   const [selectedItem, setSelectedItem] = useState<ItemId | null>(null);
 
   const startNewGame = useCallback((overrideConfig?: GeneratorConfig) => {
@@ -37,7 +59,10 @@ export function useGameState(initialConfig: GeneratorConfig = DEFAULT_CONFIG) {
     const state = initGame(puzzle);
     setGameState(state);
     setSelectedItem(null);
-    if (overrideConfig) setConfig(overrideConfig);
+    if (overrideConfig) {
+      setConfig(overrideConfig);
+      saveConfig(overrideConfig);
+    }
   }, [config]);
 
   const dispatch = useCallback((command: string) => {
