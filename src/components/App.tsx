@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Terminal, Settings as SettingsIcon, Hand, Eye } from 'lucide-react';
+import { Terminal, Settings as SettingsIcon, Hand, Eye, Copy } from 'lucide-react';
 import { useGameState, DEFAULT_CONFIG } from '../hooks/useGameState';
 import TerminalLog from './TerminalLog';
 import CommandInput from './CommandInput';
@@ -23,6 +23,7 @@ export default function App() {
     enterPassword,
     moveToRoom,
     inspectEntity,
+    dump,
   } = useGameState(DEFAULT_CONFIG);
 
   const [activeTab, setActiveTab] = useState<Tab>('game');
@@ -79,6 +80,17 @@ export default function App() {
                 title="切換指令列"
               >
                 <Terminal size={14} />
+              </button>
+              <button
+                onClick={() => {
+                  const dumpText = dump();
+                  console.log(dumpText);
+                  navigator.clipboard.writeText(dumpText);
+                }}
+                className="p-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300"
+                title="複製謎題結構至剪貼板"
+              >
+                <Copy size={14} />
               </button>
               <button
                 onClick={() => setIsSettingsOpen(true)}

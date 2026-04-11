@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { GameState, GeneratorConfig, ItemId, LockId } from '../game/types';
 import { generatePuzzle } from '../game/generator';
+import { dumpPuzzle } from '../game/dump';
 import {
   initGame,
   executeCommand,
@@ -71,6 +72,10 @@ export function useGameState(initialConfig: GeneratorConfig = DEFAULT_CONFIG) {
     setGameState(prev => prev ? engineShowInventory(prev) : prev);
   }, []);
 
+  const dump = useCallback(() => {
+    return gameState ? dumpPuzzle(gameState.puzzle) : '';
+  }, [gameState]);
+
   return {
     gameState,
     config,
@@ -86,5 +91,6 @@ export function useGameState(initialConfig: GeneratorConfig = DEFAULT_CONFIG) {
     inspectEntity: inspectEntityAction,
     lookAround: lookAroundAction,
     showInventory: showInventoryAction,
+    dump,
   };
 }
