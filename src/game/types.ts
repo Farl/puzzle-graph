@@ -63,6 +63,7 @@ export interface PuzzleDefinition {
   locks: Record<LockId, Lock>;
   startRoomId: RoomId;
   exitLockId: LockId;
+  seed: number;               // 生成此關卡的亂數種子（可用於重現）
 }
 
 // ─── 遊戲狀態（執行時可變） ───
@@ -92,6 +93,9 @@ export interface GeneratorConfig {
   maxRooms: number;
   compositeRate: number;
   depthStaggerVariance: number;
+
+  // ── 種子 ──
+  seed?: number;              // 亂數種子，不指定則隨機生成（結果會記錄在 PuzzleDefinition.seed）
 
   // ── Phase 3：兩階段生成 ──
   keySpreadRate?: number;   // 0-1，Phase A 鑰匙放置的分散程度（0=緊鄰門，1=任意合法房間）

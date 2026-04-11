@@ -44,7 +44,7 @@ export function dumpPuzzle(puzzle: PuzzleDefinition): string {
   for (const l of containerLocks) lockLabel.set(l.id, 'C' + nextLockLabel().slice(1));
 
   const lines: string[] = [];
-  lines.push('=== PUZZLE ===');
+  lines.push(`=== PUZZLE === (seed: ${puzzle.seed})`);
 
   // Rooms
   lines.push('\nROOMS');

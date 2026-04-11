@@ -82,6 +82,15 @@ export default function App() {
               >
                 <Terminal size={14} />
               </button>
+              {originalPuzzle && (
+                <span
+                  className="text-[10px] text-slate-500 font-mono bg-slate-950 px-2 py-1 rounded cursor-pointer hover:text-slate-300 transition-colors"
+                  title="點擊複製種子"
+                  onClick={() => navigator.clipboard.writeText(String(originalPuzzle.seed))}
+                >
+                  Seed: {originalPuzzle.seed}
+                </span>
+              )}
               <button
                 onClick={() => {
                   const dumpText = dump();

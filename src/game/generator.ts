@@ -12,7 +12,7 @@ import type {
 } from './types';
 import { ROOM_THEMES, ADJECTIVES } from './families';
 import { KEY_TEMPLATES, LOCK_TEMPLATES, findKeyTemplate } from './templates';
-import { shuffle, getUniqueName, PasswordFormatPool, generateId, resetIdCounter } from './utils';
+import { SeededRandom, shuffle, getUniqueName, PasswordFormatPool, generateId, resetIdCounter } from './utils';
 
 // ─── Phase B BFS 佇列項目 ───
 
@@ -41,21 +41,24 @@ class GeneratorContext {
   items: Record<ItemId, Item> = {};
   locks: Record<LockId, Lock> = {};
 
+  rng: SeededRandom;
   availableThemes: { name: string; description: string }[];
   availableLocks: LockTemplate[];
   reusableItemCache: Record<string, ItemId> = {};
   consumableCount: Record<string, number> = {};
   usedItemNames = new Set<string>();
   usedLockNames = new Set<string>();
-  passwordPool = new PasswordFormatPool();
+  passwordPool: PasswordFormatPool;
   lockCount = 0;
   tagUsageCount: Record<string, number> = {};
   lastSelectedTags: string[] = [];
   toolReuseCount: Record<ItemId, number> = {};
 
-  constructor(maxRooms: number) {
-    this.availableThemes = shuffle(ROOM_THEMES).slice(0, maxRooms);
-    this.availableLocks = shuffle([...LOCK_TEMPLATES]);
+  constructor(maxRooms: number, rng: SeededRandom) {
+    this.rng = rng;
+    this.passwordPool = new PasswordFormatPool(rng);
+    this.availableThemes = shuffle(ROOM_THEMES, rng).slice(0, maxRooms);
+    this.availableLocks = shuffle([...LOCK_TEMPLATES], rng);
   }
 
   createRoom(name: string, description: string): Room {
@@ -89,7 +92,7 @@ class GeneratorContext {
     roomId: RoomId,
     isExit: boolean = false,
   ): Lock {
-    const lockName = getUniqueName(variation.name, this.usedLockNames, ADJECTIVES);
+    const lockName = getUniqueName(variation.name, this.usedLockNames, ADJECTIVES, this.rng);
     const lock: Lock = {
       id: generateId('lock'),
       name: lockName,
@@ -142,13 +145,13 @@ class GeneratorContext {
   /** 從模板池中選擇匹配的鎖模板 */
   selectLock(trySpatial: boolean, tryComposite: boolean, config: GeneratorConfig, lockedItems?: Set<ItemId>): LockTemplate {
     // ── 復用路徑：嘗試用已有的 reusable tool 開新鎖 ──
-    if (config.reuseRate != null && config.reuseRate > 0 && Math.random() < config.reuseRate) {
+    if (config.reuseRate != null && config.reuseRate > 0 && this.rng.next() < config.reuseRate) {
       const reuseLock = this.tryReusePath(trySpatial, config, lockedItems);
       if (reuseLock) return reuseLock;
     }
 
     if (this.availableLocks.length === 0) {
-      this.availableLocks = shuffle([...LOCK_TEMPLATES]);
+      this.availableLocks = shuffle([...LOCK_TEMPLATES], this.rng);
     }
 
     const targetCategory = trySpatial ? 'spatial' : 'container';
@@ -184,7 +187,7 @@ class GeneratorContext {
 
     if (reusableToolNames.length === 0) return null;
 
-    const toolName = reusableToolNames[Math.floor(Math.random() * reusableToolNames.length)]!;
+    const toolName = reusableToolNames[this.rng.nextInt(reusableToolNames.length)]!;
     const keyTpl = KEY_TEMPLATES.find(k => k.name === toolName && k.reusable);
     if (!keyTpl) return null;
 
@@ -193,7 +196,7 @@ class GeneratorContext {
     );
     if (compatibleLocks.length === 0) return null;
 
-    const selected = compatibleLocks[Math.floor(Math.random() * compatibleLocks.length)]!;
+    const selected = compatibleLocks[this.rng.nextInt(compatibleLocks.length)]!;
     this.commitSelection(selected);
     return selected;
   }
@@ -203,7 +206,7 @@ class GeneratorContext {
     const mode = config.tagDiversityMode;
 
     if (!mode || candidates.length <= 1) {
-      return candidates[Math.floor(Math.random() * candidates.length)]!;
+      return candidates[this.rng.nextInt(candidates.length)]!;
     }
 
     const weights = candidates.map(c => {
@@ -225,7 +228,7 @@ class GeneratorContext {
 
     // 加權隨機抽選
     const totalWeight = weights.reduce((a, b) => a + b, 0);
-    let r = Math.random() * totalWeight;
+    let r = this.rng.next() * totalWeight;
     for (let i = 0; i < candidates.length; i++) {
       r -= weights[i]!;
       if (r <= 0) return candidates[i]!;
@@ -236,14 +239,14 @@ class GeneratorContext {
 
 // ─── 工具函式 ───
 
-function pickRoom(eligible: RoomId[], preferredIdx: number, spreadRate: number): RoomId {
+function pickRoom(eligible: RoomId[], preferredIdx: number, spreadRate: number, ctx: GeneratorContext): RoomId {
   if (eligible.length === 0) return '';
   if (eligible.length === 1) return eligible[0]!;
   const clampedIdx = Math.min(Math.max(preferredIdx, 0), eligible.length - 1);
-  if (spreadRate <= 0 || Math.random() > spreadRate) {
+  if (spreadRate <= 0 || ctx.rng.next() > spreadRate) {
     return eligible[clampedIdx]!;
   }
-  return eligible[Math.floor(Math.random() * eligible.length)]!;
+  return eligible[ctx.rng.nextInt(eligible.length)]!;
 }
 
 // ─── 建立鑰匙並推入佇列的共用邏輯（Phase B 用） ───
@@ -324,13 +327,13 @@ function enqueueKeysForLock(
     const eligible = roomIds.slice(0, maxIdx + 1);
     const preferredIdx = eligible.indexOf(target.currentRoom);
 
-    const keyRoomId = pickRoom(eligible, preferredIdx >= 0 ? preferredIdx : eligible.length - 1, crossRoomRate);
+    const keyRoomId = pickRoom(eligible, preferredIdx >= 0 ? preferredIdx : eligible.length - 1, crossRoomRate, ctx);
     const keyRoomIndex = roomIds.indexOf(keyRoomId);
 
     ctx.items[keyId]!.initialRoom = keyRoomId;
     ctx.rooms[keyRoomId]!.visibleItems.push(keyId);
 
-    const staggerAmount = index > 0 ? Math.random() * config.depthStaggerVariance : 0;
+    const staggerAmount = index > 0 ? ctx.rng.next() * config.depthStaggerVariance : 0;
     const nextDepth = target.depth + 1 - staggerAmount;
 
     queue.push({
@@ -345,8 +348,8 @@ function enqueueKeysForLock(
 
 // ─── Phase A：建立房間骨架 ───
 
-export function generateRoomSkeleton(config: GeneratorConfig): SkeletonResult {
-  const ctx = new GeneratorContext(config.maxRooms);
+export function generateRoomSkeleton(config: GeneratorConfig, rng: SeededRandom): SkeletonResult {
+  const ctx = new GeneratorContext(config.maxRooms, rng);
   const floorItems: PhaseBTarget[] = [];
   const roomIds: RoomId[] = [];
 
@@ -368,7 +371,7 @@ export function generateRoomSkeleton(config: GeneratorConfig): SkeletonResult {
     const toRoomId = roomIds[i + 1]!;
 
     const lockTemplate = ctx.selectLock(true, false, config);
-    const variation = lockTemplate.variations[Math.floor(Math.random() * lockTemplate.variations.length)]!;
+    const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
 
     const doorLock = ctx.createLock(variation, true, fromRoomId);
     doorLock.targetRoomId = toRoomId;
@@ -387,7 +390,7 @@ export function generateRoomSkeleton(config: GeneratorConfig): SkeletonResult {
 
     // 根據 keySpreadRate 決定鑰匙放置的房間
     const eligible = roomIds.slice(0, i + 1);
-    const keyRoomId = pickRoom(eligible, eligible.length - 1, keySpreadRate);
+    const keyRoomId = pickRoom(eligible, eligible.length - 1, keySpreadRate, ctx);
     ctx.items[keyId]!.initialRoom = keyRoomId;
     ctx.rooms[keyRoomId]!.visibleItems.push(keyId);
 
@@ -417,7 +420,7 @@ export function generateRoomSkeleton(config: GeneratorConfig): SkeletonResult {
   const exitKey = ctx.createItem('終極逃生卡', false, '帶有最高權限的特殊磁卡。');
   exitLock.requiredItems.push(exitKey.id);
 
-  const exitKeyRoom = pickRoom(roomIds, roomIds.length - 1, keySpreadRate);
+  const exitKeyRoom = pickRoom(roomIds, roomIds.length - 1, keySpreadRate, ctx);
   exitKey.initialRoom = exitKeyRoom;
   ctx.rooms[exitKeyRoom]!.visibleItems.push(exitKey.id);
 
@@ -459,7 +462,7 @@ export function generatePuzzleContent(
     const lockLimitReached = config.maxLocks != null && ctx.lockCount >= config.maxLocks;
 
     if (!depthBudgetReached && !lockLimitReached) {
-      const tryComposite = Math.random() < config.compositeRate;
+      const tryComposite = ctx.rng.next() < config.compositeRate;
       // 傳入 itemsInContainers，讓 reuse 路徑跳過已鎖住的工具（防間接循環）
       const lockTemplate = ctx.selectLock(false, tryComposite, config, itemsInContainers);
 
@@ -479,7 +482,7 @@ export function generatePuzzleContent(
       });
 
       if (canWrap) {
-        const variation = lockTemplate.variations[Math.floor(Math.random() * lockTemplate.variations.length)]!;
+        const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
         const containerLock = ctx.createLock(variation, false, target.currentRoom);
         ctx.lockCount++;
         containerLock.containsItems.push(target.itemId);
@@ -510,7 +513,8 @@ export function generatePuzzleContent(
 export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
   resetIdCounter();
 
-  const { ctx, roomIds, startRoomId, exitLockId, floorItems } = generateRoomSkeleton(config);
+  const rng = new SeededRandom(config.seed);
+  const { ctx, roomIds, startRoomId, exitLockId, floorItems } = generateRoomSkeleton(config, rng);
   generatePuzzleContent(config, ctx, roomIds, floorItems);
 
   return {
@@ -519,5 +523,6 @@ export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
     locks: ctx.locks,
     startRoomId,
     exitLockId,
+    seed: rng.seed,
   };
 }

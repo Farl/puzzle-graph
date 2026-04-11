@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, type WheelEvent, type MouseEvent, type TouchEvent } from 'react';
+import { useState, useRef, useMemo, useEffect, useCallback, type MouseEvent as ReactMouseEvent, type TouchEvent as ReactTouchEvent } from 'react';
 import { ZoomIn, ZoomOut, Move } from 'lucide-react';
 import type { PuzzleDefinition } from '../game/types';
 import { buildGraphLayout } from '../game/graph-layout';
@@ -9,12 +9,59 @@ interface Props {
 
 const NODE_W = 160;
 const NODE_H = 60;
+const MIN_SCALE = 0.1;
+const MAX_SCALE = 2.5;
+
+/** 以指定的畫面座標為中心進行縮放，scale 不變時回傳 prev（避免無效 re-render） */
+function zoomAtPoint(
+  prev: { x: number; y: number; scale: number },
+  newScale: number,
+  pivotX: number,
+  pivotY: number,
+) {
+  const clamped = Math.min(Math.max(MIN_SCALE, newScale), MAX_SCALE);
+  if (clamped === prev.scale) return prev;
+  const worldX = (pivotX - prev.x) / prev.scale;
+  const worldY = (pivotY - prev.y) / prev.scale;
+  return {
+    x: pivotX - worldX * clamped,
+    y: pivotY - worldY * clamped,
+    scale: clamped,
+  };
+}
+
+/** 取得兩個 touch 點的中心與距離 */
+function getTouchMeta(a: React.Touch, b: React.Touch) {
+  const dx = a.clientX - b.clientX;
+  const dy = a.clientY - b.clientY;
+  return {
+    cx: (a.clientX + b.clientX) / 2,
+    cy: (a.clientY + b.clientY) / 2,
+    dist: Math.hypot(dx, dy),
+  };
+}
 
 export default function CanvasGraph({ puzzle }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState({ x: 50, y: 300, scale: 0.8 });
   const [isDragging, setIsDragging] = useState(false);
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 });
+
+  // Pinch state (refs to avoid re-renders during gesture)
+  const pinchRef = useRef<{ dist: number; cx: number; cy: number; scale: number } | null>(null);
+
+  // 快取容器 rect，避免每次 wheel 事件都 getBoundingClientRect（觸發 layout reflow）
+  const rectRef = useRef<DOMRect | null>(null);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    rectRef.current = el.getBoundingClientRect();
+    const observer = new ResizeObserver(() => {
+      rectRef.current = el.getBoundingClientRect();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const layout = useMemo(() => buildGraphLayout(puzzle), [puzzle]);
   const nodeMap = useMemo(() => {
@@ -23,12 +70,16 @@ export default function CanvasGraph({ puzzle }: Props) {
     return map;
   }, [layout]);
 
-  // Pan handlers
-  const handleMouseDown = (e: MouseEvent) => {
+  // 同步 transform 到 ref，讓 native listener / callback 永遠讀到最新值
+  const transformRef = useRef(transform);
+  transformRef.current = transform;
+
+  // ── Pan handlers (mouse) ──
+  const handleMouseDown = (e: ReactMouseEvent) => {
     setIsDragging(true);
     setLastMouse({ x: e.clientX, y: e.clientY });
   };
-  const handleMouseMove = (e: MouseEvent) => {
+  const handleMouseMove = (e: ReactMouseEvent) => {
     if (!isDragging) return;
     setTransform(prev => ({
       ...prev,
@@ -39,36 +90,81 @@ export default function CanvasGraph({ puzzle }: Props) {
   };
   const handleMouseUp = () => setIsDragging(false);
 
-  // Touch handlers
-  const handleTouchStart = (e: TouchEvent) => {
+  // ── Touch handlers (pan + pinch) ──
+  const handleTouchStart = (e: ReactTouchEvent) => {
     if (e.touches.length === 1) {
+      pinchRef.current = null;
       setIsDragging(true);
       setLastMouse({ x: e.touches[0]!.clientX, y: e.touches[0]!.clientY });
+    } else if (e.touches.length === 2) {
+      setIsDragging(false);
+      const meta = getTouchMeta(e.touches[0]!, e.touches[1]!);
+      const rect = rectRef.current ?? containerRef.current?.getBoundingClientRect();
+      pinchRef.current = {
+        dist: meta.dist,
+        cx: meta.cx - (rect?.left ?? 0),
+        cy: meta.cy - (rect?.top ?? 0),
+        scale: transformRef.current.scale,
+      };
     }
   };
-  const handleTouchMove = (e: TouchEvent) => {
-    if (!isDragging || e.touches.length !== 1) return;
-    setTransform(prev => ({
-      ...prev,
-      x: prev.x + e.touches[0]!.clientX - lastMouse.x,
-      y: prev.y + e.touches[0]!.clientY - lastMouse.y,
-    }));
-    setLastMouse({ x: e.touches[0]!.clientX, y: e.touches[0]!.clientY });
+  const handleTouchMove = (e: ReactTouchEvent) => {
+    if (e.touches.length === 1 && isDragging) {
+      setTransform(prev => ({
+        ...prev,
+        x: prev.x + e.touches[0]!.clientX - lastMouse.x,
+        y: prev.y + e.touches[0]!.clientY - lastMouse.y,
+      }));
+      setLastMouse({ x: e.touches[0]!.clientX, y: e.touches[0]!.clientY });
+    } else if (e.touches.length === 2 && pinchRef.current) {
+      const meta = getTouchMeta(e.touches[0]!, e.touches[1]!);
+      const ratio = meta.dist / pinchRef.current.dist;
+      const newScale = pinchRef.current.scale * ratio;
+      setTransform(prev => zoomAtPoint(prev, newScale, pinchRef.current!.cx, pinchRef.current!.cy));
+    }
   };
-  const handleTouchEnd = () => setIsDragging(false);
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    pinchRef.current = null;
+  };
 
-  // Zoom handler
-  const handleWheel = (e: WheelEvent) => {
+  // ── Wheel/trackpad zoom（native listener 才能 preventDefault）──
+  const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY * -0.001;
-    setTransform(prev => ({
-      ...prev,
-      scale: Math.min(Math.max(0.1, prev.scale + delta), 2.5),
-    }));
-  };
+    const rect = rectRef.current;
+    if (!rect) return;
 
-  const zoomIn = () => setTransform(p => ({ ...p, scale: Math.min(p.scale + 0.2, 2.5) }));
-  const zoomOut = () => setTransform(p => ({ ...p, scale: Math.max(p.scale - 0.2, 0.1) }));
+    const pivotX = e.clientX - rect.left;
+    const pivotY = e.clientY - rect.top;
+    const prev = transformRef.current;
+
+    // ctrlKey = trackpad pinch on macOS；否則為一般滾輪
+    if (e.ctrlKey) {
+      // trackpad pinch：deltaY 是縮放量
+      const factor = 1 - e.deltaY * 0.01;
+      setTransform(zoomAtPoint(prev, prev.scale * factor, pivotX, pivotY));
+    } else {
+      const delta = e.deltaY * -0.001;
+      setTransform(zoomAtPoint(prev, prev.scale + delta, pivotX, pivotY));
+    }
+  }, []);
+
+  // 掛載 native wheel listener（passive: false），React onWheel 預設 passive 無法 preventDefault
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, [handleWheel]);
+
+  const zoomAtCenter = useCallback((delta: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const cx = rect ? rect.width / 2 : 300;
+    const cy = rect ? rect.height / 2 : 300;
+    setTransform(prev => zoomAtPoint(prev, prev.scale + delta, cx, cy));
+  }, []);
+  const zoomIn = () => zoomAtCenter(0.2);
+  const zoomOut = () => zoomAtCenter(-0.2);
   const resetView = () => setTransform({
     x: 50,
     y: (containerRef.current?.clientHeight ?? 600) / 2,
@@ -87,7 +183,6 @@ export default function CanvasGraph({ puzzle }: Props) {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
-      onWheel={handleWheel}
     >
       {/* Zoom controls */}
       <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
