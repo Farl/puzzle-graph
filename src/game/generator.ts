@@ -453,7 +453,13 @@ export function generatePuzzleContent(
       ctx.lockCount++;
       containerLock.containsItems.push(target.itemId);
       ctx.items[target.itemId]!.initialRoom = target.currentRoom;
-      ctx.rooms[target.currentRoom]!.lockIds.push(containerLock.id);
+
+      // 從地板移除（enqueueKeysForLock 暫時加進 visibleItems，現在要鎖起來）
+      const targetRoom = ctx.rooms[target.currentRoom]!;
+      const vIdx = targetRoom.visibleItems.indexOf(target.itemId);
+      if (vIdx !== -1) targetRoom.visibleItems.splice(vIdx, 1);
+
+      targetRoom.lockIds.push(containerLock.id);
 
       enqueueKeysForLock(ctx, containerLock.id, lockTemplate, target, config, roomIds, queue);
     } else {
