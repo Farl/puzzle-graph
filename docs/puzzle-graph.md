@@ -1,172 +1,283 @@
-# PUZZLE GRAPH
+# Puzzle Graph 演算法設計
 
 Puzzle Graph 是一種程序化生成解謎遊戲的理論框架。核心概念是將解謎遊戲建模為一個**有向無環圖 (DAG)**，其中每個謎題的可解性在生成階段就被數學性地保證。
 
+---
+
 ## 核心概念
 
-### 實體類型 (Entity Types)
+### 實體類型
 
-#### Room（房間）
-- 空間容器，玩家可在其中探索
-- 包含 items（可見物品）、locks（鎖）、paths（通道）
-- 房間之間透過 path 連接
+| 實體 | 說明 |
+|---|---|
+| **Room** | 空間容器，包含地板物品 (`visibleItems`) 和鎖 (`lockIds`) |
+| **Item** | 物品。`key`（消耗型鑰匙）、`clue`（線索）、`tool`（可重複使用工具） |
+| **Lock** | 機關。`container`（容器鎖，保護物品）或 `spatial`（空間鎖，連接房間） |
 
-#### Item（物品）
-三種類型：
-- **key**：單次使用的鑰匙類物品，使用後從背包消耗
-- **clue**：線索類物品，揭示密碼等資訊（如密碼紙條）
-- **tool**：可重複使用的工具（如手電筒、撬棍），使用後留在背包
+### 鎖機制
 
-物品屬性：
-- `id`：唯一識別碼
-- `name`：顯示名稱
-- `reusable`：是否可重複使用
-- `initialRoom`：生成時所在房間
+| 機制 | 說明 |
+|---|---|
+| `physical` | 需要特定鑰匙插入 |
+| `password` | 需要輸入密碼（配合 clue 物品） |
+| `hidden` | 需要工具突破環境障礙（如手電筒照亮暗角落） |
+| `combination` | 需要多個物品同時滿足 |
 
-#### Lock（鎖 / 容器鎖）
-保護物品的機關，解鎖後釋放內部物品到當前房間。
-- `req[]`：所需物品 ID 列表
-- `hides`：鎖內隱藏的物品 ID
-- `room`：所在房間 ID
+### 模板系統
 
-#### Path（通道鎖 / 空間鎖）
-連接兩個房間的通道門鎖，解鎖後可通行。
-- `req[]`：所需物品 ID 列表
-- `target`：目標房間 ID
-- `hides`：目標房間中的物品（生成時就已放置）
+鎖和鑰匙從預定義的模板目錄中選取：
 
-### 鎖機制類型 (Lock Mechanisms)
+- **KeyTemplate**：定義鑰匙的名稱、類型、是否可重複使用
+- **LockTemplate**：定義鎖的名稱、機制、所需鑰匙 ID 列表、分類 tag
 
-1. **physical**（物理鎖）- 需要特定鑰匙，鑰匙使用後消耗
-2. **password**（密碼鎖）- 需要輸入數字密碼，配合 clue 物品揭示密碼
-3. **hidden**（隱藏鎖）- 需要可重複使用的工具突破環境障礙
-4. **combination**（組合鎖）- 需要多個物品同時滿足，追蹤部分插入進度
-5. **door**（門鎖）- 連接房間的通道，可用鑰匙或密碼開啟
+每個 LockTemplate 指定它需要哪些 KeyTemplate（`requiredKeys: string[]`），並帶有 `tags` 用於多樣性控制。
 
-### 謎題家族 (Puzzle Families)
+---
 
-#### 容器家族 (Container Families)
-用於保護物品的鎖機關：
-- 上鎖寶箱（消耗型鑰匙）
-- 黑暗角落（可重複使用手電筒）
-- 展示櫃（可重複使用鐵鎚）
-- 密碼工具箱（消耗型密碼紙條）
-- 釘封木箱（可重複使用撬棍）
-- 高科技保險箱（2個消耗型物品：電源線 + USB隨身碟）
-- 化學裝置（2個消耗型物品：紅色 + 藍色試劑）
-- 齒輪機關（2個消耗型物品：大齒輪 + 小齒輪）
+## 兩階段生成演算法
 
-#### 空間家族 (Spatial Families)
-用於連接房間的通道鎖：
-- 厚重鐵門（消耗型黃銅鑰匙）
-- 電子感應門（可重複使用門禁卡）
-- 鐵鏈鎖門（可重複使用斷線鉗）
-- 無把手滑門（消耗型門把）
-- 氣密隔離門（2個消耗型閥門：左閥門 + 右閥門）
+生成分為 **Phase A（房間骨架）** 和 **Phase B（謎題內容填充）**。
 
-## 生成演算法
+### Phase A：房間骨架 (`generateRoomSkeleton`)
 
-### 核心原理：反向依賴樹生成
-
-從**出口**開始反向建構依賴樹。保證每把鎖的鑰匙都被放置在可達位置。
-
-### BFS 佇列演算法（進階版）
+建立所有房間、門鎖、出口鎖。房間數量固定為 `maxRooms`。
 
 ```
-currentTargets = [{ item: exitKey, room: exitRoom, depth: 0, forceSpatial: false }]
+輸入：config
 
-while targets remain:
-  target = dequeue
+1. 建立 maxRooms 個房間（從主題池隨機取名）
+   roomIds = [R0, R1, R2, ...]
+   startRoomId = R0（玩家起點）
 
-  if depth < targetDepth:
-    // 決定是否建立空間鎖（新房間）或容器鎖
-    trySpatial = forceSpatial OR (random < roomGrowthRate AND rooms < maxRooms)
-    // 決定是否選擇組合鎖（多鑰匙）
-    tryComposite = random < compositeRate
+2. 建立 N-1 道門鎖（相鄰房間之間）
+   for i = 0 to maxRooms-2:
+     selectLock(spatial) → 取得鎖模板
+     建立空間鎖 door (R[i] → R[i+1])
+     建立鑰匙 key（消耗型或可重複工具，依模板決定）
+     eligible = roomIds[0..i]     // 鑰匙只能放在門之前可達的房間
+     key.initialRoom = pickRoom(eligible, keySpreadRate)
+     floorItems.push(key)
 
-    // 從匹配的家族中選擇
-    family = selectFamily(spatial/container, single/multi-key)
+3. 建立出口鎖（最後一個房間，isExit=true）
+   建立出口鑰匙 → pickRoom(roomIds, keySpreadRate) → floorItems.push
 
-    if spatial:
-      建立新房間
-      建立 path lock（當前房間 → 新房間）
-      物品放入新房間（生成時直接放置）
-      每個鑰匙 → enqueue(key, currentRoom, depth+1)
-    else:
-      建立 container lock 於當前房間
-      物品放入鎖內（解鎖時釋放）
-      每個鑰匙 → enqueue(key, currentRoom, depth+1)
+輸出：ctx, roomIds, startRoomId, exitLockId, floorItems
+```
+
+**關鍵約束 — `criticalRoomIndex`**：每個 floorItem 記錄它的 `criticalRoomIndex`，代表「這個物品必須放在 `roomIds[0..criticalRoomIndex-1]` 範圍內」。門鑰匙的 criticalRoomIndex = 門的來源房間索引 + 1。
+
+### Phase B：謎題內容填充 (`generatePuzzleContent`)
+
+BFS 處理 Phase A 的 floorItems，將它們包裹在容器鎖中，產生新的鑰匙，直到預算用完。
+
+```
+輸入：config, ctx, roomIds, floorItems（Phase A 的輸出）
+
+queue = [...floorItems]
+itemsInContainers = Set()
+
+// 先從 visibleItems 移除（Phase B 決定最終歸宿）
+for each target in floorItems:
+  room.visibleItems.remove(target.itemId)
+
+while queue 非空:
+  target = queue.shift()
+  depthBudgetReached = ctx.lockCount >= config.targetDepth
+  lockLimitReached = config.maxLocks != null && ctx.lockCount >= config.maxLocks
+
+  if !depthBudgetReached && !lockLimitReached:
+    lockTemplate = selectLock(container, itemsInContainers)
+
+    // === 合法性驗證（單次遍歷 requiredKeys）===
+    canWrap = lockTemplate.requiredKeys.every(keyTplId =>
+      keyTpl = findKeyTemplate(keyTplId)
+      if !keyTpl.reusable: return true           // 消耗型鑰匙總是合法
+      if reusableCache[keyTpl.name] === target.itemId: return false  // 直接循環
+      existingId = reusableCache[keyTpl.name]
+      if !existingId || !items[existingId].initialRoom: return true  // 尚未建立
+      return eligibleRooms.has(items[existingId].initialRoom)        // 空間合法性
+    )
+
+    if canWrap:
+      建立容器鎖 containerLock（在 target.currentRoom）
+      containerLock.containsItems = [target.itemId]
+      itemsInContainers.add(target.itemId)
+      enqueueKeysForLock(lockTemplate, target, queue)
+      continue
+
+  // base case：物品直接留在地板
+  target.itemId → room.visibleItems
+```
+
+### `enqueueKeysForLock`：鑰匙建立與佇列管理
+
+```
+for each keyTemplateId in lockTemplate.requiredKeys:
+  keyTpl = findKeyTemplate(keyTemplateId)
+
+  if keyTpl.reusable:
+    keyId = getOrCreateReusableItem(keyTpl.name)  // 快取
   else:
-    // 基底情況：物品直接放在房間地板上（玩家可直接取得）
-    item.initialRoom = currentRoom
+    keyId = createConsumableItem(keyTpl.name)      // 新建
+
+  lock.requiredItems.push(keyId)
+
+  // === 已存在工具的 criticalRoomIndex 收緊 ===
+  if reusable && 已放置 (initialRoom ≠ ''):
+    找到工具在 queue 中的 entry
+    if entry.criticalRoomIndex > target.criticalRoomIndex:
+      收緊 criticalRoomIndex → min(兩者)
+      若工具目前位置超出新限制，移動到最後一個合法房間
+    return  // 不重新入列
+
+  // 放置新鑰匙
+  eligible = roomIds[0..criticalRoomIndex-1]
+  keyRoom = pickRoom(eligible, crossRoomRate)
+  room.visibleItems.push(keyId)
+  queue.push({ itemId: keyId, currentRoom: keyRoom, criticalRoomIndex, depth+1 })
 ```
 
-### 遞迴演算法（基礎版）
+---
 
-```
-generateDependencies(targetLock, currentDepth, template, roomId, availableRooms):
-  根據鎖類型建立所需物品
-  設定 targetLock.requiredItems = requiredItemIds
+## 循環依賴防護（三層機制）
 
-  對每個所需物品:
-    隨機選擇房間放置
-    if currentDepth <= 1:  // 基底情況
-      物品直接放在房間地板（visibleItems）
-    else:  // 遞迴情況
-      建立新鎖 → 物品放入鎖內（containsItems）
-      遞迴呼叫 generateDependencies(newLock, depth-1, ...)
-```
+可重複使用的工具（tool）可以被多個鎖共用，這帶來循環依賴風險。
 
-### 可調參數
+### 第一層：直接循環防護 (`canWrap`)
+
+若鎖模板需要的工具**就是正在被包裹的物品本身**，放棄包裹。
+
+例：手電筒要被放進「黑暗角落」容器，但「黑暗角落」需要手電筒才能打開 → 直接循環。
+
+### 第二層：空間合法性 (`canWrap`)
+
+若鎖模板需要的工具**已被放在 `criticalRoomIndex` 範圍外的房間**，放棄包裹。
+
+例：工具在 R1（需要先過門才能到），但當前物品的 `criticalRoomIndex=1`（鑰匙只能放 R0）→ 玩家無法在需要前取得工具。
+
+### 第三層：間接循環防護 (`lockedItems`)
+
+`selectLock` 的復用路徑（`tryReusePath`）在選擇可復用工具時，**跳過目前被鎖在容器內的工具**（`itemsInContainers`）。
+
+例：工具 T 在容器 C1 內 → 若新容器 C2 也需要 T → 若 C2 的鑰匙又在 C1 內 → 間接循環。
+
+### 第四層：佇列收緊 (`enqueueKeysForLock`)
+
+當一個工具被**更嚴格的容器**重新引用時，在 BFS 佇列中收緊它的 `criticalRoomIndex`，並視需要將工具移動到合法房間。
+
+例：工具 T 因 `criticalRoomIndex=2` 被放在 R1，但新容器只有 `criticalRoomIndex=1` → 收緊為 1，移動 T 到 R0。
+
+---
+
+## 鎖模板選擇演算法
+
+### 復用路徑 (`tryReusePath`)
+
+當 `reuseRate > 0` 且擲骰成功時：
+1. 收集已建立的可重複工具（未達 `maxReusesPerTool` 上限、不在 `itemsInContainers` 中）
+2. 隨機選一個工具 → 找到需要該工具的 LockTemplate
+3. 若找到相容模板 → 使用它（工具不需重新建立）
+
+### 正常路徑
+
+從 `availableLocks` 池中篩選：
+1. 匹配 `category`（container 或 spatial）
+2. 匹配 `compositeRate`（單鑰匙或多鑰匙）
+3. 加權抽選（依 `tagDiversityMode` 調整權重）
+
+### Tag 多樣性模式
+
+| 模式 | 行為 |
+|---|---|
+| `balanced` | 使用次數少的 tag 權重更高（自動平衡各類謎題） |
+| `weighted` | 按 `tagWeights` 設定的權重抽選 |
+| `no-repeat` | 降低與上一次相同 tag 的權重（避免連續重複） |
+
+---
+
+## 可調參數
 
 | 參數 | 範圍 | 說明 |
 |---|---|---|
-| `targetDepth` | 1-10 | 謎題依賴樹深度（幾層嵌套） |
-| `maxRooms` | 3-10 | 最大房間數量 |
-| `roomGrowthRate` | 0-1 | 每步建立新房間（空間鎖）的機率 |
-| `compositeRate` | 0-1 | 選擇多鑰匙組合謎題的機率 |
-| `keySpatialSplitRate` | 0-1 | 組合鎖的次要鑰匙被分配到不同房間的機率 |
-| `depthStaggerVariance` | 0-2 | 組合鎖次要鑰匙的深度隨機偏差，產生不對稱依賴樹 |
+| `targetDepth` | 1-10 | 全域容器鎖預算（控制整體解謎長度） |
+| `maxRooms` | 1-10 | 房間數量（固定值，非上限） |
+| `compositeRate` | 0-1 | 選擇多鑰匙組合鎖的機率 |
+| `depthStaggerVariance` | 0-2 | 組合鎖次要鑰匙的深度隨機偏差 |
+| `keySpreadRate` | 0-1 | Phase A 門鑰匙分散程度（0=緊鄰門，1=任意合法房間） |
+| `crossRoomRate` | 0-1 | Phase B 容器鎖鑰匙跨房間機率（0=同房間，1=任意合法房間） |
+| `reuseRate` | 0-1 | 已有可重複工具時走復用路徑的機率 |
+| `maxReusesPerTool` | 1-∞ | 每個工具最多被幾把鎖共用 |
+| `maxLocks` | 1-∞ | 容器鎖總量硬上限（與 targetDepth 互補，先到先停） |
+| `tagDiversityMode` | string | 鎖模板 tag 多樣性策略 |
+| `tagWeights` | Record | tag 加權（僅 weighted 模式使用） |
 
-## 關鍵設計原則
+---
 
-1. **保證可解性**：反向生成確保每把鎖的鑰匙都存在於可達位置，數學上保證遊戲一定能通關
-2. **可重複使用物品快取**：工具類物品（手電筒、撬棍等）只建立一次，透過快取（reusableTools / reusableItemCache）共享給所有需要它的謎題
-3. **名稱唯一性**：當模板名稱衝突時，從形容詞列表中隨機前綴直到唯一
-4. **生成與執行分離**：物品在生成階段就分配好 initialRoom，執行引擎只負責在 room.items 和 inventory 之間搬移，不會建立新物品
-5. **空間鎖的關鍵區別**：空間鎖（path）的物品在生成時就已放入目標房間的 items[]，解鎖時不可重複添加（防止 bug）；容器鎖（lock）的物品在解鎖時才釋放到房間地板
+## 可解性保證
 
-## 圖論視覺化
+### 結構保證（生成階段）
 
-### 拓撲排序佈局 (Topological Sort Layout)
+1. **反向依賴生成**：鑰匙總是放在鎖之前可達的房間（由 `criticalRoomIndex` 約束）
+2. **循環防護**：四層機制確保無循環依賴（見上方）
+3. **房間線性拓撲**：Phase A 建立 R0→R1→R2→... 的線性門鎖鏈，鑰匙只能放在門的來源側或更早的房間
 
-使用 Kahn 演算法（BFS 從零入度節點開始）進行拓撲排序：
-1. 建立邊列表：item → lock/path（物品被鎖需要）、lock/path → item（鎖隱藏物品）
-2. 從零入度節點（葉子物品）開始 BFS 分配 rank
-3. 按 rank 分組，每列垂直置中
-4. 產生左到右的 DAG 佈局：前置物品在左，依賴它們的鎖在右
+### 驗證（測試階段）
 
-### 節點顏色編碼
-- 綠色 (Emerald) = 物品 / 工具節點
-- 玫瑰色 (Rose) = 容器鎖節點
-- 紫色 (Purple) = 空間通道鎖節點
+`solvePuzzle` 模擬玩家行為驗證可解性：
+1. 拾取所有可到達房間的地板物品
+2. 嘗試用背包物品開啟所有可到達的鎖
+3. 重複直到無法繼續
+4. 若最終能打開出口 → 可解
 
-## 遊戲引擎指令系統
+自動化測試以多種配置各跑 50-100 次，確保 100% 可解率。
+
+---
+
+## 遊戲引擎
+
+### 雙向房間通行
+
+空間鎖解鎖後，玩家可從門的**任一端**穿過。引擎判斷玩家在門的哪一端，自動計算目的地。UI 區分：
+- **本房間的門**（amber 底色 + emerald「進入」按鈕）
+- **從其他房間連過來的通道**（sky 藍底色 + sky「前往」按鈕）
+
+### MUD 指令系統
 
 | 指令 | 縮寫 | 功能 |
 |---|---|---|
-| `look` | `l` | 描述當前房間及所有可見物品/鎖 |
-| `inventory` | `i` | 列出背包物品 |
-| `examine [目標]` | `x` | 查看鎖的狀態描述或物品描述 |
-| `take [物品]` | `t` | 拾取地板上的可見物品到背包 |
-| `use [物品] on [鎖]` | - | 使用背包物品作用於鎖 |
-| `enter [密碼] on [鎖]` | - | 對密碼鎖輸入密碼 |
-| `go [門/房間]` | - | 穿過已解鎖的門到另一房間 |
-
-### 解鎖副作用 (Unlock Side Effects)
-1. 設定 `lock.isLocked = false`
-2. 如果 `containsItems` 非空：將所有物品移至當前房間的 `visibleItems`
-3. 如果 `isExit`：觸發遊戲勝利
+| `look` | `l` | 觀察四周（含回程門） |
+| `inventory` | `i` | 查看背包 |
+| `examine [目標]` | `x` | 檢查物品或鎖的狀態 |
+| `take [物品]` | `t` | 拾取地板物品 |
+| `use [物品] on [鎖]` | - | 使用物品解鎖 |
+| `enter [密碼] on [鎖]` | - | 輸入密碼 |
+| `go [門/房間名]` | - | 穿過門到另一房間（支援雙向） |
 
 ### 物品自動回收
-使用後，掃描所有未滿足的鎖 - 如果該物品不再被任何鎖需要，自動從背包丟棄（僅限非 reusable 物品）。
+
+解鎖後掃描背包，不再被任何未解鎖需要的消耗型物品自動移除。
+
+---
+
+## 圖譜視覺化
+
+使用 Kahn 拓撲排序演算法計算 DAG 佈局，以鄰接表實作（O(V+E)）。
+
+### 邊的語義
+
+| 邊 | 方向 | 意義 |
+|---|---|---|
+| 實線箭頭 | item → lock | 物品被鎖需要（`requires`） |
+| 虛線箭頭（青色） | lock → item | 開鎖後取得物品（`contains`） |
+| 虛線箭頭（青色） | spatial lock → 目標房間的鎖/物品 | 過門後可存取的內容 |
+
+### 節點顏色
+
+| 顏色 | 意義 |
+|---|---|
+| Emerald（綠） | 物品 |
+| Rose（玫瑰） | 容器鎖 |
+| Purple（紫） | 空間鎖（門） |
+| Amber（琥珀） | 出口鎖 |
+
+圖譜始終顯示**原始 puzzle**（不受遊玩過程中的狀態修改影響）。
