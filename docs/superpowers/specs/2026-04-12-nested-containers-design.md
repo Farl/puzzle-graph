@@ -72,9 +72,13 @@ A container can hold **multiple items and/or sub-containers**, as long as the to
 
 Example mental math: "Toolbox (5L) + safe (8L) + loose key (1L) = 14L. Fits in a standard room (50L), 36L left. Does the safe (capacity 14L) fit a hammer (3L) + a small drawer (3L)? 3+3=6 < 14, yes."
 
-### Nesting depth controlled by config
+### Nesting via post-processing (Phase C), not during BFS
 
-Nesting is recursive with a configurable `maxNestingDepth` limit. No separate `nestingRate` parameter — nesting happens naturally within the existing `targetDepth` budget, as long as a suitable outer container exists (volume check passes).
+Nesting is NOT done during Phase B's BFS. Instead, Phase A and B run unchanged (producing flat, one-item-per-container results), and a new **Phase C consolidation pass** reorganizes entities into containers afterward. This keeps the core generation algorithm untouched and its solvability guarantee intact.
+
+Phase C is controlled by two config parameters:
+- `maxNestingDepth` — max container nesting depth (default: 2)
+- `consolidationRate` — 0-1, how aggressively to pack things into containers (0 = no consolidation, 1 = pack as much as possible)
 
 ## Data Model Changes
 
@@ -136,7 +140,8 @@ interface LockTemplate {
 ```typescript
 interface GeneratorConfig {
   // ... existing fields ...
-  maxNestingDepth?: number;  // max container nesting depth (default: 2)
+  maxNestingDepth?: number;    // max container nesting depth (default: 2)
+  consolidationRate?: number;  // 0-1, how aggressively to pack into containers (default: 0.5)
 }
 ```
 
@@ -181,31 +186,88 @@ Spatial locks (doors) do not consume room floor volume — they represent passag
 
 Currently `createLock(variation, isSpatial, roomId, isExit)` takes a `FamilyVariation` only. It must be extended to also receive `capacity` and `volume` from the `LockTemplate`. For spatial locks (doors) and the exit lock, `capacity` and `volume` default to 0 (they cannot contain anything or be nested).
 
-### Phase B: Current behavior
+### `createItem` / `createConsumableItem` change
 
-BFS queue contains `PhaseBTarget` (items only). Each item can be wrapped in a container lock. Keys for that lock are enqueued for further wrapping.
+Must accept and store `volume` from the `KeyTemplate` onto the runtime `Item`.
 
-### New behavior
+### Phase A + B: unchanged core logic
 
-The existing `PhaseBTarget` is extended with an optional `lockId` field and a `nestingDepth` field. When `lockId` is set, the target represents a container lock to be nested (instead of an item to be wrapped).
+Phase A (room skeleton) and Phase B (BFS wrapping) remain unchanged. They still produce flat, one-item-per-container results. The only additions are:
+- `createLock` populates `capacity` and `volume` from the template
+- `createItem` populates `volume` from the key template
+- Room floor volume checks when placing items (if room capacity would be exceeded, try another eligible room)
 
-1. When a container lock is created, if `nestingDepth < maxNestingDepth` and the depth budget allows, a new `PhaseBTarget` with `lockId` set is enqueued.
-2. When a lock-target is dequeued, the generator looks for an outer container template where `capacity >= usedVolume + innerLock.volume`.
-3. If a suitable outer container exists, the inner lock's ID is pushed into `outerLock.contents`. The inner lock is removed from `room.lockIds` (it's now hidden).
-4. If no suitable container exists or the budget is exhausted, the lock stays on the room floor as-is (target is discarded).
+### Phase C: Consolidation Pass (new)
 
-### Constraints
+After Phase B completes, a new consolidation pass reorganizes entities into containers. This is a post-processing step that does NOT create new locks or keys — it only moves existing entities.
 
-- **Only container-category locks may be nested.** Spatial locks (doors with `targetRoomId`) cannot be placed inside containers — a door hidden inside a box makes no sense.
-- **Nested locks must share the same `roomId` as their parent container.** This is naturally true since the generator creates both locks in the same room, but must be maintained as an invariant.
+#### Urgency computation
 
-### Cycle prevention
+Every item and container lock gets an **urgency** score derived from the final puzzle structure:
 
-Existing four-layer cycle prevention still applies. Additional constraint: a lock cannot be nested inside itself or inside any lock that it (transitively) contains.
+```
+urgency(item) = min roomIndex of all locks that require this item
+urgency(containerLock) = min urgency of all entities in its contents
+                         (or: roomIndex if contents is empty after Phase B)
+```
 
-### Nesting depth tracking
+Lower urgency = more urgent (needed earlier in the game). Higher urgency = less urgent (needed later, more flexible placement).
 
-Each `PhaseBTarget` gains a `nestingDepth: number` field. Items start at 0. When a container lock wraps a target, the container's own nesting depth = target's nestingDepth + 1. This container can only be further nested if its depth < `maxNestingDepth`.
+Items with urgency 0 are the most constrained — they are needed before leaving the first room. These will naturally remain on the floor because no container in the same room can have a lower urgency.
+
+#### Algorithm
+
+```
+consolidate(rooms, items, locks, config):
+  compute urgency for all items and container locks
+  
+  for each room R:
+    floor = all entities on R's floor (visibleItems + container lockIds)
+    sort floor by urgency descending (least urgent first)
+    
+    for each candidate X in floor:
+      if random() > config.consolidationRate: skip
+      
+      for each container C in floor (sorted by urgency ascending = most urgent first):
+        if C === X: skip
+        if X is a spatial lock: skip (doors cannot be nested)
+        if urgency(C) > urgency(X): break (no valid container left)
+        if remainingCapacity(C) < volume(X): continue
+        if nestingDepth(C, X) >= config.maxNestingDepth: continue
+        
+        → move X into C.contents
+        → remove X from room floor (visibleItems or lockIds)
+        → break
+```
+
+#### Why process least-urgent first
+
+Least-urgent items have the most flexibility — they can be absorbed by any container with lower urgency. Processing them first maximizes consolidation opportunities. The most urgent items/containers stay on the floor as outer shells.
+
+#### Safety guarantees
+
+- **Solvability preserved**: Phase A + B already guarantee solvability. Phase C only hides entities behind locks that the player will open anyway (urgency(container) <= urgency(contents)). The player opens the container first, discovers the contents, then uses them — same as before, just physically inside a container.
+- **No new locks or keys**: Phase C only moves existing entities. No new dependencies are introduced.
+- **Natural floor minimum**: Items/containers with the lowest urgency in a room cannot be absorbed (nothing is more urgent to serve as a shell). At least the starting items for each room's first lock will always be visible on the floor.
+
+#### Constraints
+
+- **Only container-category locks may be nested.** Spatial locks (doors with `targetRoomId`) cannot be placed inside containers.
+- **Nested locks must share the same `roomId` as their parent container.** This is inherently true since Phase C only processes within a single room.
+- **Cycle prevention**: A lock cannot contain itself or any lock that (transitively) contains it. In practice this cannot happen because urgency ordering prevents it — a container can only absorb entities with higher urgency (less urgent), and its own urgency is always lower.
+
+#### Nesting depth
+
+```
+nestingDepth(container, candidate):
+  if candidate is an item: return 1
+  if candidate is a lock: return 1 + maxDepthOf(candidate.contents)
+  
+maxDepthOf(contents):
+  return max(nestingDepth for each lock in contents, default 0)
+```
+
+The total depth after insertion must be <= `maxNestingDepth`.
 
 ## Engine Changes
 
@@ -287,13 +349,20 @@ Where `[Lock: D]` indicates a nested container lock with its own label.
 
 ## UI Settings
 
-`maxNestingDepth` added to SettingsModal with a slider (min: 0, max: 5, default: 2, step: 1). Description: "容器最大嵌套層數（0=不嵌套）".
+New sliders in SettingsModal:
+- `maxNestingDepth` (min: 0, max: 5, default: 2, step: 1). Description: "容器最大嵌套層數（0=不嵌套）"
+- `consolidationRate` (min: 0, max: 1, default: 0.5, step: 0.1). Description: "收納密度，越高越多東西藏在容器裡"
+
+## Bugfix: reuseRate not in DEFAULT_CONFIG
+
+`DEFAULT_CONFIG` in `useGameState.ts` does not include `reuseRate`, so the reuse path in the generator is never triggered (`undefined != null` is `false`). Add `reuseRate: 0.3` to `DEFAULT_CONFIG`.
 
 ## Migration
 
 - `containsItems` renamed to `contents` across the codebase
 - `maxItems` on LockTemplate replaced by `capacity` and `volume`
 - All existing tests updated to use new field names
+- `generatePuzzle` flow becomes: Phase A → Phase B → Phase C (consolidate)
 - Existing puzzles (if any saved state) would break — acceptable since there is no persistence layer for game state
 
 ## Files to modify
@@ -302,7 +371,7 @@ Where `[Lock: D]` indicates a nested container lock with its own label.
 |------|---------|
 | `src/game/types.ts` | Room: add `capacity`. Item: add `volume`. Lock: rename `containsItems` → `contents`, add `capacity`, `volume`. LockTemplate: replace `maxItems` with `capacity`, `volume`. GeneratorConfig: add `maxNestingDepth` |
 | `src/game/templates.ts` | Add `capacity` and `volume` to all LockTemplates. Remove `maxItems`. |
-| `src/game/generator.ts` | `createRoom`: assign capacity. `createLock` signature: add capacity/volume params. `createItem`/`createConsumableItem`: copy volume from KeyTemplate. Phase A+B: room floor volume check. Phase B: container volume check, multi-item containers, lock nesting in BFS queue, nestingDepth tracking |
+| `src/game/generator.ts` | `createRoom`: assign capacity. `createLock`: add capacity/volume params. `createItem`/`createConsumableItem`: copy volume from KeyTemplate. New `consolidate()` function (Phase C). `generatePuzzle` calls consolidate after Phase B. Room floor volume checks in Phase A+B. |
 | `src/game/engine.ts` | `performUnlock`: dispatch contents by type. Deep clone update. |
 | `src/game/solver.ts` | Handle lock IDs in contents — add to available locks |
 | `src/game/graph-layout.ts` | Room grouping, container sub-groups, bounding box computation |
