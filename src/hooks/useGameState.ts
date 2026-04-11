@@ -15,11 +15,11 @@ import {
 
 export const DEFAULT_CONFIG: GeneratorConfig = {
   targetDepth: 4,
-  maxRooms: 5,
-  roomGrowthRate: 0.4,
+  maxRooms: 3,
   compositeRate: 0.3,
-  keySpatialSplitRate: 0.5,
   depthStaggerVariance: 1.0,
+  keySpreadRate: 0.5,
+  crossRoomRate: 0.3,
 };
 
 export function useGameState(initialConfig: GeneratorConfig = DEFAULT_CONFIG) {

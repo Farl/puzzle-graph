@@ -90,10 +90,12 @@ export type TagDiversityMode = 'weighted' | 'balanced' | 'no-repeat';
 export interface GeneratorConfig {
   targetDepth: number;
   maxRooms: number;
-  roomGrowthRate: number;
   compositeRate: number;
-  keySpatialSplitRate: number;
   depthStaggerVariance: number;
+
+  // ── Phase 3：兩階段生成 ──
+  keySpreadRate?: number;   // 0-1，Phase A 鑰匙放置的分散程度（0=緊鄰門，1=任意合法房間）
+  crossRoomRate?: number;   // 0-1，Phase B 容器鎖鑰匙跨房間放置的機率（0=同房間，1=任意合法房間）
 
   // ── Phase 2：選擇演算法 ──
   maxLocks?: number;                         // 鎖總量上限（不含出口鎖和返回門），與 targetDepth 互補，先到先停
