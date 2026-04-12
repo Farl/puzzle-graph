@@ -205,6 +205,7 @@ export default function CanvasGraph({ puzzle }: Props) {
       {/* Legend */}
       <div className="absolute top-4 left-4 z-20 text-[10px] text-slate-400 bg-slate-900/80 px-3 py-2 rounded border border-slate-800 pointer-events-none space-y-1">
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" /> 物品</div>
+        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500" /> 小遊戲 / 固定物品</div>
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" /> 容器鎖</div>
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500" /> 空間鎖（門）</div>
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" /> 出口</div>
@@ -285,15 +286,25 @@ export default function CanvasGraph({ puzzle }: Props) {
           let dotColor = 'bg-emerald-500 shadow-emerald-500/50';
 
           if (node.entityType === 'lock') {
+            const lock = puzzle.locks[node.id];
             if (node.isExit) {
               borderColor = 'border-amber-700/60';
               dotColor = 'bg-amber-500 shadow-amber-500/50';
+            } else if (lock?.mechanism === 'minigame') {
+              borderColor = 'border-orange-700/60';
+              dotColor = 'bg-orange-500 shadow-orange-500/50';
             } else if (node.category === 'spatial') {
               borderColor = 'border-purple-900/60';
               dotColor = 'bg-purple-500 shadow-purple-500/50';
             } else {
               borderColor = 'border-rose-900/60';
               dotColor = 'bg-rose-500 shadow-rose-500/50';
+            }
+          } else if (node.entityType === 'item') {
+            const item = puzzle.items[node.id];
+            if (item && item.pickupable === false) {
+              borderColor = 'border-orange-700/60';
+              dotColor = 'bg-orange-500 shadow-orange-500/50';
             }
           }
 
