@@ -170,19 +170,36 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     };
   };
 
-  // ─── 佈局：Y = rank（向下），X = 層內展開 ───
-  // 同層節點按容器歸屬分組排列，使同一容器的 contents 在 X 方向對齊其父鎖
+  // ─── 佈局：Y = rank（向下），X = barycenter 排序展開 ───
+  // 每層節點按連接的上層節點平均 X 排序（交叉最小化）
+  // 同容器的 contents 保持相鄰並對齊父鎖
 
   const layoutNodes: LayoutNode[] = [];
   const nodePos = new Map<string, { x: number; y: number }>();
 
+  // 建立反向鄰接表（誰連到我）
+  const reverseAdj: Record<string, string[]> = {};
+  for (const id of allNodeIds) reverseAdj[id] = [];
+  for (const edge of edges) {
+    reverseAdj[edge.target]?.push(edge.source);
+  }
+
   const sortedRanks = Object.keys(rankLayers).map(Number).sort((a, b) => a - b);
+
+  // ─── 第一遍（上→下）：初始 X 分配 + barycenter 排序 ───
 
   for (const r of sortedRanks) {
     const layer = rankLayers[r]!;
     const y = r * (NODE_H + Y_GAP);
 
-    // 分組：按父容器 ID 分群，無容器的歸 '' 群
+    // 計算每個節點的 barycenter（上層連接節點的平均 X）
+    const barycenter = (id: string): number => {
+      const parents = reverseAdj[id]?.filter(pid => nodePos.has(pid)) ?? [];
+      if (parents.length === 0) return Infinity; // 無上層連接，排最後
+      return parents.reduce((sum, pid) => sum + nodePos.get(pid)!.x, 0) / parents.length;
+    };
+
+    // 分組：容器 contents 群 vs 自由節點
     const groups = new Map<string, string[]>();
     for (const id of layer) {
       const parent = containerMap.get(id) ?? '';
@@ -190,32 +207,77 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
       groups.get(parent)!.push(id);
     }
 
-    // 排列順序：有父容器的群先排（按父鎖的 X 位置排序），自由節點最後
-    const parentIds = [...groups.keys()].filter(k => k !== '');
-    parentIds.sort((a, b) => (nodePos.get(a)?.x ?? 0) - (nodePos.get(b)?.x ?? 0));
-    const orderedGroups: string[][] = [];
-    for (const pid of parentIds) orderedGroups.push(groups.get(pid)!);
-    if (groups.has('')) orderedGroups.push(groups.get('')!);
+    // 每群的排序鍵 = 群內最小 barycenter（容器群用父鎖 X）
+    const groupEntries: { key: string; ids: string[]; sortVal: number }[] = [];
+    for (const [key, ids] of groups) {
+      let sortVal: number;
+      if (key !== '') {
+        // 容器群：用父鎖的 X
+        sortVal = nodePos.get(key)?.x ?? Infinity;
+      } else {
+        // 自由節點群：用各自 barycenter 的最小值
+        sortVal = Math.min(...ids.map(barycenter));
+      }
+      groupEntries.push({ key, ids, sortVal });
+    }
+    groupEntries.sort((a, b) => a.sortVal - b.sortVal);
 
+    // 自由節點群內部也按 barycenter 排序
+    for (const entry of groupEntries) {
+      if (entry.key === '') {
+        entry.ids.sort((a, b) => barycenter(a) - barycenter(b));
+      }
+    }
+
+    // 分配 X 座標
     let currentX = 0;
-
-    for (const group of orderedGroups) {
-      // 如果這個群有父容器，對齊父鎖的 X
-      const parentId = containerMap.get(group[0]!);
-      if (parentId) {
-        const parentX = nodePos.get(parentId)?.x ?? currentX;
+    for (const entry of groupEntries) {
+      // 容器群：對齊父鎖 X（如果父鎖比 currentX 更右）
+      if (entry.key !== '') {
+        const parentX = nodePos.get(entry.key)?.x ?? currentX;
         if (parentX > currentX) currentX = parentX;
       }
 
-      for (const id of group) {
+      for (const id of entry.ids) {
         nodePos.set(id, { x: currentX, y });
-        const node = makeNode(id, currentX, y);
-        if (node) layoutNodes.push(node);
         currentX += NODE_W + X_GAP;
       }
-
-      currentX += CONTAINER_GAP; // 群之間的額外間距
+      currentX += CONTAINER_GAP;
     }
+  }
+
+  // ─── 第二遍（下→上）：微調 X 讓子節點影響父節點 ───
+
+  for (const r of [...sortedRanks].reverse()) {
+    const layer = rankLayers[r]!;
+    if (layer.length <= 1) continue;
+
+    // 計算每個節點的下層 barycenter
+    const childBarycenter = (id: string): number => {
+      const children = (adj[id] ?? []).map(e => e.target).filter(cid => nodePos.has(cid));
+      if (children.length === 0) return nodePos.get(id)?.x ?? 0;
+      return children.reduce((sum, cid) => sum + nodePos.get(cid)!.x, 0) / children.length;
+    };
+
+    // 保持容器群完整性，只調整自由節點順序
+    const freeIds = layer.filter(id => !containerMap.has(id));
+    if (freeIds.length <= 1) continue;
+
+    freeIds.sort((a, b) => childBarycenter(a) - childBarycenter(b));
+
+    // 收集自由節點的 X 位置，重新分配
+    const freeXPositions = freeIds.map(id => nodePos.get(id)!.x).sort((a, b) => a - b);
+    freeIds.forEach((id, i) => {
+      const pos = nodePos.get(id)!;
+      pos.x = freeXPositions[i]!;
+    });
+  }
+
+  // ─── 生成 LayoutNode ───
+
+  for (const [id, pos] of nodePos) {
+    const node = makeNode(id, pos.x, pos.y);
+    if (node) layoutNodes.push(node);
   }
 
   // ─── 邊界和群組 ───
