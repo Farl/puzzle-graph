@@ -97,6 +97,7 @@ class GeneratorContext {
     isExit: boolean = false,
     capacity: number = 0,
     volume: number = 0,
+    pickupable: boolean = false,
   ): Lock {
     const lockName = getUniqueName(variation.name, this.usedLockNames, ADJECTIVES, this.rng);
     const lock: Lock = {
@@ -114,6 +115,7 @@ class GeneratorContext {
       contents: [],
       capacity,
       volume,
+      pickupable,
       isLocked: true,
       isExit,
     };
@@ -164,12 +166,15 @@ class GeneratorContext {
 
     const targetCategory = trySpatial ? 'spatial' : 'container';
 
+    // pickupable lock 有特殊用途（轉換/合成），不參與通用容器選擇
     let candidates = this.availableLocks.filter(
-      l => l.category === targetCategory
+      l => l.category === targetCategory && !l.pickupable
         && (tryComposite ? l.requiredKeys.length > 1 : l.requiredKeys.length === 1),
     );
     if (candidates.length === 0) {
-      candidates = this.availableLocks.filter(l => l.category === targetCategory);
+      candidates = this.availableLocks.filter(
+        l => l.category === targetCategory && !l.pickupable,
+      );
     }
     if (candidates.length === 0) {
       candidates = [...this.availableLocks];
@@ -200,7 +205,8 @@ class GeneratorContext {
     if (!keyTpl) return null;
 
     const compatibleLocks = LOCK_TEMPLATES.filter(
-      l => l.category === targetCategory && l.requiredKeys.includes(keyTpl.id),
+      l => l.category === targetCategory && l.requiredKeys.includes(keyTpl.id)
+        && !l.pickupable,
     );
     if (compatibleLocks.length === 0) return null;
 
@@ -512,7 +518,8 @@ export function generatePuzzleContent(
 
         if (canWrap) {
           const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
-          const containerLock = ctx.createLock(variation, false, target.currentRoom, false, lockTemplate.capacity, lockTemplate.volume);
+          const lockPickupable = lockTemplate.pickupable === true;
+          const containerLock = ctx.createLock(variation, false, target.currentRoom, false, lockTemplate.capacity, lockTemplate.volume, lockPickupable);
           ctx.lockCount++;
           containerLock.contents.push(target.itemId);
           itemsInContainers.add(target.itemId);

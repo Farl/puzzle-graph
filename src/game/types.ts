@@ -52,6 +52,7 @@ export interface Lock {
   password?: string;
   passwordHint?: string;
   minigameConfig?: MinigameConfig;
+  pickupable: boolean;
   isLocked: boolean;
   isExit: boolean;
 }
@@ -164,4 +165,5 @@ export interface LockTemplate {
   requiredKeys: string[];       // references KeyTemplate.id
   variations: FamilyVariation[];
   minigameType?: string;
+  pickupable?: boolean;           // true = 玩家可拾取進背包（轉換鎖、合成鎖）
 }

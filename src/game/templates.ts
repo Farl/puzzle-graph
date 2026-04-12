@@ -24,17 +24,14 @@ export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   { id: 'keycard', name: '門禁磁卡', description: '一張帶有磁條的門禁卡。', type: 'tool', reusable: true, volume: 0.5 },
   { id: 'bolt_cutter', name: '破壞剪', description: '一把大型的金屬剪。', type: 'tool', reusable: true, volume: 3 },
 
-  // 固定工具（不可拾取）
+  // 固定裝置（不可拾取的鑰匙，顯示在機關區）
   { id: 'water_basin', name: '水盆', description: '一個裝滿清水的石盆，嵌在桌面上。', type: 'tool', reusable: true, pickupable: false, volume: 3 },
   { id: 'workbench', name: '工作台', description: '一張堅固的金屬工作台，上面有各種夾具和工具。', type: 'tool', reusable: true, pickupable: false, volume: 5 },
 
-  // 合成零件
+  // 合成／轉換零件（可拾取的鑰匙）
   { id: 'battery', name: '電池', description: '一顆標準的AA電池。', type: 'key', reusable: false, volume: 0.5 },
   { id: 'pipe_part', name: '水管零件', description: '一段金屬水管，看起來是某個系統的一部分。', type: 'key', reusable: false, volume: 1 },
   { id: 'wire_spool', name: '電線捲', description: '一捲絕緣電線。', type: 'key', reusable: false, volume: 1 },
-
-  // 轉換產物
-  { id: 'wet_cloth', name: '濕布', description: '一塊浸濕的布，可以用來擦拭東西。', type: 'tool', reusable: true, volume: 1 },
 ];
 
 // ─── 鎖目錄 ───
@@ -253,7 +250,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     ],
   },
 
-  // ── 狀態轉換鎖 ──
+  // ── 狀態轉換鎖（可拾取的 lock，帶到固定裝置使用）──
   {
     id: 'dry_cloth_soak', name: '乾布',
     lockedDescription: '一塊乾燥的布，如果能浸濕就好了。',
@@ -262,6 +259,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     capacity: 4, volume: 2,
     tags: ['conversion', 'water'],
     requiredKeys: ['water_basin'],
+    pickupable: true,
     variations: [
       { name: '乾布', lockMsg: '一塊乾燥的布，如果能浸濕就好了。', unlockMsg: '你把布浸入水中擰乾，現在它變成了實用的濕布。' },
       { name: '空水壺', lockMsg: '一個空的水壺，需要裝水才有用。', unlockMsg: '你把水壺浸入水中，灌滿了清水。' },
@@ -277,6 +275,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     capacity: 4, volume: 3,
     tags: ['crafting', 'assembly'],
     requiredKeys: ['battery', 'battery'],
+    pickupable: true,
     variations: [
       { name: '沒電的手電筒', lockMsg: '手電筒電池槽是空的。', unlockMsg: '你裝入電池，手電筒亮了起來！', partialMsg: '還需要更多電池。' },
     ],
