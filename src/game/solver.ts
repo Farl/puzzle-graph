@@ -24,7 +24,22 @@ export function solvePuzzle(puzzle: PuzzleDefinition): SolveResult {
   const inventory = new Set<ItemId>();
   const reachableRooms = new Set<RoomId>([startRoomId]);
   const openedLocks = new Set<LockId>();
+  const accessibleLocks = new Set<LockId>();
   const steps: string[] = [];
+
+  // 初始化：收集所有直接在房間中的鎖（room.lockIds）
+  // 嵌套在其他鎖 contents 中的鎖不在此列，需等父鎖開啟後才加入
+  const nestedLockIds = new Set<LockId>();
+  for (const lock of Object.values(locks)) {
+    for (const id of lock.contents) {
+      if (id in locks) nestedLockIds.add(id as LockId);
+    }
+  }
+  for (const lock of Object.values(locks)) {
+    if (!nestedLockIds.has(lock.id)) {
+      accessibleLocks.add(lock.id);
+    }
+  }
 
   // 初始化：未鎖的門直接開通
   for (const lock of Object.values(locks)) {
@@ -51,9 +66,10 @@ export function solvePuzzle(puzzle: PuzzleDefinition): SolveResult {
       }
     }
 
-    // Step 2：嘗試開啟所有可到達的鎖
-    for (const lock of Object.values(locks)) {
-      if (openedLocks.has(lock.id)) continue;
+    // Step 2：嘗試開啟所有可到達且可存取的鎖
+    for (const lockId of accessibleLocks) {
+      if (openedLocks.has(lockId)) continue;
+      const lock = locks[lockId]!;
       if (!reachableRooms.has(lock.roomId)) continue;
       if (!lock.isLocked) {
         openedLocks.add(lock.id);
@@ -68,10 +84,16 @@ export function solvePuzzle(puzzle: PuzzleDefinition): SolveResult {
       steps.push(`unlock: ${lock.name}`);
       progress = true;
 
-      // 釋放鎖內物品
-      for (const itemId of lock.containsItems) {
-        inventory.add(itemId);
-        steps.push(`  got: ${items[itemId]?.name ?? itemId}`);
+      // 釋放鎖內內容（物品加入背包，子鎖標記為可存取）
+      for (const id of lock.contents) {
+        if (id in items) {
+          inventory.add(id);
+          steps.push(`  got: ${items[id]?.name ?? id}`);
+        } else if (id in locks) {
+          accessibleLocks.add(id as LockId);
+          steps.push(`  revealed: ${locks[id]?.name ?? id}`);
+          progress = true;
+        }
       }
 
       // 開通空間通道

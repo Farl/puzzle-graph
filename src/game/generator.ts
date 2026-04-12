@@ -515,6 +515,255 @@ export function generatePuzzleContent(
   }
 }
 
+// ─── Phase C：整合搬移（Consolidation Pass） ───
+
+/**
+ * 計算每個實體的緊急度（urgency）。
+ * urgency(item) = 所有需要此 item 的鎖中，最小的 roomIndex。
+ * urgency(containerLock) = 其 contents 中所有實體的最小 urgency；若為空則用鎖自身的 roomIndex。
+ */
+function computeUrgency(ctx: GeneratorContext, roomIds: RoomId[]): Map<string, number> {
+  const urgency = new Map<string, number>();
+  const roomIndex = new Map<RoomId, number>();
+  for (let i = 0; i < roomIds.length; i++) {
+    roomIndex.set(roomIds[i]!, i);
+  }
+
+  // Item urgency: min roomIndex among all locks that require this item
+  for (const lock of Object.values(ctx.locks)) {
+    const lockRoomIdx = roomIndex.get(lock.roomId) ?? roomIds.length;
+    for (const itemId of lock.requiredItems) {
+      const prev = urgency.get(itemId) ?? Infinity;
+      urgency.set(itemId, Math.min(prev, lockRoomIdx));
+    }
+  }
+
+  // Items not required by any lock get urgency = their own room index
+  for (const item of Object.values(ctx.items)) {
+    if (!urgency.has(item.id)) {
+      urgency.set(item.id, roomIndex.get(item.initialRoom) ?? roomIds.length);
+    }
+  }
+
+  // Lock urgency (recursive): min urgency of contents, or own roomIndex if empty
+  function lockUrgency(lockId: LockId): number {
+    if (urgency.has(lockId)) return urgency.get(lockId)!;
+    const lock = ctx.locks[lockId]!;
+    if (lock.contents.length === 0) {
+      const val = roomIndex.get(lock.roomId) ?? roomIds.length;
+      urgency.set(lockId, val);
+      return val;
+    }
+    let minU = Infinity;
+    for (const id of lock.contents) {
+      if (id in ctx.locks) {
+        minU = Math.min(minU, lockUrgency(id as LockId));
+      } else {
+        minU = Math.min(minU, urgency.get(id) ?? Infinity);
+      }
+    }
+    urgency.set(lockId, minU);
+    return minU;
+  }
+
+  for (const lockId of Object.keys(ctx.locks)) {
+    lockUrgency(lockId as LockId);
+  }
+
+  return urgency;
+}
+
+/**
+ * 計算容器鎖的目前嵌套深度（遞迴）。
+ * item 貢獻 0 深度，lock 貢獻 1 + 其自身嵌套深度。
+ */
+function currentNestingDepth(lockId: LockId, locks: Record<LockId, Lock>): number {
+  const lock = locks[lockId];
+  if (!lock) return 0;
+  let maxChild = 0;
+  for (const id of lock.contents) {
+    if (id in locks) {
+      maxChild = Math.max(maxChild, 1 + currentNestingDepth(id as LockId, locks));
+    }
+  }
+  return maxChild;
+}
+
+/**
+ * 收集解鎖某個 lock 所需的所有前置物品與鎖（遞迴展開）。
+ * 結果包含：此鎖的 requiredItems，以及那些 item 被鎖在哪個容器裡時，
+ * 該容器的 requiredItems（遞迴）。
+ */
+function collectPrerequisites(
+  lockId: LockId,
+  locks: Record<LockId, Lock>,
+): Set<string> {
+  const result = new Set<string>();
+  const visited = new Set<LockId>();
+
+  function walk(lid: LockId): void {
+    if (visited.has(lid)) return;
+    visited.add(lid);
+    const lock = locks[lid];
+    if (!lock) return;
+    for (const itemId of lock.requiredItems) {
+      result.add(itemId);
+    }
+  }
+
+  // For each item needed to open this lock, find if it's inside a container lock
+  // and recursively collect that container's prerequisites too
+  function walkItem(itemId: ItemId): void {
+    for (const lock of Object.values(locks)) {
+      if (lock.contents.includes(itemId) && !visited.has(lock.id)) {
+        walk(lock.id);
+        // Also walk items needed for that parent lock
+        for (const reqId of lock.requiredItems) {
+          walkItem(reqId);
+        }
+      }
+    }
+  }
+
+  walk(lockId);
+  for (const itemId of locks[lockId]?.requiredItems ?? []) {
+    walkItem(itemId);
+  }
+
+  return result;
+}
+
+/**
+ * 檢查 candidate 是否為 container 的（直接或間接）前置條件。
+ * 若 candidate 是 item：檢查是否在 container 的 prerequisite 鏈中。
+ * 若 candidate 是 lock：檢查其 contents 中的任何 item 是否被 container 需要。
+ */
+function wouldCreateCycle(
+  candidateId: string,
+  containerId: LockId,
+  ctx: GeneratorContext,
+): boolean {
+  const prereqs = collectPrerequisites(containerId, ctx.locks);
+
+  // If candidate is an item directly needed
+  if (candidateId in ctx.items) {
+    return prereqs.has(candidateId);
+  }
+
+  // If candidate is a lock, check if any entity inside it (recursively) is a prerequisite
+  if (candidateId in ctx.locks) {
+    const stack: string[] = [candidateId];
+    const seen = new Set<string>();
+    while (stack.length > 0) {
+      const id = stack.pop()!;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      if (prereqs.has(id)) return true;
+      const lock = ctx.locks[id];
+      if (lock) {
+        for (const childId of lock.contents) {
+          stack.push(childId);
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Phase C 整合搬移：將地板上的物品和容器搬入現有容器中，
+ * 產生多物品容器和嵌套容器，但不建立新鎖或鑰匙。
+ */
+function consolidate(
+  ctx: GeneratorContext,
+  roomIds: RoomId[],
+  config: GeneratorConfig,
+): void {
+  const consolidationRate = config.consolidationRate ?? 0;
+  const maxNesting = config.maxNestingDepth ?? 0;
+
+  if (consolidationRate <= 0) return;
+
+  const urgency = computeUrgency(ctx, roomIds);
+
+  for (const roomId of roomIds) {
+    const room = ctx.rooms[roomId]!;
+
+    // Collect floor entities: visibleItems + container lockIds
+    const floorEntities: string[] = [
+      ...room.visibleItems,
+      ...room.lockIds.filter(lid => ctx.locks[lid]!.category === 'container'),
+    ];
+
+    // Sort by urgency DESCENDING (least urgent first)
+    floorEntities.sort((a, b) => (urgency.get(b) ?? 0) - (urgency.get(a) ?? 0));
+
+    // Get container locks in this room sorted by urgency ASCENDING (most urgent first)
+    const getContainers = () =>
+      room.lockIds
+        .filter(lid => ctx.locks[lid]!.category === 'container')
+        .sort((a, b) => (urgency.get(a) ?? 0) - (urgency.get(b) ?? 0));
+
+    for (const candidate of [...floorEntities]) {
+      if (ctx.rng.next() > consolidationRate) continue;
+
+      // Skip spatial locks (they are doors, not movable)
+      if (candidate in ctx.locks && ctx.locks[candidate]!.category === 'spatial') continue;
+
+      const candidateUrgency = urgency.get(candidate) ?? 0;
+      const candidateVolume = ctx.items[candidate]?.volume ?? ctx.locks[candidate]?.volume ?? 0;
+
+      const containers = getContainers();
+
+      for (const containerId of containers) {
+        if (containerId === candidate) continue;
+
+        const container = ctx.locks[containerId]!;
+        const containerUrgency = urgency.get(containerId) ?? 0;
+
+        // Container must be at least as urgent as candidate
+        if (containerUrgency > candidateUrgency) break;
+
+        // Dependency check: candidate must not be a prerequisite for this container
+        if (wouldCreateCycle(candidate, containerId, ctx)) continue;
+
+        // Check volume
+        let usedVolume = 0;
+        for (const id of container.contents) {
+          usedVolume += ctx.items[id]?.volume ?? ctx.locks[id]?.volume ?? 0;
+        }
+        if (usedVolume + candidateVolume > container.capacity) continue;
+
+        // Check nesting depth
+        if (candidate in ctx.locks) {
+          const candidateDepth = 1 + currentNestingDepth(candidate as LockId, ctx.locks);
+          const containerCurrentDepth = currentNestingDepth(containerId, ctx.locks);
+          if (containerCurrentDepth + candidateDepth > maxNesting) continue;
+        }
+
+        // Move candidate into container
+        container.contents.push(candidate);
+
+        // Remove candidate from room floor
+        if (candidate in ctx.items) {
+          const idx = room.visibleItems.indexOf(candidate);
+          if (idx !== -1) room.visibleItems.splice(idx, 1);
+        } else if (candidate in ctx.locks) {
+          const idx = room.lockIds.indexOf(candidate);
+          if (idx !== -1) room.lockIds.splice(idx, 1);
+        }
+
+        // Update container's urgency
+        const newUrgency = Math.min(urgency.get(containerId) ?? Infinity, candidateUrgency);
+        urgency.set(containerId, newUrgency);
+
+        break;
+      }
+    }
+  }
+}
+
 // ─── 主生成函式 ───
 
 export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
@@ -523,6 +772,7 @@ export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
   const rng = new SeededRandom(config.seed);
   const { ctx, roomIds, startRoomId, exitLockId, floorItems } = generateRoomSkeleton(config, rng);
   generatePuzzleContent(config, ctx, roomIds, floorItems);
+  consolidate(ctx, roomIds, config);
 
   return {
     rooms: ctx.rooms,
