@@ -133,26 +133,28 @@ for (const { name, config } of CONFIGS) {
       }
     });
 
-    it('no excessive X gaps within same Y layer (max 3x NODE_W)', () => {
+    it('no excessive X gaps within same room and Y layer', () => {
       for (let i = 0; i < RUNS_PER_CONFIG; i++) {
         const puzzle = generatePuzzle(config);
         const layout = buildGraphLayout(puzzle);
 
-        const byY = new Map<number, typeof layout.nodes>();
+        // 按房間 + Y 分群（房間之間的間距是合理的，不檢查）
+        const key = (n: typeof layout.nodes[0]) => `${n.roomId}:${n.y}`;
+        const groups = new Map<string, typeof layout.nodes>();
         for (const n of layout.nodes) {
-          if (!byY.has(n.y)) byY.set(n.y, []);
-          byY.get(n.y)!.push(n);
+          const k = key(n);
+          if (!groups.has(k)) groups.set(k, []);
+          groups.get(k)!.push(n);
         }
 
-        for (const [y, nodes] of byY) {
+        for (const [, nodes] of groups) {
           if (nodes.length <= 1) continue;
           nodes.sort((a, b) => a.x - b.x);
           for (let j = 1; j < nodes.length; j++) {
             const gap = nodes[j]!.x - (nodes[j - 1]!.x + NODE_W);
-            // 容器框推開可能造成合理的間距，但不應超過 3 個節點寬度
             expect(
               gap <= NODE_W * 3 + MIN_GAP * 3,
-              `seed ${puzzle.seed}: excessive gap ${gap}px at Y=${y} between "${nodes[j - 1]!.name}" and "${nodes[j]!.name}"`,
+              `seed ${puzzle.seed}: excessive gap ${gap}px between "${nodes[j - 1]!.name}" and "${nodes[j]!.name}"`,
             ).toBe(true);
           }
         }
