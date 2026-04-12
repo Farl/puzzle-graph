@@ -508,24 +508,21 @@ export function generatePuzzleContent(
       }
     }
 
-    // targetDepth 作為通用容器鎖預算（狀態鎖不受此限制）
     const depthBudgetReached = ctx.lockCount >= config.targetDepth;
     const lockLimitReached = config.maxLocks != null && ctx.lockCount >= config.maxLocks;
-    const canUseGenericLock = !depthBudgetReached && !lockLimitReached;
+    const canWrapMore = !depthBudgetReached && !lockLimitReached;
 
-    if ((stateLockTemplate || canUseGenericLock) && !itemsInContainers.has(target.itemId)) {
+    if (canWrapMore && !itemsInContainers.has(target.itemId)) {
       const MAX_WRAP_ATTEMPTS = 5;
       let wrapped = false;
 
       for (let attempt = 0; attempt < MAX_WRAP_ATTEMPTS; attempt++) {
-        // 狀態鎖優先（attempt 0），之後才用通用模板（需要預算）
+        // 狀態鎖優先（attempt 0），之後用通用模板
         let lockTemplate: LockTemplate;
         if (attempt === 0 && stateLockTemplate) {
           lockTemplate = stateLockTemplate;
-        } else if (canUseGenericLock) {
-          lockTemplate = ctx.selectLock(false, ctx.rng.next() < config.compositeRate, config, itemsInContainers);
         } else {
-          break; // 無狀態鎖且預算用完，不再嘗試
+          lockTemplate = ctx.selectLock(false, ctx.rng.next() < config.compositeRate, config, itemsInContainers);
         }
 
         // 驗證鎖模板的 reusable tool 依賴是否合法
