@@ -482,42 +482,47 @@ export function generatePuzzleContent(
   while (queue.length > 0) {
     const target = queue.shift()!;
 
-    // targetDepth 作為全域 container 鎖預算（控制整體解謎長度，而非單條鏈深度）
-    const depthBudgetReached = ctx.lockCount >= config.targetDepth;
-    const lockLimitReached = config.maxLocks != null && ctx.lockCount >= config.maxLocks;
+    const eligibleRooms = new Set(roomIds.slice(0, target.criticalRoomIndex));
+    const maxReuses = config.maxReusesPerTool ?? Infinity;
+    const crossRoomRate = config.crossRoomRate ?? 0;
 
-    if (!depthBudgetReached && !lockLimitReached) {
-      const eligibleRooms = new Set(roomIds.slice(0, target.criticalRoomIndex));
-
-      // ── 狀態鎖優先：若物品有 stateTags 且命中 stateLockRate，嘗試用狀態鎖包裹 ──
-      const stateLockRate = config.stateLockRate ?? 0;
-      let stateLockTemplate: LockTemplate | null = null;
-      if (stateLockRate > 0 && ctx.rng.next() < stateLockRate) {
-        const item = ctx.items[target.itemId];
-        if (item) {
-          const keyTpl = keyTplByName.get(item.name);
-          if (keyTpl?.stateTags && keyTpl.stateTags.length > 0) {
-            const matching = stateLockTemplates.filter(lt =>
-              lt.stateTags!.some(tag => keyTpl.stateTags!.includes(tag)),
-            );
-            if (matching.length > 0) {
-              stateLockTemplate = matching[ctx.rng.nextInt(matching.length)]!;
-            }
+    // ── 狀態鎖（不受 targetDepth 限制，代表合成/狀態轉換而非謎題深度）──
+    const stateLockRate = config.stateLockRate ?? 0;
+    let stateLockTemplate: LockTemplate | null = null;
+    if (stateLockRate > 0 && ctx.rng.next() < stateLockRate) {
+      const item = ctx.items[target.itemId];
+      if (item) {
+        const keyTpl = keyTplByName.get(item.name);
+        if (keyTpl?.stateTags && keyTpl.stateTags.length > 0) {
+          const matching = stateLockTemplates.filter(lt =>
+            lt.stateTags!.some(tag => keyTpl.stateTags!.includes(tag)),
+          );
+          if (matching.length > 0) {
+            stateLockTemplate = matching[ctx.rng.nextInt(matching.length)]!;
           }
         }
       }
+    }
 
-      // 嘗試多次選取合法模板（避免單次 canWrap 失敗就放棄）
+    // targetDepth 作為通用容器鎖預算（狀態鎖不受此限制）
+    const depthBudgetReached = ctx.lockCount >= config.targetDepth;
+    const lockLimitReached = config.maxLocks != null && ctx.lockCount >= config.maxLocks;
+    const canUseGenericLock = !depthBudgetReached && !lockLimitReached;
+
+    if (stateLockTemplate || canUseGenericLock) {
       const MAX_WRAP_ATTEMPTS = 5;
-      const maxReuses = config.maxReusesPerTool ?? Infinity;
-      const crossRoomRate = config.crossRoomRate ?? 0;
       let wrapped = false;
 
       for (let attempt = 0; attempt < MAX_WRAP_ATTEMPTS; attempt++) {
-        // 第一次嘗試用狀態鎖（如果有配對的話），之後回到通用模板
-        const lockTemplate = (attempt === 0 && stateLockTemplate)
-          ? stateLockTemplate
-          : ctx.selectLock(false, ctx.rng.next() < config.compositeRate, config, itemsInContainers);
+        // 狀態鎖優先（attempt 0），之後才用通用模板（需要預算）
+        let lockTemplate: LockTemplate;
+        if (attempt === 0 && stateLockTemplate) {
+          lockTemplate = stateLockTemplate;
+        } else if (canUseGenericLock) {
+          lockTemplate = ctx.selectLock(false, ctx.rng.next() < config.compositeRate, config, itemsInContainers);
+        } else {
+          break; // 無狀態鎖且預算用完，不再嘗試
+        }
 
         // 驗證鎖模板的 reusable tool 依賴是否合法
         // - 直接循環：模板需要的工具就是正在被包裹的物品本身
@@ -545,7 +550,7 @@ export function generatePuzzleContent(
           const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
           const lockPickupable = lockTemplate.pickupable === true;
           const containerLock = ctx.createLock(variation, false, lockRoomId, false, lockTemplate.capacity, lockTemplate.volume, lockPickupable);
-          ctx.lockCount++;
+          if (!lockPickupable) ctx.lockCount++;  // 狀態鎖不消耗深度預算
           containerLock.contents.push(target.itemId);
           itemsInContainers.add(target.itemId);
           ctx.items[target.itemId]!.initialRoom = lockRoomId;
