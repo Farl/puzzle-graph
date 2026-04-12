@@ -176,14 +176,23 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     if (!visited.has(rid)) roomOrder.push(rid);
   }
 
-  // ─── 房間分區佈局（兩階段）───
-  // Phase 1：排自由節點（不在容器內的鎖和物品）
-  // Phase 2：content 節點貼在它們的容器鎖旁邊（不參與全域 rank 排列）
+  // ─── 房間分區佈局 ───
+  // 容器鎖 + 其 content 作為一個區塊佔位，地板物品排在旁邊
+  // content 節點不參與全域 rank 排列，貼在鎖的右側
+
+  const CONTENT_X_OFFSET = NODE_W + GROUP_PAD;  // content 在鎖的右側
 
   const layoutNodes: LayoutNode[] = [];
-  const nodePos = new Map<string, { x: number; y: number }>();
-
   const containedIds = new Set(containerMap.keys());
+
+  // 每個容器鎖的 content 數量（決定它佔幾格高度）
+  const lockContentCount = new Map<string, number>();
+  for (const lock of allLocks) {
+    if (lock.contents.length > 0) {
+      const validContents = lock.contents.filter(id => nodeIds.includes(id));
+      if (validContents.length > 0) lockContentCount.set(lock.id, validContents.length);
+    }
+  }
 
   // 收集每個房間的自由節點（不在任何容器內）
   const roomFreeNodes: Record<string, string[]> = {};
@@ -210,13 +219,13 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     };
   };
 
-  // Phase 1：排自由節點
   let roomStartX = 0;
 
   for (const rid of roomOrder) {
     const freeIds = roomFreeNodes[rid]!;
     if (freeIds.length === 0) continue;
 
+    // 按 rank 分組
     const rankGroups: Record<number, string[]> = {};
     for (const id of freeIds) {
       const r = ranks[id] ?? 0;
@@ -230,38 +239,48 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
 
     for (const r of sortedRanks) {
       const group = rankGroups[r]!;
-      const startY = -((group.length - 1) * Y_GAP) / 2;
 
+      // 計算每個節點佔的 Y 格數（容器鎖佔 max(1, contentCount) 格）
+      const slotHeights = group.map(id => Math.max(1, lockContentCount.get(id) ?? 1));
+      const totalSlots = slotHeights.reduce((sum, h) => sum + h, 0);
+      const startY = -((totalSlots - 1) * Y_GAP) / 2;
+
+      let ySlot = 0;
       group.forEach((id, index) => {
         const x = roomStartX + localCol * X_GAP;
-        const y = startY + index * Y_GAP;
-        nodePos.set(id, { x, y });
+        const y = startY + ySlot * Y_GAP;
+
+        // 放置自由節點
         const node = makeLayoutNode(id, x, y, rid);
         if (node) layoutNodes.push(node);
+
+        // 如果是容器鎖，放置 content 節點在右側
+        const contentCount = lockContentCount.get(id);
+        if (contentCount) {
+          const lock = puzzle.locks[id]!;
+          let ci = 0;
+          for (const childId of lock.contents) {
+            if (!nodeIds.includes(childId)) continue;
+            const cx = x + CONTENT_X_OFFSET;
+            const cy = y + ci * Y_GAP;
+            const childRid = nodeRoom(childId);
+            const childNode = makeLayoutNode(childId, cx, cy, childRid);
+            if (childNode) layoutNodes.push(childNode);
+            if (cx + NODE_W > roomMaxX) roomMaxX = cx + NODE_W;
+            ci++;
+          }
+        }
+
         if (x + NODE_W > roomMaxX) roomMaxX = x + NODE_W;
+        ySlot += slotHeights[index]!;
       });
 
-      localCol++;
+      // 這個 rank 列佔 2 欄寬度（鎖 + content），如果有任何容器鎖的話
+      const hasContainers = group.some(id => lockContentCount.has(id));
+      localCol += hasContainers ? 2 : 1;
     }
 
     roomStartX = roomMaxX + ROOM_GAP;
-  }
-
-  // Phase 2：content 節點貼在容器鎖下方
-  for (const lock of allLocks) {
-    if (lock.category !== 'container' || lock.contents.length === 0) continue;
-    const lockP = nodePos.get(lock.id);
-    if (!lockP) continue;
-
-    lock.contents.forEach((childId, i) => {
-      if (!nodeIds.includes(childId)) return;
-      const x = lockP.x + NODE_W + GROUP_PAD;
-      const y = lockP.y + (i * Y_GAP);
-      nodePos.set(childId, { x, y });
-      const rid = nodeRoom(childId);
-      const node = makeLayoutNode(childId, x, y, rid);
-      if (node) layoutNodes.push(node);
-    });
   }
 
   // ─── 計算邊界和群組 ───
@@ -293,13 +312,15 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     roomGroups.push({ roomId: rid, roomName: room.name, ...box });
   }
 
-  // 容器 group 只框內容物（不含鎖本身），避免跨 rank 的大框覆蓋不相關節點
+  // 容器 group 框住鎖 + 內容物（一個完整區塊）
   const containerGroups: ContainerGroup[] = [];
   for (const lock of allLocks) {
     if (lock.category !== 'container' || lock.contents.length === 0) continue;
     const childNodes = layoutNodes.filter(n => containerMap.get(n.id) === lock.id);
-    if (childNodes.length === 0) continue;
-    const box = boundingBox(childNodes, GROUP_PAD / 2);
+    const lockNode = layoutNodes.find(n => n.id === lock.id);
+    const allGroupNodes = lockNode ? [lockNode, ...childNodes] : childNodes;
+    if (allGroupNodes.length === 0) continue;
+    const box = boundingBox(allGroupNodes, GROUP_PAD / 2);
     containerGroups.push({ lockId: lock.id, lockName: lock.name, roomId: lock.roomId, ...box });
   }
 
