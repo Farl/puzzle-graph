@@ -13,6 +13,7 @@ import type {
 import { ROOM_THEMES, ADJECTIVES } from './families';
 import { KEY_TEMPLATES, LOCK_TEMPLATES, findKeyTemplate } from './templates';
 import { SeededRandom, shuffle, getUniqueName, PasswordFormatPool, generateId, resetIdCounter } from './utils';
+import { generateMinigameConfig } from './minigames';
 
 // ─── Phase B BFS 佇列項目 ───
 
@@ -269,6 +270,10 @@ function enqueueKeysForLock(
 ): void {
   const lock = ctx.locks[lockId]!;
   lock.mechanism = lockTemplate.mechanism;
+
+  if (lockTemplate.mechanism === 'minigame' && lockTemplate.minigameType) {
+    lock.minigameConfig = generateMinigameConfig(lockTemplate.minigameType, ctx.rng);
+  }
 
   const isPasswordLock = lockTemplate.mechanism === 'password';
   if (isPasswordLock) {
