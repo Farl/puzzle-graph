@@ -331,6 +331,71 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     for (const pos of nodePos.values()) pos.x -= minX;
   }
 
+  // ─── 第五遍：容器框避讓 — 非容器節點避開容器 bounding box 區域 ───
+
+  type Box = { x: number; y: number; width: number; height: number };
+
+  const posBox = (ids: string[], pad: number): Box | null => {
+    const positions = ids.map(id => nodePos.get(id)).filter((p): p is { x: number; y: number } => !!p);
+    if (positions.length === 0) return null;
+    const x = Math.min(...positions.map(p => p.x)) - pad;
+    const y = Math.min(...positions.map(p => p.y)) - pad;
+    return {
+      x, y,
+      width: Math.max(...positions.map(p => p.x + NODE_W)) + pad - x,
+      height: Math.max(...positions.map(p => p.y + NODE_H)) + pad - y,
+    };
+  };
+
+  // 收集所有容器群的 ID 和 bounding box
+  const containerGroupData: { lockId: string; memberIds: Set<string>; box: Box }[] = [];
+  for (const lock of allLocks) {
+    if (lock.category !== 'container' || lock.contents.length === 0) continue;
+    if (!nodePos.has(lock.id)) continue;
+    const childIds = lock.contents.filter(id => nodePos.has(id));
+    if (childIds.length === 0) continue;
+    const memberIds = new Set([lock.id, ...childIds]);
+    const box = posBox([...memberIds], GROUP_PAD / 2);
+    if (box) containerGroupData.push({ lockId: lock.id, memberIds, box });
+  }
+
+  // 迭代推開（最多 10 輪避免無限循環）
+  for (let iter = 0; iter < 10; iter++) {
+    let anyPushed = false;
+
+    for (const cg of containerGroupData) {
+      for (const [id, pos] of nodePos) {
+        if (cg.memberIds.has(id)) continue;
+        // 檢查碰撞
+        if (pos.x + NODE_W > cg.box.x && pos.x < cg.box.x + cg.box.width
+          && pos.y + NODE_H > cg.box.y && pos.y < cg.box.y + cg.box.height) {
+          pos.x = cg.box.x + cg.box.width + X_GAP;
+          anyPushed = true;
+        }
+      }
+    }
+
+    if (!anyPushed) break;
+
+    // 重跑同 Y 碰撞解決
+    for (const [, ids] of rankNodes) {
+      if (ids.length <= 1) continue;
+      ids.sort((a, b) => nodePos.get(a)!.x - nodePos.get(b)!.x);
+      for (let i = 1; i < ids.length; i++) {
+        const prev = nodePos.get(ids[i - 1]!)!;
+        const curr = nodePos.get(ids[i]!)!;
+        const minRight = prev.x + NODE_W + X_GAP;
+        if (curr.x < minRight) curr.x = minRight;
+      }
+    }
+
+    // 更新容器框
+    for (const cg of containerGroupData) {
+      const newBox = posBox([...cg.memberIds], GROUP_PAD / 2);
+      if (newBox) cg.box = newBox;
+    }
+  }
+
   // ─── 生成 LayoutNode ───
 
   for (const [id, pos] of nodePos) {
@@ -366,34 +431,12 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     roomGroups.push({ roomId, roomName: room.name, ...box });
   }
 
-  // 容器 group：只有 lock 和 content 在相鄰 rank 時才畫框
-  // 跨多層的容器用 contains 邊表達，不畫 bounding box（避免框到不相關節點）
-  const containerGroups: ContainerGroup[] = [];
-  for (const lock of allLocks) {
-    if (lock.category !== 'container' || lock.contents.length === 0) continue;
-    const lockNode = layoutNodes.find(n => n.id === lock.id);
-    if (!lockNode) continue;
-    const childNodes = layoutNodes.filter(n => containerMap.get(n.id) === lock.id);
-    if (childNodes.length === 0) continue;
-
-    // 只在 lock 和所有 content 的 Y 距離 <= 1 層時才畫框
-    const maxChildY = Math.max(...childNodes.map(n => n.y));
-    const rankStep = NODE_H + Y_GAP;
-    if (maxChildY - lockNode.y > rankStep * 1.5) continue;
-
-    // 確認框內沒有不相關的節點
-    const groupNodes = [lockNode, ...childNodes];
-    const box = boundingBox(groupNodes, GROUP_PAD / 2);
-    const groupIds = new Set(groupNodes.map(n => n.id));
-    const hasIntruder = layoutNodes.some(n =>
-      !groupIds.has(n.id)
-      && n.x + NODE_W > box.x && n.x < box.x + box.width
-      && n.y + NODE_H > box.y && n.y < box.y + box.height,
-    );
-    if (hasIntruder) continue;
-
-    containerGroups.push({ lockId: lock.id, lockName: lock.name, roomId: lock.roomId, ...box });
-  }
+  const containerGroups: ContainerGroup[] = containerGroupData.map(cg => ({
+    lockId: cg.lockId,
+    lockName: puzzle.locks[cg.lockId]!.name,
+    roomId: puzzle.locks[cg.lockId]!.roomId,
+    ...cg.box,
+  }));
 
   return { nodes: layoutNodes, edges, bounds: { maxX, maxY }, roomGroups, containerGroups };
 }
