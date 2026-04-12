@@ -44,9 +44,7 @@ function loadConfig(): GeneratorConfig {
 
 function saveConfig(config: GeneratorConfig): void {
   try {
-    // seed 不存入 localStorage（每次應重新隨機或由使用者指定）
-    const { seed: _, ...rest } = config;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
   } catch { /* quota exceeded etc. */ }
 }
 
