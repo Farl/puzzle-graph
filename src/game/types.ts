@@ -100,32 +100,26 @@ export interface GameState {
 
 // ─── 生成器配置 ───
 
-export type TagDiversityMode = 'weighted' | 'balanced' | 'no-repeat';
-
 export interface GeneratorConfig {
   targetDepth: number;
   maxRooms: number;
-  compositeRate: number;
   depthStaggerVariance: number;
 
-  // ── 種子 ──
-  seed?: number;              // 亂數種子，不指定則隨機生成（結果會記錄在 PuzzleDefinition.seed）
-
-  // ── Phase 3：兩階段生成 ──
-  keySpreadRate?: number;   // 0-1，Phase A 鑰匙放置的分散程度（0=緊鄰門，1=任意合法房間）
-  crossRoomRate?: number;   // 0-1，Phase B 容器鎖鑰匙跨房間放置的機率（0=同房間，1=任意合法房間）
-
-  // ── Phase 2：選擇演算法 ──
-  maxLocks?: number;                         // 鎖總量上限（不含出口鎖和返回門），與 targetDepth 互補，先到先停
-  tagWeights?: Record<string, number>;       // tag 加權 { 'password': 0.3 }
-  tagDiversityMode?: TagDiversityMode;       // 'weighted' | 'balanced' | 'no-repeat'
-  reuseRate?: number;                        // 0-1，已有可重複工具時復用的機率
-  maxReusesPerTool?: number;                 // 每個工具最多被幾把鎖共用
+  seed?: number;
+  keySpreadRate?: number;
+  crossRoomRate?: number;
+  maxLocks?: number;
+  reuseRate?: number;
+  maxReusesPerTool?: number;
   maxNestingDepth?: number;
   consolidationRate?: number;
+  stateLockRate?: number;
 
-  // ── Phase D：狀態鎖 ──
-  stateLockRate?: number;                    // 0-1，地板物品被狀態鎖包裹的機率
+  compositeRate?: number;
+  /** @deprecated 不再使用 */
+  tagDiversityMode?: string;
+  /** @deprecated 不再使用 */
+  tagWeights?: Record<string, number>;
 }
 
 // ─── 變體與主題 ───

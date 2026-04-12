@@ -51,8 +51,6 @@ class GeneratorContext {
   usedLockNames = new Set<string>();
   passwordPool: PasswordFormatPool;
   lockCount = 0;
-  tagUsageCount: Record<string, number> = {};
-  lastSelectedTags: string[] = [];
   toolReuseCount: Record<ItemId, number> = {};
 
   constructor(maxRooms: number, rng: SeededRandom) {
@@ -152,47 +150,62 @@ class GeneratorContext {
     return this.createItem(keyName, false, volume, undefined, pickupable);
   }
 
-  /** 確認選取：從池中移除模板並更新 tag 追蹤 */
-  private commitSelection(selected: LockTemplate): void {
-    const idx = this.availableLocks.indexOf(selected);
-    if (idx !== -1) this.availableLocks.splice(idx, 1);
-    for (const tag of selected.tags) {
-      this.tagUsageCount[tag] = (this.tagUsageCount[tag] ?? 0) + 1;
-    }
-    this.lastSelectedTags = selected.tags;
-  }
-
-  /** 從模板池中選擇匹配的鎖模板 */
-  selectLock(trySpatial: boolean, tryComposite: boolean, config: GeneratorConfig, lockedItems?: Set<ItemId>): LockTemplate {
-    // ── 復用路徑：嘗試用已有的 reusable tool 開新鎖 ──
+  /**
+   * 從 shuffle 牌堆抽一個合法的鎖模板。
+   * 統一處理狀態鎖、組合鎖、單鑰匙鎖：
+   *   1. 過濾所有合法候選
+   *   2. 有狀態鎖候選 → 按 stateLockRate 決定
+   *   3. 不用狀態鎖 → 按 compositeRate 在組合鎖和單鑰匙鎖之間選
+   *   4. 從選中的類別裡隨機抽一個，從牌堆移除
+   */
+  drawLock(
+    trySpatial: boolean,
+    config: GeneratorConfig,
+    lockedItems?: Set<ItemId>,
+    isValid?: (tpl: LockTemplate) => boolean,
+    stateLockCandidates?: LockTemplate[],
+  ): LockTemplate | null {
+    // 復用路徑
     if (config.reuseRate != null && config.reuseRate > 0 && this.rng.next() < config.reuseRate) {
       const reuseLock = this.tryReusePath(trySpatial, config, lockedItems);
-      if (reuseLock) return reuseLock;
-    }
-
-    if (this.availableLocks.length === 0) {
-      this.availableLocks = shuffle([...LOCK_TEMPLATES], this.rng);
+      if (reuseLock && (!isValid || isValid(reuseLock))) return reuseLock;
     }
 
     const targetCategory = trySpatial ? 'spatial' : 'container';
 
-    // pickupable lock 有特殊用途（轉換/合成），不參與通用容器選擇
-    let candidates = this.availableLocks.filter(
-      l => l.category === targetCategory && !l.pickupable
-        && (tryComposite ? l.requiredKeys.length > 1 : l.requiredKeys.length === 1),
-    );
-    if (candidates.length === 0) {
-      candidates = this.availableLocks.filter(
-        l => l.category === targetCategory && !l.pickupable,
-      );
-    }
-    if (candidates.length === 0) {
-      candidates = [...this.availableLocks];
-    }
+    const drawFrom = (deck: LockTemplate[]): LockTemplate | null => {
+      const valid = deck
+        .map((tpl, i) => ({ tpl, i }))
+        .filter(({ tpl }) => tpl.category === targetCategory && !tpl.pickupable && (!isValid || isValid(tpl)));
+      if (valid.length === 0 && (!stateLockCandidates || stateLockCandidates.length === 0)) return null;
 
-    const selected = this.weightedSelect(candidates, config);
-    this.commitSelection(selected);
-    return selected;
+      // 合法狀態鎖候選（已在外部過濾 isValid）
+      const validStateLocks = stateLockCandidates?.filter(tpl => !isValid || isValid(tpl)) ?? [];
+
+      // 有狀態鎖 → 按 stateLockRate 決定
+      if (validStateLocks.length > 0 && (valid.length === 0 || this.rng.next() < (config.stateLockRate ?? 0))) {
+        return validStateLocks[this.rng.nextInt(validStateLocks.length)]!;
+      }
+
+      if (valid.length === 0) return null;
+
+      // 按 compositeRate 決定組合鎖或單鑰匙鎖
+      const composites = valid.filter(v => v.tpl.requiredKeys.length > 1);
+      const singles = valid.filter(v => v.tpl.requiredKeys.length <= 1);
+      const useComposite = composites.length > 0 && (singles.length === 0 || this.rng.next() < (config.compositeRate ?? 0));
+      const pool = useComposite ? composites : (singles.length > 0 ? singles : valid);
+      const pick = pool[this.rng.nextInt(pool.length)]!;
+
+      deck.splice(pick.i, 1);
+      return pick.tpl;
+    };
+
+    let result = drawFrom(this.availableLocks);
+    if (!result) {
+      this.availableLocks = shuffle([...LOCK_TEMPLATES], this.rng);
+      result = drawFrom(this.availableLocks);
+    }
+    return result;
   }
 
   /** 嘗試復用已有的 reusable tool 來選擇相容的鎖 */
@@ -220,45 +233,9 @@ class GeneratorContext {
     );
     if (compatibleLocks.length === 0) return null;
 
-    const selected = compatibleLocks[this.rng.nextInt(compatibleLocks.length)]!;
-    this.commitSelection(selected);
-    return selected;
+    return compatibleLocks[this.rng.nextInt(compatibleLocks.length)]!;
   }
 
-  /** 根據 tagDiversityMode 加權抽選候選鎖 */
-  private weightedSelect(candidates: LockTemplate[], config: GeneratorConfig): LockTemplate {
-    const mode = config.tagDiversityMode;
-
-    if (!mode || candidates.length <= 1) {
-      return candidates[this.rng.nextInt(candidates.length)]!;
-    }
-
-    const weights = candidates.map(c => {
-      let w = 1.0;
-
-      if (mode === 'balanced') {
-        const minUsage = Math.min(...c.tags.map(t => this.tagUsageCount[t] ?? 0));
-        w = 1.0 / (1 + minUsage);
-      } else if (mode === 'weighted' && config.tagWeights) {
-        const tagW = c.tags.reduce((sum, t) => sum + (config.tagWeights![t] ?? 1.0), 0);
-        w = tagW / c.tags.length;
-      } else if (mode === 'no-repeat') {
-        const overlap = c.tags.filter(t => this.lastSelectedTags.includes(t)).length;
-        w = 1.0 / (1 + overlap * 2);
-      }
-
-      return Math.max(w, 0.01);
-    });
-
-    // 加權隨機抽選
-    const totalWeight = weights.reduce((a, b) => a + b, 0);
-    let r = this.rng.next() * totalWeight;
-    for (let i = 0; i < candidates.length; i++) {
-      r -= weights[i]!;
-      if (r <= 0) return candidates[i]!;
-    }
-    return candidates[candidates.length - 1]!;
-  }
 }
 
 // ─── 工具函式 ───
@@ -398,7 +375,7 @@ export function generateRoomSkeleton(config: GeneratorConfig, rng: SeededRandom)
     const fromRoomId = roomIds[i]!;
     const toRoomId = roomIds[i + 1]!;
 
-    const lockTemplate = ctx.selectLock(true, false, config);
+    const lockTemplate = ctx.drawLock(true, config)!;
     const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
 
     const doorLock = ctx.createLock(variation, true, fromRoomId, false, 0, 0);
@@ -490,46 +467,14 @@ export function generatePuzzleContent(
     const maxReuses = config.maxReusesPerTool ?? Infinity;
     const crossRoomRate = config.crossRoomRate ?? 0;
 
-    // ── 狀態鎖（不受 targetDepth 限制，代表合成/狀態轉換而非謎題深度）──
-    const stateLockRate = config.stateLockRate ?? 0;
-    let stateLockTemplate: LockTemplate | null = null;
-    if (stateLockRate > 0 && ctx.rng.next() < stateLockRate) {
-      const item = ctx.items[target.itemId];
-      if (item) {
-        const keyTpl = keyTplByName.get(item.name);
-        if (keyTpl?.stateTags && keyTpl.stateTags.length > 0) {
-          const matching = stateLockTemplates.filter(lt =>
-            lt.stateTags!.some(tag => keyTpl.stateTags!.includes(tag)),
-          );
-          if (matching.length > 0) {
-            stateLockTemplate = matching[ctx.rng.nextInt(matching.length)]!;
-          }
-        }
-      }
-    }
-
     const depthBudgetReached = ctx.lockCount >= config.targetDepth;
     const lockLimitReached = config.maxLocks != null && ctx.lockCount >= config.maxLocks;
     const canWrapMore = !depthBudgetReached && !lockLimitReached;
 
     if (canWrapMore && !itemsInContainers.has(target.itemId)) {
-      const MAX_WRAP_ATTEMPTS = 5;
-      let wrapped = false;
-
-      for (let attempt = 0; attempt < MAX_WRAP_ATTEMPTS; attempt++) {
-        // 狀態鎖優先（attempt 0），之後用通用模板
-        let lockTemplate: LockTemplate;
-        if (attempt === 0 && stateLockTemplate) {
-          lockTemplate = stateLockTemplate;
-        } else {
-          lockTemplate = ctx.selectLock(false, ctx.rng.next() < config.compositeRate, config, itemsInContainers);
-        }
-
-        // 驗證鎖模板的 reusable tool 依賴是否合法
-        // - 直接循環：模板需要的工具就是正在被包裹的物品本身
-        // - 空間錯誤：工具已放在 criticalRoomIndex 範圍外
-        // - 間接循環：stationary tool 被鎖在容器內
-        const canWrap = lockTemplate.requiredKeys.every(keyTplId => {
+      // reusable tool 依賴合法性檢查
+      const isTemplateValid = (tpl: LockTemplate): boolean =>
+        tpl.requiredKeys.every(keyTplId => {
           const keyTpl = findKeyTemplate(keyTplId)!;
           if (!keyTpl.reusable) return true;
           if (ctx.reusableItemCache[keyTpl.name] === target.itemId) return false;
@@ -543,38 +488,45 @@ export function generatePuzzleContent(
           return eligibleRooms.has(placedRoom);
         });
 
-        if (canWrap) {
-          // 容器鎖的房間：crossRoomRate 機率搬到其他 eligible 房間（分散內容）
-          const eligibleList = roomIds.slice(0, target.criticalRoomIndex);
-          const lockRoomId = pickRoom(eligibleList, eligibleList.indexOf(target.currentRoom), crossRoomRate, ctx);
-
-          const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
-          const lockPickupable = lockTemplate.pickupable === true;
-          const containerLock = ctx.createLock(variation, false, lockRoomId, false, lockTemplate.capacity, lockTemplate.volume, lockPickupable, lockTemplate.stateTags);
-          ctx.lockCount++;
-          containerLock.contents.push(target.itemId);
-          itemsInContainers.add(target.itemId);
-          ctx.items[target.itemId]!.initialRoom = lockRoomId;
-
-          // 從原房間移除物品（如果在那裡）
-          const origRoom = ctx.rooms[target.currentRoom]!;
-          const vIdx = origRoom.visibleItems.indexOf(target.itemId);
-          if (vIdx !== -1) origRoom.visibleItems.splice(vIdx, 1);
-
-          // 容器鎖放到目標房間
-          ctx.rooms[lockRoomId]!.lockIds.push(containerLock.id);
-
-          // 更新 target 的房間（影響子鑰匙放置）
-          target.currentRoom = lockRoomId;
-          target.currentRoomIndex = roomIds.indexOf(lockRoomId);
-
-          enqueueKeysForLock(ctx, containerLock.id, lockTemplate, target, config, roomIds, queue);
-          wrapped = true;
-          break;
+      // 找配對的狀態鎖候選（tag 匹配）
+      let stateLockCandidates: LockTemplate[] = [];
+      const item = ctx.items[target.itemId];
+      if (item) {
+        const keyTpl = keyTplByName.get(item.name);
+        if (keyTpl?.stateTags && keyTpl.stateTags.length > 0) {
+          stateLockCandidates = stateLockTemplates.filter(lt =>
+            lt.stateTags!.some(tag => keyTpl.stateTags!.includes(tag)),
+          );
         }
       }
 
-      if (wrapped) continue;
+      // 統一抽選：狀態鎖 / 組合鎖 / 單鑰匙鎖
+      const lockTemplate = ctx.drawLock(false, config, itemsInContainers, isTemplateValid, stateLockCandidates);
+
+      if (lockTemplate) {
+        const eligibleList = roomIds.slice(0, target.criticalRoomIndex);
+        const lockRoomId = pickRoom(eligibleList, eligibleList.indexOf(target.currentRoom), crossRoomRate, ctx);
+
+        const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
+        const lockPickupable = lockTemplate.pickupable === true;
+        const containerLock = ctx.createLock(variation, false, lockRoomId, false, lockTemplate.capacity, lockTemplate.volume, lockPickupable, lockTemplate.stateTags);
+        ctx.lockCount++;
+        containerLock.contents.push(target.itemId);
+        itemsInContainers.add(target.itemId);
+        ctx.items[target.itemId]!.initialRoom = lockRoomId;
+
+        const origRoom = ctx.rooms[target.currentRoom]!;
+        const vIdx = origRoom.visibleItems.indexOf(target.itemId);
+        if (vIdx !== -1) origRoom.visibleItems.splice(vIdx, 1);
+
+        ctx.rooms[lockRoomId]!.lockIds.push(containerLock.id);
+
+        target.currentRoom = lockRoomId;
+        target.currentRoomIndex = roomIds.indexOf(lockRoomId);
+
+        enqueueKeysForLock(ctx, containerLock.id, lockTemplate, target, config, roomIds, queue);
+        continue;
+      }
     }
 
     // base case：物品直接留在地板（但已在容器內的物品不動）
