@@ -183,45 +183,44 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     if (valid.length > 0) lockValidContents.set(lock.id, valid);
   }
 
-  // ─── 佈局：Y = rank 層（向下），X = 層內展開 ───
+  // ─── 佈局：X = rank（深度向右），Y = 層內展開（垂直）───
 
   const layoutNodes: LayoutNode[] = [];
   const sortedRanks = Object.keys(rankLayers).map(Number).sort((a, b) => a - b);
 
-  let currentY = 0;
+  let currentX = 0;
 
   for (const r of sortedRanks) {
     const layer = rankLayers[r]!;
 
-    let currentX = 0;
-    let layerMaxContentH = 0;
+    let currentY = 0;
+    let layerMaxContentW = 0;
 
     for (const id of layer) {
-      // 放置自由節點
       const node = makeNode(id, currentX, currentY);
       if (node) layoutNodes.push(node);
 
-      // 放置容器 contents 在鎖的右側
+      // 容器 contents 在鎖的下方
       const contents = lockValidContents.get(id);
-      let blockWidth = NODE_W;
+      let blockHeight = NODE_H;
       if (contents && contents.length > 0) {
         contents.forEach((childId, ci) => {
-          const cx = currentX + NODE_W + GROUP_PAD;
-          const cy = currentY + ci * (NODE_H + 10);
+          const cx = currentX + ci * (NODE_W + 10);
+          const cy = currentY + NODE_H + GROUP_PAD;
           const childNode = makeNode(childId, cx, cy);
           if (childNode) layoutNodes.push(childNode);
         });
-        blockWidth = NODE_W + GROUP_PAD + NODE_W;
-        const contentH = contents.length * (NODE_H + 10) - 10;
-        if (contentH > layerMaxContentH) layerMaxContentH = contentH;
+        blockHeight = NODE_H + GROUP_PAD + NODE_H;
+        const contentW = contents.length * (NODE_W + 10) - 10;
+        if (contentW > layerMaxContentW) layerMaxContentW = contentW;
       }
 
-      currentX += blockWidth + X_GAP;
+      currentY += blockHeight + Y_GAP;
     }
 
-    // 下一層 Y：考慮 content 佔的高度
-    const layerH = Math.max(NODE_H, layerMaxContentH);
-    currentY += layerH + Y_GAP;
+    // 下一個 rank 的 X：考慮 content 佔的寬度
+    const layerW = Math.max(NODE_W, layerMaxContentW);
+    currentX += layerW + X_GAP;
   }
 
   // ─── 邊界和群組 ───

@@ -237,37 +237,35 @@ export default function CanvasGraph({ puzzle }: Props) {
 
             const isContains = edge.type === 'contains';
 
-            // 判斷方向
-            const goesDown = target.y > source.y + NODE_H / 2;
-            const goesRight = target.x > source.x;
-            const sameRow = Math.abs(target.y - source.y) < NODE_H;
+            const goesRight = target.x > source.x + NODE_W / 2;
+            const sameCol = Math.abs(target.x - source.x) < NODE_W;
 
             let d: string;
-            if (sameRow && goesRight) {
-              // 同層右邊（如鎖→右側 content）
-              const sx = source.x + NODE_W;
-              const sy = source.y + NODE_H / 2;
-              const ex = target.x;
-              const ey = target.y + NODE_H / 2;
-              d = `M ${sx} ${sy} L ${ex} ${ey}`;
-            } else if (goesDown) {
-              // 正向（下方）：從底部中央出發，到頂部中央
+            if (sameCol) {
+              // 同 rank 列（如鎖→下方 content）
               const sx = source.x + NODE_W / 2;
               const sy = source.y + NODE_H;
               const ex = target.x + NODE_W / 2;
               const ey = target.y;
-              const dist = ey - sy;
-              const cpY1 = sy + Math.min(dist * 0.4, 50);
-              const cpY2 = ey - Math.min(dist * 0.4, 50);
-              d = `M ${sx} ${sy} C ${sx} ${cpY1}, ${ex} ${cpY2}, ${ex} ${ey}`;
-            } else {
-              // 反向/上方：從左側出發，繞弧到目標左側
-              const sx = source.x;
+              d = `M ${sx} ${sy} L ${ex} ${ey}`;
+            } else if (goesRight) {
+              // 正向（右方）：從右側中央出發，到左側中央
+              const sx = source.x + NODE_W;
               const sy = source.y + NODE_H / 2;
               const ex = target.x;
               const ey = target.y + NODE_H / 2;
-              const loopX = Math.min(sx, ex) - 80;
-              d = `M ${sx} ${sy} C ${loopX} ${sy}, ${loopX} ${ey}, ${ex} ${ey}`;
+              const dist = ex - sx;
+              const cpX1 = sx + Math.min(dist * 0.4, 60);
+              const cpX2 = ex - Math.min(dist * 0.4, 60);
+              d = `M ${sx} ${sy} C ${cpX1} ${sy}, ${cpX2} ${ey}, ${ex} ${ey}`;
+            } else {
+              // 反向（左方回繞）：從上側出發，繞弧到目標上側
+              const sx = source.x + NODE_W / 2;
+              const sy = source.y;
+              const ex = target.x + NODE_W / 2;
+              const ey = target.y;
+              const loopY = Math.min(sy, ey) - 60;
+              d = `M ${sx} ${sy} C ${sx} ${loopY}, ${ex} ${loopY}, ${ex} ${ey}`;
             }
 
             return (
