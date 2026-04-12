@@ -465,7 +465,6 @@ export function generatePuzzleContent(
 
     const eligibleRooms = new Set(roomIds.slice(0, target.criticalRoomIndex));
     const maxReuses = config.maxReusesPerTool ?? Infinity;
-    const crossRoomRate = config.crossRoomRate ?? 0;
 
     const depthBudgetReached = ctx.lockCount >= config.targetDepth;
     const lockLimitReached = config.maxLocks != null && ctx.lockCount >= config.maxLocks;
@@ -548,59 +547,38 @@ function entityVolume(id: string, ctx: GeneratorContext): number {
 }
 
 /**
- * 計算每個實體的緊急度（urgency）。
- * urgency(item) = 所有需要此 item 的鎖中，最小的 roomIndex。
- * urgency(containerLock) = 其 contents 中所有實體的最小 urgency；若為空則用鎖自身的 roomIndex。
+ * 計算每個實體的拓撲深度（Kahn rank）。
+ * 深度越小 = 越早被需要 = 越不應該被塞進深層容器。
  */
-function computeUrgency(ctx: GeneratorContext, roomIds: RoomId[]): Map<string, number> {
-  const urgency = new Map<string, number>();
-  const roomIndex = new Map<RoomId, number>();
-  for (let i = 0; i < roomIds.length; i++) {
-    roomIndex.set(roomIds[i]!, i);
-  }
+function computeDepth(ctx: GeneratorContext): Map<string, number> {
+  const allIds = new Set<string>([...Object.keys(ctx.items), ...Object.keys(ctx.locks)]);
+  const inDegree: Record<string, number> = {};
+  const adj: Record<string, string[]> = {};
+  for (const id of allIds) { inDegree[id] = 0; adj[id] = []; }
 
-  // Item urgency: min roomIndex among all locks that require this item
   for (const lock of Object.values(ctx.locks)) {
-    const lockRoomIdx = roomIndex.get(lock.roomId) ?? roomIds.length;
-    for (const itemId of lock.requiredItems) {
-      const prev = urgency.get(itemId) ?? Infinity;
-      urgency.set(itemId, Math.min(prev, lockRoomIdx));
+    for (const reqId of lock.requiredItems) {
+      if (allIds.has(reqId)) { adj[reqId]!.push(lock.id); inDegree[lock.id] = (inDegree[lock.id] ?? 0) + 1; }
     }
-  }
-
-  // Items not required by any lock get urgency = their own room index
-  for (const item of Object.values(ctx.items)) {
-    if (!urgency.has(item.id)) {
-      urgency.set(item.id, roomIndex.get(item.initialRoom) ?? roomIds.length);
-    }
-  }
-
-  // Lock urgency (recursive): min urgency of contents, or own roomIndex if empty
-  function lockUrgency(lockId: LockId): number {
-    if (urgency.has(lockId)) return urgency.get(lockId)!;
-    const lock = ctx.locks[lockId]!;
-    if (lock.contents.length === 0) {
-      const val = roomIndex.get(lock.roomId) ?? roomIds.length;
-      urgency.set(lockId, val);
-      return val;
-    }
-    let minU = Infinity;
-    for (const id of lock.contents) {
-      if (id in ctx.locks) {
-        minU = Math.min(minU, lockUrgency(id as LockId));
-      } else {
-        minU = Math.min(minU, urgency.get(id) ?? Infinity);
+    if (lock.category === 'container') {
+      for (const cid of lock.contents) {
+        if (allIds.has(cid)) { adj[lock.id]!.push(cid); inDegree[cid] = (inDegree[cid] ?? 0) + 1; }
       }
     }
-    urgency.set(lockId, minU);
-    return minU;
   }
 
-  for (const lockId of Object.keys(ctx.locks)) {
-    lockUrgency(lockId as LockId);
+  const depth = new Map<string, number>();
+  for (const id of allIds) depth.set(id, 0);
+  const queue = [...allIds].filter(id => inDegree[id] === 0);
+  while (queue.length > 0) {
+    const u = queue.shift()!;
+    for (const v of adj[u]!) {
+      depth.set(v, Math.max(depth.get(v)!, (depth.get(u) ?? 0) + 1));
+      inDegree[v]!--;
+      if (inDegree[v] === 0) queue.push(v);
+    }
   }
-
-  return urgency;
+  return depth;
 }
 
 /**
@@ -725,31 +703,29 @@ function consolidate(
 
   if (consolidationRate <= 0) return;
 
-  const urgency = computeUrgency(ctx, roomIds);
+  const depth = computeDepth(ctx);
   const contentToContainer = buildContentToContainerMap(ctx.locks);
   const roomGateLocks = buildRoomGateLocks(roomIds[0]!, ctx.locks);
 
   for (const roomId of roomIds) {
     const room = ctx.rooms[roomId]!;
 
-    // Collect floor entities: visibleItems + container lockIds
     const floorEntities: string[] = [
       ...room.visibleItems,
       ...room.lockIds.filter(lid => ctx.locks[lid]!.category === 'container'),
     ];
 
-    // Sort by urgency DESCENDING (least urgent first)
-    floorEntities.sort((a, b) => (urgency.get(b) ?? 0) - (urgency.get(a) ?? 0));
+    // 深度大的先搬（越深 = 越晚需要 = 越適合塞進容器）
+    floorEntities.sort((a, b) => (depth.get(b) ?? 0) - (depth.get(a) ?? 0));
 
-    // Get container locks in this room sorted by urgency ASCENDING (most urgent first)
-    // 排除狀態鎖（stateTags 有值 = 合成/轉換鎖，內容物語意固定）
+    // 排除狀態鎖（內容物語意固定），按深度升序（淺的容器優先收納）
     const getContainers = () =>
       room.lockIds
         .filter(lid => {
           const l = ctx.locks[lid]!;
           return l.category === 'container' && !l.stateTags?.length;
         })
-        .sort((a, b) => (urgency.get(a) ?? 0) - (urgency.get(b) ?? 0));
+        .sort((a, b) => (depth.get(a) ?? 0) - (depth.get(b) ?? 0));
 
     for (const candidate of [...floorEntities]) {
       if (ctx.rng.next() > consolidationRate) continue;
@@ -757,7 +733,7 @@ function consolidate(
       // Skip spatial locks (they are doors, not movable)
       if (candidate in ctx.locks && ctx.locks[candidate]!.category === 'spatial') continue;
 
-      const candidateUrgency = urgency.get(candidate) ?? 0;
+      const candidateDepth = depth.get(candidate) ?? 0;
       const candidateVolume = entityVolume(candidate, ctx);
 
       const containers = getContainers();
@@ -766,10 +742,10 @@ function consolidate(
         if (containerId === candidate) continue;
 
         const container = ctx.locks[containerId]!;
-        const containerUrgency = urgency.get(containerId) ?? 0;
+        const containerDepth = depth.get(containerId) ?? 0;
 
-        // Container must be at least as urgent as candidate
-        if (containerUrgency > candidateUrgency) break;
+        // 容器深度必須 ≤ 候選深度（淺的容器不能裝更淺的物品）
+        if (containerDepth > candidateDepth) break;
 
         // Dependency check: candidate must not be a prerequisite for this container
         if (wouldCreateCycle(candidate, containerId, ctx, contentToContainer, roomGateLocks)) continue;
@@ -804,9 +780,8 @@ function consolidate(
           if (idx !== -1) room.lockIds.splice(idx, 1);
         }
 
-        // Update container's urgency
-        const newUrgency = Math.min(urgency.get(containerId) ?? Infinity, candidateUrgency);
-        urgency.set(containerId, newUrgency);
+        // 容器深度取較小值（收納後容器變得更早被需要）
+        depth.set(containerId, Math.min(containerDepth, candidateDepth));
 
         break;
       }
