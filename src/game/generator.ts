@@ -502,13 +502,14 @@ export function generatePuzzleContent(
         // - 直接循環：模板需要的工具就是正在被包裹的物品本身
         // - 空間錯誤：工具已放在 criticalRoomIndex 範圍外
         // - 間接循環：stationary tool 被鎖在容器內
+        const maxReuses = config.maxReusesPerTool ?? Infinity;
         const canWrap = lockTemplate.requiredKeys.every(keyTplId => {
           const keyTpl = findKeyTemplate(keyTplId)!;
           if (!keyTpl.reusable) return true;
           if (ctx.reusableItemCache[keyTpl.name] === target.itemId) return false;
           const existingId = ctx.reusableItemCache[keyTpl.name];
           if (!existingId) return true;
-          // 已鎖住的 reusable tool 不能作為鑰匙（防間接循環）
+          if ((ctx.toolReuseCount[existingId] ?? 0) >= maxReuses) return false;
           if (itemsInContainers.has(existingId)) return false;
           const placedRoom = ctx.items[existingId]!.initialRoom;
           if (!placedRoom) return true;
