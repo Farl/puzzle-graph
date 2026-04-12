@@ -23,6 +23,18 @@ export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   { id: 'crowbar', name: '撬棍', description: '一根堅固的金屬撬棍。', type: 'tool', reusable: true, volume: 3 },
   { id: 'keycard', name: '門禁磁卡', description: '一張帶有磁條的門禁卡。', type: 'tool', reusable: true, volume: 0.5 },
   { id: 'bolt_cutter', name: '破壞剪', description: '一把大型的金屬剪。', type: 'tool', reusable: true, volume: 3 },
+
+  // 固定工具（不可拾取）
+  { id: 'water_basin', name: '水盆', description: '一個裝滿清水的石盆，嵌在桌面上。', type: 'tool', reusable: true, pickupable: false, volume: 3 },
+  { id: 'workbench', name: '工作台', description: '一張堅固的金屬工作台，上面有各種夾具和工具。', type: 'tool', reusable: true, pickupable: false, volume: 5 },
+
+  // 合成零件
+  { id: 'battery', name: '電池', description: '一顆標準的AA電池。', type: 'key', reusable: false, volume: 0.5 },
+  { id: 'pipe_part', name: '水管零件', description: '一段金屬水管，看起來是某個系統的一部分。', type: 'key', reusable: false, volume: 1 },
+  { id: 'wire_spool', name: '電線捲', description: '一捲絕緣電線。', type: 'key', reusable: false, volume: 1 },
+
+  // 轉換產物
+  { id: 'wet_cloth', name: '濕布', description: '一塊浸濕的布，可以用來擦拭東西。', type: 'tool', reusable: true, volume: 1 },
 ];
 
 // ─── 鎖目錄 ───
@@ -238,6 +250,65 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['red_reagent', 'blue_reagent'],
     variations: [
       { name: '密封貨櫃', lockMsg: '一個大型密封貨櫃，紅藍兩個化學封條鎖住了開關。', unlockMsg: '化學反應溶解了封條，貨櫃門轟然打開。' },
+    ],
+  },
+
+  // ── 狀態轉換鎖 ──
+  {
+    id: 'dry_cloth_soak', name: '乾布',
+    lockedDescription: '一塊乾燥的布，如果能浸濕就好了。',
+    unlockDescription: '你把布浸入水中擰乾，現在它變成了實用的濕布。',
+    category: 'container', mechanism: 'physical',
+    capacity: 4, volume: 2,
+    tags: ['conversion', 'water'],
+    requiredKeys: ['water_basin'],
+    variations: [
+      { name: '乾布', lockMsg: '一塊乾燥的布，如果能浸濕就好了。', unlockMsg: '你把布浸入水中擰乾，現在它變成了實用的濕布。' },
+      { name: '空水壺', lockMsg: '一個空的水壺，需要裝水才有用。', unlockMsg: '你把水壺浸入水中，灌滿了清水。' },
+    ],
+  },
+
+  // ── 合成鎖 ──
+  {
+    id: 'dead_flashlight_craft', name: '沒電的手電筒',
+    lockedDescription: '一把手電筒，電池槽是空的，按下開關毫無反應。',
+    unlockDescription: '你裝入電池，手電筒嗡地一聲亮了起來！',
+    category: 'container', mechanism: 'combination',
+    capacity: 4, volume: 3,
+    tags: ['crafting', 'assembly'],
+    requiredKeys: ['battery', 'battery'],
+    variations: [
+      { name: '沒電的手電筒', lockMsg: '手電筒電池槽是空的。', unlockMsg: '你裝入電池，手電筒亮了起來！', partialMsg: '還需要更多電池。' },
+    ],
+  },
+
+  // ── 小遊戲鎖 ──
+  {
+    id: 'pipe_control_panel', name: '管線控制台',
+    lockedDescription: '一個複雜的管線系統，管道破損脫落，需要零件修復並正確連接。',
+    unlockDescription: '水流順利通過管線，系統啟動了！密封艙門隨之打開。',
+    category: 'container', mechanism: 'minigame',
+    capacity: 8, volume: 5,
+    tags: ['minigame', 'mechanical'],
+    requiredKeys: ['pipe_part', 'pipe_part'],
+    minigameType: 'pipe_puzzle',
+    variations: [
+      { name: '管線控制台', lockMsg: '管線系統損壞，需要零件修復並正確連接。', unlockMsg: '水流通過管線，系統啟動！', partialMsg: '還缺少水管零件。' },
+      { name: '液壓管路面板', lockMsg: '液壓管路斷裂，需要修補零件。', unlockMsg: '液壓系統恢復正常，機構開始運作。', partialMsg: '管路還沒修好。' },
+    ],
+  },
+  {
+    id: 'wiring_junction', name: '電路接線盒',
+    lockedDescription: '一個電路接線盒，電線被剪斷了，需要電線和正確的接線才能恢復電力。',
+    unlockDescription: '電流恢復，指示燈全部亮起，電磁鎖解除了！',
+    category: 'container', mechanism: 'minigame',
+    capacity: 8, volume: 5,
+    tags: ['minigame', 'electronic'],
+    requiredKeys: ['wire_spool', 'wire_spool'],
+    minigameType: 'wiring',
+    variations: [
+      { name: '電路接線盒', lockMsg: '接線盒的電線被剪斷了。', unlockMsg: '電流恢復，電磁鎖解除！', partialMsg: '還需要更多電線。' },
+      { name: '配電盤', lockMsg: '配電盤的線路一片混亂。', unlockMsg: '線路接通，電力恢復正常。', partialMsg: '還缺電線。' },
     ],
   },
 
