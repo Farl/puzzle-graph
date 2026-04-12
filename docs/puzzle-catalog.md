@@ -194,6 +194,118 @@
 
 ---
 
+## 經典遊戲謎題參考
+
+從知名解謎遊戲中提取的經典謎題機制，按來源遊戲分類。
+
+### The Room 系列
+精密機械箱體操作，層層拆解。
+
+| 謎題 | 機制 | 場景描述 |
+|---|---|---|
+| 多層機關箱 | 依序解開外層鎖 → 露出內層 | 打開一層發現下一層有新機關 |
+| 特殊透鏡觀察 | 裝上目鏡 → 看到隱藏符號 | 用特殊鏡片看到肉眼不可見的標記 |
+| 滑軌解鎖 | 沿軌道推動滑塊 → 釋放卡榫 | 把滑塊推到正確位置解除鎖定 |
+| 旋轉圓盤對齊 | 轉動多個同心圓盤 → 圖案對齊 | 轉動圓環讓符號或管道連通 |
+| 微型齒輪機構 | 安裝缺失齒輪 → 驅動機械 | 小型精密機械需要正確齒輪才能運作 |
+| 隱藏按鈕 | 觸摸特定位置 → 觸發暗格 | 表面看不出來的凹槽或按鈕 |
+
+### Myst 系列
+環境觀察型謎題，從場景中蒐集資訊。
+
+| 謎題 | 機制 | 場景描述 |
+|---|---|---|
+| 星座對應 | 觀察星圖 → 輸入對應符號 | 把看到的星座對照到操作面板 |
+| 音序記憶 | 聽音樂 → 重現音符順序 | 記住旋律後在鍵盤上彈奏 |
+| 塔台旋轉定位 | 旋轉塔台 → 對準特定方向 | 旋轉到正確角度揭示隱藏資訊 |
+| 電壓/數值調節 | 調整數值到精確目標 | 用按鈕組合設定精確的電壓值 |
+| 時鐘對時 | 從線索得知時間 → 設定時鐘 | 把時針分針撥到特定時刻 |
+| 書頁線索 | 翻閱書籍 → 找到地圖或密碼 | 書中散落的線索指向解答 |
+| 機械連動 | 拉一個拉桿 → 影響遠處機關 | 操作裝置後需到另一處觀察結果 |
+
+### Resident Evil 系列
+收集散落的物件嵌入機關。
+
+| 謎題 | 機制 | 場景描述 |
+|---|---|---|
+| 紋章嵌入 | 收集 N 個紋章 → 放入凹槽 | 太陽/月亮/星星紋章各歸其位開啟石門 |
+| 棋子插座 | 把棋子形道具插入對應孔位 | 國王、騎士等形狀的插頭對應插座 |
+| 曲柄裝置 | 用曲柄啟動機械 | 曲柄轉動排水/升降/開閘 |
+| 畫像謎題 | 調整畫像角度或順序 | 旋轉肖像畫讓目光指向同一處 |
+| 藥草混合 | 收集不同藥草 → 混合 | 紅藍綠藥草組合出不同效果 |
+| 石板拼圖 | 收集碎裂石板 → 拼合 | 拼合後放入牆面凹槽開門 |
+
+### Zelda 系列
+動作解謎結合，需要工具改變環境。
+
+| 謎題 | 機制 | 場景描述 |
+|---|---|---|
+| 推箱踩板 | 推方塊到壓力板上 | 壓下開關打開門或降下橋 |
+| 點火順序 | 用火把依序點燃火台 | 限時內點完所有火台開門 |
+| 鏡面反光 | 調整鏡面角度反射光線 | 光線路徑到達感應點觸發機關 |
+| 水位控制 | 切換水位高低 | 改變水位讓通道浮出或沉入 |
+| 水晶開關 | 攻擊水晶 → 切換狀態 | 紅/藍方塊交替升降 |
+| 鉤爪到達 | 用鉤爪飛到對面 → 拉動開關 | 需要特定工具才能到達的操作點 |
+| 磁力操控 | 用磁力移動金屬物體 | 遠距操控金屬平台或鑰匙 |
+
+### The Witness
+路徑規則型謎題，從環境學習規則。
+
+| 謎題 | 機制 | 場景描述 |
+|---|---|---|
+| 線條迷宮 | 從起點畫線到終點 | 路徑必須通過所有標記點 |
+| 對稱路徑 | 同時控制兩條對稱的線 | 一條線向上另一條向下 |
+| 顏色分區 | 畫線把不同顏色區隔開 | 同色方塊必須在同一區域 |
+| 形狀填充 | 路徑圍出的區域需包含指定形狀 | 俄羅斯方塊形狀必須剛好放進去 |
+| 環境投影 | 環境中的影子/樹枝就是路徑 | 從正確角度看環境，線索映射到面板上 |
+
+### Rusty Lake / Cube Escape 系列
+超現實風格，物品組合和煉金術。
+
+| 謎題 | 機制 | 場景描述 |
+|---|---|---|
+| 煉金合成 | 組合基礎元素 → 產出新物質 | 在煉金爐中混合材料 |
+| 時鐘撥盤 | 設定正確時間 → 觸發事件 | 鐘面時間對應環境線索 |
+| 符號序列輸入 | 記住符號順序 → 依序輸入 | 從場景各處收集符號後輸入面板 |
+| 滑動拼圖 | 滑動方塊復原圖案 | 經典 15 拼圖 |
+| 儀式步驟 | 按正確順序執行多個動作 | 先放道具、再點蠟燭、最後唸咒語 |
+| 多房間聯動 | A 房間的操作影響 B 房間 | 需在不同場景之間來回收集線索 |
+
+### Machinarium
+無文字冒險，純粹靠觀察和物品操作。
+
+| 謎題 | 機制 | 場景描述 |
+|---|---|---|
+| 機械修復 | 收集零件 → 修復故障機器 | 找到缺失零件讓機器恢復運作 |
+| 環境互動鏈 | A 觸發 B → B 解鎖 C | 一連串的因果互動 |
+| 思維泡泡線索 | NPC 的想像畫面就是提示 | 觀察角色想什麼來推理需求 |
+| 音樂演奏 | 記住旋律 → 重現 | 聽過一段音樂後在樂器上重現 |
+
+### Professor Layton 系列
+獨立邏輯謎題集。
+
+| 謎題 | 機制 | 場景描述 |
+|---|---|---|
+| 滑塊拼圖 | 移動方塊讓目標通過 | 華容道類型 |
+| 火柴棒重排 | 移動/移除火柴棒 → 改變等式或形狀 | 移動 N 根火柴讓算式成立 |
+| 天平稱重 | 用最少次數找出不同重量的物品 | 經典邏輯推理 |
+| 一筆畫 | 不重複地走過所有路徑 | 尤拉路徑問題 |
+| 硬幣翻轉 | 按規則翻轉硬幣 → 達到目標狀態 | 翻一個會連帶翻相鄰的 |
+| 切割拼圖 | 把圖形切成指定份數和形狀 | 只能切 N 刀分成相同的塊 |
+
+### The Talos Principle / Portal
+空間操控和光線/能量引導。
+
+| 謎題 | 機制 | 場景描述 |
+|---|---|---|
+| 雷射折射 | 用稜鏡把雷射導向接收器 | 擺放折射器讓光線到達目標 |
+| 傳送門 | 創造入口和出口 → 繞過障礙 | 利用空間扭曲到達不可能的位置 |
+| 干擾器 | 用裝置暫時停用障礙 | 干擾力場讓路通過，但拿走就恢復 |
+| 複製器 | 複製自己的行動 → 兩人合作 | 錄製一段操作，然後和錄像同時行動 |
+| 連接器 | 同時連接多個能量點 | 站在正確位置讓能量線穿過所有節點 |
+
+---
+
 ## 設計原則
 
 ### 複雜度層級
@@ -216,6 +328,7 @@
 
 ## 參考來源
 
+### 密室逃脫
 - [25 Types of Escape Room Puzzles (ERM)](https://escaperoom.com.au/types-of-escape-room-puzzles/)
 - [23 Types of Escape Room Puzzles (Trap Door)](https://www.trapdoorescape.com/escape-room-puzzles/)
 - [Top 15 Puzzle Ideas for Escape Rooms](https://escaperoomtips.com/design/escape-room-puzzle-ideas)
@@ -225,10 +338,21 @@
 - [13 Escape Room Cipher Ideas](https://lockpaperscissors.co/ciphers-playbook)
 - [Puzzles: Light and Sound](https://excitingescapes.co.uk/blog/puzzles-you-might-find-in-an-escape-room-pt-4-light-and-sound/)
 - [10 Popular Escape Room Puzzles and Prop Ideas](https://www.creativeescaperooms.com/blogs/how-to-articles/10-popular-escape-room-puzzles-and-puzzle-ideas)
+
+### 遊戲設計理論
 - [Adventure Game Puzzle Design (Gamedeveloper)](https://www.gamedeveloper.com/design/how-to-design-brillo-point-and-click-adventure-game-puzzles)
 - [Puzzle Design Cheat Sheet (Christopher Sacchi)](https://christophersacchi.com/unpoint-unclick/)
-- [Ten Great Adventure-Game Puzzles](https://www.filfre.net/2018/11/ten-great-adventure-game-puzzles/)
 - [The Lock and Key Design Pattern](https://howtomakeanrpg.com/r/a/what-is-the-lock-and-key-design-pattern.html)
 - [Designing Puzzles in Action-Adventure Games](https://www.gamedeveloper.com/design/designing-and-integrating-puzzles-in-action-adventure-games)
-- [7 Common Escape Room Puzzles (60out)](https://www.60out.com/blog/solve-common-escape-room-puzzles)
-- [Common Escape Room Puzzles (Cognition)](https://cognitionescapes.com/blog/the-most-common-types-of-puzzles-youll-find-in-escape-rooms/)
+
+### 經典遊戲
+- [The Room (Wikipedia)](https://en.wikipedia.org/wiki/The_Room_(video_game))
+- [Myst Walkthrough (Myst Journey)](https://mystjourney.com/myst/walkthrough/)
+- [The Witness Puzzle Elements (Wiki)](https://thewitness.fandom.com/wiki/Puzzle_elements)
+- [The Witness Puzzle Rules Guide](https://steamcommunity.com/sharedfiles/filedetails/?id=614554253)
+- [Resident Evil Puzzle Solutions](https://www.neoseeker.com/resident-evil-gcn/faqs/50146-resident-evil-puzzle.html)
+- [Zelda Puzzle Types (Zelda Wiki)](https://zelda.fandom.com/wiki/Puzzle)
+- [Rusty Lake Walkthroughs](https://www.rustylake.com/walkthroughs/)
+- [10 Best Professor Layton Puzzles](https://www.thegamer.com/professor-layton-best-puzzles/)
+- [Machinarium (Wikipedia)](https://en.wikipedia.org/wiki/Machinarium)
+- [Ten Great Adventure-Game Puzzles](https://www.filfre.net/2018/11/ten-great-adventure-game-puzzles/)
