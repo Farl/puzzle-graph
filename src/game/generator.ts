@@ -382,25 +382,25 @@ export function generateRoomSkeleton(config: GeneratorConfig, rng: SeededRandom)
     doorLock.targetRoomId = toRoomId;
     ctx.rooms[fromRoomId]!.lockIds.push(doorLock.id);
 
-    // 選擇此門的鑰匙模板並建立鑰匙
-    const keyTemplateId = lockTemplate.requiredKeys[0]!;
-    const keyTpl = findKeyTemplate(keyTemplateId)!;
-    const keyId = ctx.resolveOrCreateKey(keyTpl);
-    doorLock.requiredItems.push(keyId);
-
-    // 根據 keySpreadRate 決定鑰匙放置的房間
+    // 建立此門的所有鑰匙
     const eligible = roomIds.slice(0, i + 1);
-    const keyRoomId = pickRoom(eligible, eligible.length - 1, keySpreadRate, ctx);
-    ctx.items[keyId]!.initialRoom = keyRoomId;
-    ctx.rooms[keyRoomId]!.visibleItems.push(keyId);
+    for (const keyTemplateId of lockTemplate.requiredKeys) {
+      const keyTpl = findKeyTemplate(keyTemplateId)!;
+      const keyId = ctx.resolveOrCreateKey(keyTpl);
+      doorLock.requiredItems.push(keyId);
 
-    floorItems.push({
-      itemId: keyId,
-      currentRoom: keyRoomId,
-      currentRoomIndex: roomIds.indexOf(keyRoomId),
-      depth: 0,
-      criticalRoomIndex: i + 1,
-    });
+      const keyRoomId = pickRoom(eligible, eligible.length - 1, keySpreadRate, ctx);
+      ctx.items[keyId]!.initialRoom = keyRoomId;
+      ctx.rooms[keyRoomId]!.visibleItems.push(keyId);
+
+      floorItems.push({
+        itemId: keyId,
+        currentRoom: keyRoomId,
+        currentRoomIndex: roomIds.indexOf(keyRoomId),
+        depth: 0,
+        criticalRoomIndex: i + 1,
+      });
+    }
   }
 
   // 建立出口鎖（spatial，在最後一個房間）
