@@ -12,6 +12,7 @@ import {
   inspectEntity as engineInspectEntity,
   lookAround as engineLookAround,
   showInventory as engineShowInventory,
+  completeMinigame as engineCompleteMinigame,
 } from '../game/engine';
 
 export const DEFAULT_CONFIG: GeneratorConfig = {
@@ -103,6 +104,10 @@ export function useGameState(initialConfig: GeneratorConfig = DEFAULT_CONFIG) {
     setGameState(prev => prev ? engineShowInventory(prev) : prev);
   }, []);
 
+  const completeMinigameAction = useCallback((lockId: LockId) => {
+    setGameState(prev => prev ? engineCompleteMinigame(prev, lockId) : prev);
+  }, []);
+
   const dump = useCallback(() => {
     return originalPuzzle ? dumpPuzzle(originalPuzzle) : '';
   }, [originalPuzzle]);
@@ -123,6 +128,7 @@ export function useGameState(initialConfig: GeneratorConfig = DEFAULT_CONFIG) {
     inspectEntity: inspectEntityAction,
     lookAround: lookAroundAction,
     showInventory: showInventoryAction,
+    completeMinigame: completeMinigameAction,
     dump,
   };
 }
