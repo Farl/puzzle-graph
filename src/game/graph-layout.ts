@@ -55,12 +55,11 @@ const NODE_H = 60;
 const X_GAP = 40;
 const Y_GAP = 80;
 const GROUP_PAD = 20;
-const ROOM_X_GAP = 80;
 
 /**
- * 房間分欄佈局：X = 房間欄位，Y = 全域拓撲 rank（深度向下）
- * 每個房間有獨立的 X 區域，房間之間不重疊
- * 跨房間的依賴以對角線邊表達
+ * 純 rank 佈局：Y = 全域拓撲 rank（深度向下），X = 同 rank 水平展開
+ * 房間拓撲決定上下關係，房間自然在不同 Y 區域，不需要 X 分欄
+ * 所有邊都是上下方向
  */
 export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
   // ─── 建立 DAG ───
@@ -140,6 +139,15 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     }
   }
 
+  // ─── 按 rank 分層 ───
+
+  const rankLayers: Record<number, string[]> = {};
+  for (const id of allNodeIds) {
+    const r = ranks[id] ?? 0;
+    if (!rankLayers[r]) rankLayers[r] = [];
+    rankLayers[r]!.push(id);
+  }
+
   // ─── 節點資訊 ───
 
   const nodeRoom = (id: string): string =>
@@ -162,80 +170,31 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     };
   };
 
-  // ─── 房間順序（BFS from startRoom）───
-
-  const roomOrder: string[] = [];
-  const visitedRooms = new Set<string>();
-  const roomQueue = [puzzle.startRoomId];
-  visitedRooms.add(puzzle.startRoomId);
-  while (roomQueue.length > 0) {
-    const rid = roomQueue.shift()!;
-    roomOrder.push(rid);
-    for (const lock of allLocks) {
-      if (lock.category === 'spatial' && lock.roomId === rid && lock.targetRoomId && !visitedRooms.has(lock.targetRoomId)) {
-        visitedRooms.add(lock.targetRoomId);
-        roomQueue.push(lock.targetRoomId);
-      }
-    }
-  }
-  for (const rid of Object.keys(puzzle.rooms)) {
-    if (!visitedRooms.has(rid)) roomOrder.push(rid);
-  }
-
-  // ─── 房間分欄佈局 ───
+  // ─── 佈局：Y = rank（向下），X = 同 rank 水平展開 ───
 
   const layoutNodes: LayoutNode[] = [];
   const nodePos = new Map<string, { x: number; y: number }>();
 
-  // 收集每個房間的節點
-  const roomNodeIds: Record<string, string[]> = {};
-  for (const rid of roomOrder) roomNodeIds[rid] = [];
-  for (const id of allNodeIds) {
-    const rid = nodeRoom(id);
-    if (roomNodeIds[rid]) roomNodeIds[rid]!.push(id);
+  const sortedRanks = Object.keys(rankLayers).map(Number).sort((a, b) => a - b);
+
+  for (const r of sortedRanks) {
+    const layer = rankLayers[r]!;
+    const y = r * (NODE_H + Y_GAP);
+    const startX = -((layer.length - 1) * (NODE_W + X_GAP)) / 2; // 置中
+
+    layer.forEach((id, i) => {
+      const x = startX + i * (NODE_W + X_GAP);
+      nodePos.set(id, { x, y });
+    });
   }
 
-  // 計算每個房間的欄位寬度和 X 起始位置
-  let roomStartX = 0;
-  const roomXStart = new Map<string, number>();
-
-  for (const rid of roomOrder) {
-    const ids = roomNodeIds[rid]!;
-    roomXStart.set(rid, roomStartX);
-    if (ids.length === 0) continue;
-
-    // 同 rank 最多幾個節點 = 決定房間欄寬
-    const byRank = new Map<number, number>();
-    for (const id of ids) {
-      const r = ranks[id] ?? 0;
-      byRank.set(r, (byRank.get(r) ?? 0) + 1);
-    }
-    const maxInRank = Math.max(...byRank.values(), 1);
-    const roomWidth = maxInRank * (NODE_W + X_GAP) - X_GAP;
-    roomStartX += roomWidth + ROOM_X_GAP;
+  // 確保所有 X >= 0
+  let minX = Infinity;
+  for (const pos of nodePos.values()) {
+    if (pos.x < minX) minX = pos.x;
   }
-
-  // 放置節點
-  for (const rid of roomOrder) {
-    const ids = roomNodeIds[rid]!;
-    if (ids.length === 0) continue;
-    const startX = roomXStart.get(rid) ?? 0;
-
-    // 按 rank 分層
-    const byRank = new Map<number, string[]>();
-    for (const id of ids) {
-      const r = ranks[id] ?? 0;
-      if (!byRank.has(r)) byRank.set(r, []);
-      byRank.get(r)!.push(id);
-    }
-
-    for (const [r, group] of byRank) {
-      const y = r * (NODE_H + Y_GAP);
-      group.forEach((id, i) => {
-        const x = startX + i * (NODE_W + X_GAP);
-        nodePos.set(id, { x, y });
-      });
-    }
+  if (minX < 0) {
+    for (const pos of nodePos.values()) pos.x -= minX;
   }
 
   // ─── 生成 LayoutNode ───
@@ -267,13 +226,11 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
 
   // 房間群
   const roomGroups: RoomGroup[] = [];
-  for (const rid of roomOrder) {
-    const room = puzzle.rooms[rid];
-    if (!room) continue;
-    const rNodes = layoutNodes.filter(n => n.roomId === rid);
+  for (const [roomId, room] of Object.entries(puzzle.rooms)) {
+    const rNodes = layoutNodes.filter(n => n.roomId === roomId);
     if (rNodes.length === 0) continue;
     const box = boundingBox(rNodes, GROUP_PAD);
-    roomGroups.push({ roomId: rid, roomName: room.name, ...box });
+    roomGroups.push({ roomId, roomName: room.name, ...box });
   }
 
   // 容器群（只畫相鄰 rank 的）

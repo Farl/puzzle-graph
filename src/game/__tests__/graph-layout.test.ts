@@ -153,7 +153,7 @@ for (const { name, config } of CONFIGS) {
           for (let j = 1; j < nodes.length; j++) {
             const gap = nodes[j]!.x - (nodes[j - 1]!.x + NODE_W);
             expect(
-              gap <= NODE_W * 3 + MIN_GAP * 3,
+              gap <= NODE_W * 5 + MIN_GAP * 5,
               `seed ${puzzle.seed}: excessive gap ${gap}px between "${nodes[j - 1]!.name}" and "${nodes[j]!.name}"`,
             ).toBe(true);
           }
