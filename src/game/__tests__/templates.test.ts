@@ -24,7 +24,8 @@ describe('Template types', () => {
       unlockDescription: '你用撬棍拔出了鐵釘，撬開了木板。',
       category: 'container',
       mechanism: 'physical',
-      maxItems: 3,
+      capacity: 3,
+      volume: 5,
       tags: ['physical', 'brute-force'],
       requiredKeys: ['crowbar'],
       variations: [
@@ -33,7 +34,7 @@ describe('Template types', () => {
     };
     expect(lock.tags).toContain('physical');
     expect(lock.requiredKeys).toContain('crowbar');
-    expect(lock.maxItems).toBe(3);
+    expect(lock.capacity).toBe(3);
   });
 
   it('same KeyTemplate.id can appear in multiple LockTemplates', () => {
@@ -53,7 +54,8 @@ describe('Template types', () => {
       unlockDescription: '',
       category: 'container',
       mechanism: 'physical',
-      maxItems: 3,
+      capacity: 3,
+      volume: 5,
       tags: ['physical'],
       requiredKeys: [crowbar.id],
       variations: [{ name: '被釘住的木箱', lockMsg: '', unlockMsg: '' }],
@@ -66,7 +68,8 @@ describe('Template types', () => {
       unlockDescription: '',
       category: 'container',
       mechanism: 'physical',
-      maxItems: 2,
+      capacity: 2,
+      volume: 3,
       tags: ['physical'],
       requiredKeys: [crowbar.id],
       variations: [{ name: '鬆動的地板', lockMsg: '', unlockMsg: '' }],

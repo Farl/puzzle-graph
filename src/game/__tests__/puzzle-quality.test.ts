@@ -16,7 +16,7 @@ import type { GeneratorConfig, PuzzleDefinition } from '../types';
 function getContainedItemIds(puzzle: PuzzleDefinition): Set<string> {
   const contained = new Set<string>();
   for (const lock of Object.values(puzzle.locks)) {
-    for (const itemId of lock.containsItems) {
+    for (const itemId of lock.contents) {
       contained.add(itemId);
     }
   }
@@ -96,7 +96,7 @@ describe('謎題生成品質', () => {
           }
         }
         for (const [lockId, lock] of Object.entries(puzzle.locks)) {
-          for (const itemId of lock.containsItems) {
+          for (const itemId of lock.contents) {
             if (!seen.has(itemId)) seen.set(itemId, []);
             seen.get(itemId)!.push(`container:${lockId}`);
           }
@@ -159,7 +159,7 @@ describe('謎題生成品質', () => {
         );
 
         if (containerLocks.length > 0) {
-          const locksWithContent = containerLocks.filter(l => l.containsItems.length > 0);
+          const locksWithContent = containerLocks.filter(l => l.contents.length > 0);
           const ratio = locksWithContent.length / containerLocks.length;
           expect(ratio).toBeGreaterThanOrEqual(0.8);
         }

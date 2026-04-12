@@ -107,12 +107,20 @@ function performUnlock(lock: Lock, state: GameState): void {
   lock.isLocked = false;
   addLog(state, 'success', lock.unlockDescription);
 
-  if (lock.category === 'container' && lock.containsItems.length > 0) {
+  if (lock.category === 'container' && lock.contents.length > 0) {
     const room = state.puzzle.rooms[state.currentRoomId]!;
-    const names = lock.containsItems.map(id => state.puzzle.items[id]!.name).join('、');
-    addLog(state, 'success', `你從 ${lock.name} 中發現了：${names}！`);
-    room.visibleItems.push(...lock.containsItems);
-    lock.containsItems = [];
+    const contentNames: string[] = [];
+    for (const id of lock.contents) {
+      if (id in state.puzzle.items) {
+        room.visibleItems.push(id);
+        contentNames.push(state.puzzle.items[id]!.name);
+      } else if (id in state.puzzle.locks) {
+        room.lockIds.push(id);
+        contentNames.push(state.puzzle.locks[id]!.name);
+      }
+    }
+    addLog(state, 'success', `你從 ${lock.name} 中發現了：${contentNames.join('、')}！`);
+    lock.contents = [];
   }
 
   if (lock.category === 'spatial' && lock.targetRoomId) {
@@ -522,7 +530,7 @@ function cloneState(state: GameState): GameState {
         Object.entries(state.puzzle.items).map(([k, v]) => [k, { ...v }]),
       ),
       locks: Object.fromEntries(
-        Object.entries(state.puzzle.locks).map(([k, v]) => [k, { ...v, requiredItems: [...v.requiredItems], insertedItems: [...v.insertedItems], containsItems: [...v.containsItems] }]),
+        Object.entries(state.puzzle.locks).map(([k, v]) => [k, { ...v, requiredItems: [...v.requiredItems], insertedItems: [...v.insertedItems], contents: [...v.contents] }]),
       ),
     },
     inventory: [...state.inventory],
