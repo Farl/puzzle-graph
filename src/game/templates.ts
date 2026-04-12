@@ -23,6 +23,7 @@ export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   { id: 'crowbar', name: '撬棍', description: '一根堅固的金屬撬棍。', type: 'tool', reusable: true, volume: 3, stateTags: ['lever-tool'] },
   { id: 'keycard', name: '門禁磁卡', description: '一張帶有磁條的門禁卡。', type: 'tool', reusable: true, volume: 0.5, stateTags: ['electronic-key'] },
   { id: 'bolt_cutter', name: '破壞剪', description: '一把大型的金屬剪。', type: 'tool', reusable: true, volume: 3, stateTags: ['cutting-tool'] },
+  { id: 'wet_cloth', name: '濕布', description: '一塊浸濕的布，可以用來擦拭髒污。', type: 'tool', reusable: true, volume: 1, stateTags: ['water-station'] },
 
   // 固定裝置（不可拾取的鑰匙，顯示在機關區）
   { id: 'water_basin', name: '水盆', description: '一個裝滿清水的石盆，嵌在桌面上。', type: 'tool', reusable: true, pickupable: false, volume: 3, stateTags: ['water-station'] },
@@ -100,6 +101,30 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     variations: [
       { name: '被釘住的木箱', lockMsg: '木箱被粗大的鐵釘釘死。', unlockMsg: '你用撬棍拔出了鐵釘，撬開了木板。' },
       { name: '鬆動的地板', lockMsg: '這塊木地板走起來會發出不尋常的空洞聲。', unlockMsg: '你用撬棍掀開了木地板，發現了下方的暗格。' },
+    ],
+  },
+  {
+    id: 'dirty_display', name: '滿是污漬的展示窗',
+    lockedDescription: '展示窗的玻璃上覆蓋了一層厚厚的油污，完全看不清裡面。',
+    unlockDescription: '你用濕布擦去油污，展示窗內的東西終於現形了。',
+    category: 'container', mechanism: 'hidden', capacity: 4, volume: 3,
+    tags: ['hidden', 'cleaning'],
+    requiredKeys: ['wet_cloth'],
+    variations: [
+      { name: '滿是污漬的展示窗', lockMsg: '展示窗上覆蓋厚厚的油污，看不清裡面。', unlockMsg: '你擦去油污，展示窗內的東西現形了。' },
+      { name: '被灰塵蓋住的銘牌', lockMsg: '牆上有一塊銘牌，但被厚厚的灰塵覆蓋。', unlockMsg: '你用濕布擦掉灰塵，露出了重要的訊息。' },
+    ],
+  },
+  {
+    id: 'grimy_panel', name: '油膩的控制面板',
+    lockedDescription: '控制面板的按鈕被黏稠的油污堵住，完全按不下去。',
+    unlockDescription: '你用濕布仔細清理面板，按鈕恢復了功能。',
+    category: 'container', mechanism: 'hidden', capacity: 8, volume: 5,
+    tags: ['hidden', 'cleaning'],
+    requiredKeys: ['wet_cloth'],
+    variations: [
+      { name: '油膩的控制面板', lockMsg: '按鈕被黏稠的油污堵住。', unlockMsg: '你清理了面板，按鈕恢復功能。' },
+      { name: '生鏽的保險箱轉盤', lockMsg: '轉盤被鏽蝕卡住了，轉不動。', unlockMsg: '你用濕布清除鏽蝕，轉盤終於能動了。' },
     ],
   },
   {
