@@ -176,94 +176,92 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     if (!visited.has(rid)) roomOrder.push(rid);
   }
 
-  // ─── 房間分區佈局 ───
-  // 每個房間內的節點按 rank 分組排列，房間之間水平排列
+  // ─── 房間分區佈局（兩階段）───
+  // Phase 1：排自由節點（不在容器內的鎖和物品）
+  // Phase 2：content 節點貼在它們的容器鎖旁邊（不參與全域 rank 排列）
 
   const layoutNodes: LayoutNode[] = [];
+  const nodePos = new Map<string, { x: number; y: number }>();
 
-  // 先收集每個房間的節點
-  const roomNodes: Record<string, string[]> = {};
-  for (const rid of roomOrder) roomNodes[rid] = [];
+  const containedIds = new Set(containerMap.keys());
+
+  // 收集每個房間的自由節點（不在任何容器內）
+  const roomFreeNodes: Record<string, string[]> = {};
+  for (const rid of roomOrder) roomFreeNodes[rid] = [];
   for (const id of nodeIds) {
+    if (containedIds.has(id)) continue;
     const rid = nodeRoom(id);
-    if (roomNodes[rid]) roomNodes[rid]!.push(id);
+    if (roomFreeNodes[rid]) roomFreeNodes[rid]!.push(id);
   }
 
+  const makeLayoutNode = (id: string, x: number, y: number, rid: string): LayoutNode | null => {
+    const item = puzzle.items[id];
+    const lock = puzzle.locks[id];
+    if (!item && !lock) return null;
+    return {
+      id, x, y,
+      entityType: item ? 'item' : 'lock',
+      category: lock?.category,
+      isExit: lock?.isExit,
+      name: (item ?? lock)!.name,
+      roomName: puzzle.rooms[rid]?.name ?? '',
+      roomId: rid,
+      containerId: containerMap.get(id),
+    };
+  };
+
+  // Phase 1：排自由節點
   let roomStartX = 0;
 
   for (const rid of roomOrder) {
-    const ids = roomNodes[rid]!;
-    if (ids.length === 0) continue;
+    const freeIds = roomFreeNodes[rid]!;
+    if (freeIds.length === 0) continue;
 
-    // 房間內按 rank 分組
     const rankGroups: Record<number, string[]> = {};
-    for (const id of ids) {
+    for (const id of freeIds) {
       const r = ranks[id] ?? 0;
       if (!rankGroups[r]) rankGroups[r] = [];
       rankGroups[r]!.push(id);
     }
 
     const sortedRanks = Object.keys(rankGroups).map(Number).sort((a, b) => a - b);
-
-    // 房間內排列：rank 決定 x（水平），同 rank 內分離容器群組和地板物品避免 bounding box 重疊
     let localCol = 0;
     let roomMaxX = roomStartX;
 
     for (const r of sortedRanks) {
       const group = rankGroups[r]!;
+      const startY = -((group.length - 1) * Y_GAP) / 2;
 
-      // 分離：容器內的節點 vs 地板上的自由節點
-      const contained = group.filter(id => containerMap.has(id));
-      const free = group.filter(id => !containerMap.has(id));
-
-      // 容器節點排前面，地板節點排後面，中間多一格間距
-      const ordered = [...contained, ...free];
-      const gapIndex = contained.length > 0 && free.length > 0 ? contained.length : -1;
-      const totalSlots = ordered.length + (gapIndex >= 0 ? 0.5 : 0);
-      const startY = -(totalSlots - 1) * Y_GAP / 2;
-
-      let ySlot = 0;
-      ordered.forEach((id, index) => {
+      group.forEach((id, index) => {
         const x = roomStartX + localCol * X_GAP;
-        const y = startY + ySlot * Y_GAP;
-        if (index === gapIndex) ySlot += 0.5; // 容器/地板之間的額外間距
-
-        const item = puzzle.items[id];
-        const lock = puzzle.locks[id];
-
-        let entityType: 'item' | 'lock';
-        let name: string;
-        let roomName: string;
-        let category: LockCategory | undefined;
-        let isExit: boolean | undefined;
-
-        if (item) {
-          entityType = 'item';
-          name = item.name;
-          roomName = puzzle.rooms[rid]?.name ?? '';
-        } else if (lock) {
-          entityType = 'lock';
-          name = lock.name;
-          category = lock.category;
-          isExit = lock.isExit;
-          roomName = puzzle.rooms[rid]?.name ?? '';
-        } else {
-          ySlot++;
-          return;
-        }
-
-        const containerId = containerMap.get(id);
-        layoutNodes.push({ id, x, y, entityType, category, isExit, name, roomName, roomId: rid, containerId });
-
+        const y = startY + index * Y_GAP;
+        nodePos.set(id, { x, y });
+        const node = makeLayoutNode(id, x, y, rid);
+        if (node) layoutNodes.push(node);
         if (x + NODE_W > roomMaxX) roomMaxX = x + NODE_W;
-        ySlot++;
       });
 
       localCol++;
     }
 
-    // 下一個房間的起始位置
     roomStartX = roomMaxX + ROOM_GAP;
+  }
+
+  // Phase 2：content 節點貼在容器鎖下方
+  for (const lock of allLocks) {
+    if (lock.category !== 'container' || lock.contents.length === 0) continue;
+    const lockP = nodePos.get(lock.id);
+    if (!lockP) continue;
+
+    lock.contents.forEach((childId, i) => {
+      if (!nodeIds.includes(childId)) return;
+      const x = lockP.x + NODE_W + GROUP_PAD;
+      const y = lockP.y + (i * Y_GAP);
+      nodePos.set(childId, { x, y });
+      const rid = nodeRoom(childId);
+      const node = makeLayoutNode(childId, x, y, rid);
+      if (node) layoutNodes.push(node);
+    });
   }
 
   // ─── 計算邊界和群組 ───
