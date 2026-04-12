@@ -21,11 +21,36 @@ export interface SolveResult {
 export function solvePuzzle(puzzle: PuzzleDefinition): SolveResult {
   const { rooms, items, locks, startRoomId } = puzzle;
 
-  const inventory = new Set<ItemId>();
+  const inventory = new Set<string>();
   const reachableRooms = new Set<RoomId>([startRoomId]);
   const openedLocks = new Set<LockId>();
   const accessibleLocks = new Set<LockId>();
   const steps: string[] = [];
+
+  // 判斷某個鎖的所需物品是否都可取得
+  function canUnlockLock(lockId: LockId): boolean {
+    const lock = locks[lockId]!;
+    return lock.requiredItems.every(id => {
+      if (inventory.has(id)) return true;
+      const item = items[id];
+      return item != null && !item.pickupable && reachableRooms.has(item.initialRoom);
+    });
+  }
+
+  // 釋放鎖的內容（物品加入背包，子鎖加入 accessibleLocks）
+  function releaseContents(lockId: LockId): void {
+    const lock = locks[lockId]!;
+    for (const id of lock.contents) {
+      if (id in items) {
+        inventory.add(id);
+        steps.push(`  got: ${items[id]?.name ?? id}`);
+      } else if (id in locks) {
+        accessibleLocks.add(id as LockId);
+        steps.push(`  revealed: ${locks[id]?.name ?? id}`);
+        progress = true;
+      }
+    }
+  }
 
   // 初始化：收集所有直接在房間中的鎖（room.lockIds）
   // 嵌套在其他鎖 contents 中的鎖不在此列，需等父鎖開啟後才加入
@@ -36,9 +61,7 @@ export function solvePuzzle(puzzle: PuzzleDefinition): SolveResult {
     }
   }
   for (const lock of Object.values(locks)) {
-    if (!nestedLockIds.has(lock.id)) {
-      accessibleLocks.add(lock.id);
-    }
+    if (!nestedLockIds.has(lock.id)) accessibleLocks.add(lock.id);
   }
 
   // 初始化：未鎖的門直接開通
@@ -53,16 +76,25 @@ export function solvePuzzle(puzzle: PuzzleDefinition): SolveResult {
   while (progress) {
     progress = false;
 
-    // Step 1：拾取所有可到達房間的地板物品
+    // Step 1：拾取所有可到達房間的地板物品和可拾取的鎖
     for (const roomId of reachableRooms) {
       const room = rooms[roomId];
       if (!room) continue;
       for (const itemId of room.visibleItems) {
-        if (!inventory.has(itemId)) {
-          inventory.add(itemId);
-          steps.push(`pickup: ${items[itemId]?.name ?? itemId} from ${room.name}`);
-          progress = true;
-        }
+        if (inventory.has(itemId)) continue;
+        const item = items[itemId];
+        if (item && !item.pickupable) continue;
+        inventory.add(itemId);
+        steps.push(`pickup: ${items[itemId]?.name ?? itemId} from ${room.name}`);
+        progress = true;
+      }
+      for (const lockId of room.lockIds) {
+        if (inventory.has(lockId)) continue;
+        const lock = locks[lockId];
+        if (!lock || !lock.pickupable) continue;
+        inventory.add(lockId);
+        steps.push(`pickup lock: ${lock.name} from ${room.name}`);
+        progress = true;
       }
     }
 
@@ -71,32 +103,14 @@ export function solvePuzzle(puzzle: PuzzleDefinition): SolveResult {
       if (openedLocks.has(lockId)) continue;
       const lock = locks[lockId]!;
       if (!reachableRooms.has(lock.roomId)) continue;
-      if (!lock.isLocked) {
-        openedLocks.add(lock.id);
-        continue;
-      }
+      if (!lock.isLocked) { openedLocks.add(lock.id); continue; }
+      if (!canUnlockLock(lockId)) continue;
 
-      const canUnlock = lock.requiredItems.every(id => inventory.has(id));
-      if (!canUnlock) continue;
-
-      // 開鎖
       openedLocks.add(lock.id);
       steps.push(`unlock: ${lock.name}`);
       progress = true;
+      releaseContents(lockId);
 
-      // 釋放鎖內內容（物品加入背包，子鎖標記為可存取）
-      for (const id of lock.contents) {
-        if (id in items) {
-          inventory.add(id);
-          steps.push(`  got: ${items[id]?.name ?? id}`);
-        } else if (id in locks) {
-          accessibleLocks.add(id as LockId);
-          steps.push(`  revealed: ${locks[id]?.name ?? id}`);
-          progress = true;
-        }
-      }
-
-      // 開通空間通道
       if (lock.category === 'spatial' && lock.targetRoomId) {
         if (!reachableRooms.has(lock.targetRoomId)) {
           reachableRooms.add(lock.targetRoomId);
@@ -104,7 +118,25 @@ export function solvePuzzle(puzzle: PuzzleDefinition): SolveResult {
         }
       }
 
-      // 出口
+      if (lock.isExit) {
+        steps.push('EXIT: solved!');
+        return { solvable: true, steps, blockedItems: [] };
+      }
+    }
+
+    // Step 2b：嘗試解鎖背包中的可拾取鎖
+    for (const id of inventory) {
+      const lockId = id as LockId;
+      if (openedLocks.has(lockId)) continue;
+      const lock = locks[lockId];
+      if (!lock || !lock.isLocked) continue;
+      if (!canUnlockLock(lockId)) continue;
+
+      openedLocks.add(lock.id);
+      steps.push(`unlock: ${lock.name} (from inventory)`);
+      progress = true;
+      releaseContents(lockId);
+
       if (lock.isExit) {
         steps.push('EXIT: solved!');
         return { solvable: true, steps, blockedItems: [] };
@@ -113,15 +145,13 @@ export function solvePuzzle(puzzle: PuzzleDefinition): SolveResult {
   }
 
   // 找出被卡住的物品（有鎖需要它，但玩家拿不到）
-  const blockedItems: ItemId[] = [];
+  const blockedSet = new Set<ItemId>();
   for (const lock of Object.values(locks)) {
     if (openedLocks.has(lock.id)) continue;
     for (const itemId of lock.requiredItems) {
-      if (!inventory.has(itemId) && !blockedItems.includes(itemId)) {
-        blockedItems.push(itemId);
-      }
+      if (!inventory.has(itemId)) blockedSet.add(itemId);
     }
   }
 
-  return { solvable: false, steps, blockedItems };
+  return { solvable: false, steps, blockedItems: [...blockedSet] };
 }

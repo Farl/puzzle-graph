@@ -16,15 +16,22 @@ export interface Item {
   reusable: boolean;
   initialRoom: RoomId;
   volume: number;
+  pickupable: boolean;
 }
 
 // ─── 鎖類型 ───
+
+export interface MinigameConfig {
+  type: string;
+  seed: number;
+  params: Record<string, unknown>;
+}
 
 /** 容器鎖 = 保護物品的機關；空間鎖 = 連接房間的通道 */
 export type LockCategory = 'container' | 'spatial';
 
 /** 鎖的解鎖機制 */
-export type LockMechanism = 'physical' | 'password' | 'hidden' | 'combination';
+export type LockMechanism = 'physical' | 'password' | 'hidden' | 'combination' | 'minigame';
 
 export interface Lock {
   id: LockId;
@@ -44,6 +51,8 @@ export interface Lock {
   volume: number;
   password?: string;
   passwordHint?: string;
+  minigameConfig?: MinigameConfig;
+  pickupable: boolean;
   isLocked: boolean;
   isExit: boolean;
 }
@@ -113,6 +122,9 @@ export interface GeneratorConfig {
   maxReusesPerTool?: number;                 // 每個工具最多被幾把鎖共用
   maxNestingDepth?: number;
   consolidationRate?: number;
+
+  // ── Phase D：狀態鎖 ──
+  stateLockRate?: number;                    // 0-1，地板物品被狀態鎖包裹的機率
 }
 
 // ─── 變體與主題 ───
@@ -139,6 +151,8 @@ export interface KeyTemplate {
   type: ItemType;
   reusable: boolean;
   volume: number;
+  pickupable?: boolean;
+  stateTags?: string[];          // 狀態鎖配對用（如 ['light-tool']）
 }
 
 export interface LockTemplate {
@@ -154,4 +168,7 @@ export interface LockTemplate {
   tags: string[];
   requiredKeys: string[];       // references KeyTemplate.id
   variations: FamilyVariation[];
+  minigameType?: string;
+  pickupable?: boolean;           // true = 玩家可拾取進背包（轉換鎖、合成鎖）
+  stateTags?: string[];           // 狀態鎖配對用，匹配 KeyTemplate.stateTags
 }

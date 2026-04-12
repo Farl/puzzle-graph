@@ -12,6 +12,7 @@ import {
   inspectEntity as engineInspectEntity,
   lookAround as engineLookAround,
   showInventory as engineShowInventory,
+  completeMinigame as engineCompleteMinigame,
 } from '../game/engine';
 
 export const DEFAULT_CONFIG: GeneratorConfig = {
@@ -24,6 +25,7 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
   reuseRate: 0.3,
   maxNestingDepth: 2,
   consolidationRate: 0.5,
+  stateLockRate: 0.3,
 };
 
 const STORAGE_KEY = 'puzzle-graph:config';
@@ -103,9 +105,13 @@ export function useGameState(initialConfig: GeneratorConfig = DEFAULT_CONFIG) {
     setGameState(prev => prev ? engineShowInventory(prev) : prev);
   }, []);
 
+  const completeMinigameAction = useCallback((lockId: LockId) => {
+    setGameState(prev => prev ? engineCompleteMinigame(prev, lockId) : prev);
+  }, []);
+
   const dump = useCallback(() => {
-    return originalPuzzle ? dumpPuzzle(originalPuzzle) : '';
-  }, [originalPuzzle]);
+    return originalPuzzle ? dumpPuzzle(originalPuzzle, config) : '';
+  }, [originalPuzzle, config]);
 
   return {
     gameState,
@@ -123,6 +129,7 @@ export function useGameState(initialConfig: GeneratorConfig = DEFAULT_CONFIG) {
     inspectEntity: inspectEntityAction,
     lookAround: lookAroundAction,
     showInventory: showInventoryAction,
+    completeMinigame: completeMinigameAction,
     dump,
   };
 }

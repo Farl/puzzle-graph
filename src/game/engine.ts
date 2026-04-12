@@ -1,5 +1,11 @@
 import type { GameState, PuzzleDefinition, HistoryEntry, ItemId, LockId, RoomId, Lock, Room } from './types';
 
+// ─── 實體名稱查找工具 ───
+
+function getEntityName(id: string, puzzle: PuzzleDefinition): string {
+  return puzzle.items[id]?.name ?? puzzle.locks[id]?.name ?? id;
+}
+
 // ─── 歷史訊息工具 ───
 
 let msgCounter = 0;
@@ -29,9 +35,13 @@ function findVisibleItem(name: string, state: GameState) {
 }
 
 function findInventoryItem(name: string, state: GameState) {
-  return state.inventory
-    .map(id => state.puzzle.items[id]!)
-    .find(i => i.name.includes(name));
+  for (const id of state.inventory) {
+    const item = state.puzzle.items[id];
+    if (item && item.name.includes(name)) return item;
+    const lock = state.puzzle.locks[id];
+    if (lock && lock.name.includes(name)) return lock;
+  }
+  return undefined;
 }
 
 // ─── 房間描述 ───
@@ -103,23 +113,42 @@ export function isItemStillNeeded(itemId: ItemId, puzzle: PuzzleDefinition): boo
 
 // ─── 解鎖副作用 ───
 
+/** 所有必需物品插入後，根據機關機制決定解鎖或觸發小遊戲 */
+function tryUnlockAfterInsert(lock: Lock, state: GameState): void {
+  if (lock.mechanism === 'minigame') {
+    addLog(state, 'info', '所有零件就位！小遊戲已啟動，請完成挑戰來解鎖。');
+  } else {
+    performUnlock(lock, state);
+  }
+}
+
 function performUnlock(lock: Lock, state: GameState): void {
   lock.isLocked = false;
   addLog(state, 'success', lock.unlockDescription);
+
+  const isInInventory = state.inventory.includes(lock.id);
 
   if (lock.category === 'container' && lock.contents.length > 0) {
     const room = state.puzzle.rooms[state.currentRoomId]!;
     const contentNames: string[] = [];
     for (const id of lock.contents) {
-      if (id in state.puzzle.items) {
+      if (isInInventory) {
+        // 背包中的狀態鎖：內容物直接進背包
+        state.inventory.push(id);
+      } else if (id in state.puzzle.items) {
         room.visibleItems.push(id);
-        contentNames.push(state.puzzle.items[id]!.name);
       } else if (id in state.puzzle.locks) {
         room.lockIds.push(id);
-        contentNames.push(state.puzzle.locks[id]!.name);
       }
+      contentNames.push(getEntityName(id, state.puzzle));
     }
-    addLog(state, 'success', `你從 ${lock.name} 中發現了：${contentNames.join('、')}！`);
+    if (isInInventory) {
+      addLog(state, 'success', `你獲得了：${contentNames.join('、')}！`);
+      // 消耗狀態鎖本身（從背包移除）
+      state.inventory = state.inventory.filter(id => id !== lock.id);
+    } else {
+      addLog(state, 'success', `你從 ${lock.name} 中發現了：${contentNames.join('、')}！`);
+    }
     lock.contents = [];
   }
 
@@ -143,24 +172,26 @@ function performUnlock(lock: Lock, state: GameState): void {
 // ─── 背包掃描：清除不再需要的物品 ───
 
 function sweepInventory(state: GameState): void {
-  const toRemove: ItemId[] = [];
-  for (const itemId of state.inventory) {
-    if (!isItemStillNeeded(itemId, state.puzzle)) {
-      toRemove.push(itemId);
-    }
+  const toRemove = new Set<string>();
+  for (const id of state.inventory) {
+    const item = state.puzzle.items[id];
+    if (!item) continue; // locks in inventory are never swept
+    if (!isItemStillNeeded(id as ItemId, state.puzzle)) toRemove.add(id);
   }
-  for (const itemId of toRemove) {
-    state.inventory = state.inventory.filter(id => id !== itemId);
-    addLog(state, 'system', `${state.puzzle.items[itemId]!.name} 已經沒有其他用途，從背包中移除。`);
+  if (toRemove.size === 0) return;
+  state.inventory = state.inventory.filter(id => !toRemove.has(id));
+  for (const id of toRemove) {
+    addLog(state, 'system', `${getEntityName(id, state.puzzle)} 已經沒有其他用途，從背包中移除。`);
   }
 }
 
 // ─── 單一物品消耗檢查（用於 useItemOnLock 部分插入情境）───
 
 function consumeItemIfNeeded(itemId: ItemId, state: GameState): void {
+  if (!state.puzzle.items[itemId]) return; // locks in inventory are never consumed
   if (!isItemStillNeeded(itemId, state.puzzle)) {
     state.inventory = state.inventory.filter(id => id !== itemId);
-    addLog(state, 'system', `${state.puzzle.items[itemId]!.name} 已經沒有其他用途，從背包中移除。`);
+    addLog(state, 'system', `${getEntityName(itemId, state.puzzle)} 已經沒有其他用途，從背包中移除。`);
   }
 }
 
@@ -181,7 +212,7 @@ export function showInventory(state: GameState): GameState {
   if (newState.inventory.length === 0) {
     addLog(newState, 'system', '你的背包是空的。');
   } else {
-    const list = newState.inventory.map(id => `- ${newState.puzzle.items[id]!.name}`).join('\n');
+    const list = newState.inventory.map(id => `- ${getEntityName(id, newState.puzzle)}`).join('\n');
     addLog(newState, 'system', `你身上有：\n${list}`);
   }
   return newState;
@@ -205,18 +236,33 @@ export function inspectEntity(state: GameState, entityId: string): GameState {
   return newState;
 }
 
+/** Mutates state to pick up an item or pickupable lock by id from the current room. */
+function pickupEntity(entityId: string, state: GameState): void {
+  const room = state.puzzle.rooms[state.currentRoomId]!;
+  const item = state.puzzle.items[entityId];
+  if (item) {
+    if (!room.visibleItems.includes(entityId)) { addLog(state, 'error', '這裡沒有這個物品。'); return; }
+    if (!item.pickupable) { addLog(state, 'error', `${item.name} 固定在這裡，無法拿起。`); return; }
+    room.visibleItems = room.visibleItems.filter(id => id !== entityId);
+    state.inventory.push(entityId);
+    addLog(state, 'success', `你拿起了 ${item.name}。`);
+    return;
+  }
+  const lock = state.puzzle.locks[entityId];
+  if (lock) {
+    if (!room.lockIds.includes(entityId)) { addLog(state, 'error', '這裡沒有這個物品。'); return; }
+    if (!lock.pickupable) { addLog(state, 'error', `${lock.name} 固定在這裡，無法拿起。`); return; }
+    room.lockIds = room.lockIds.filter(id => id !== entityId);
+    state.inventory.push(entityId);
+    addLog(state, 'success', `你拿起了 ${lock.name}。`);
+    return;
+  }
+  addLog(state, 'error', '這裡沒有這個物品。');
+}
+
 export function takeItem(state: GameState, itemId: ItemId): GameState {
   const newState = cloneState(state);
-  const room = newState.puzzle.rooms[newState.currentRoomId]!;
-
-  if (!room.visibleItems.includes(itemId)) {
-    addLog(newState, 'error', '這裡沒有這個物品。');
-    return newState;
-  }
-
-  room.visibleItems = room.visibleItems.filter(id => id !== itemId);
-  newState.inventory.push(itemId);
-  addLog(newState, 'success', `你拿起了 ${newState.puzzle.items[itemId]!.name}。`);
+  pickupEntity(itemId, newState);
   return newState;
 }
 
@@ -240,6 +286,14 @@ export function useItemOnLock(state: GameState, itemId: ItemId, lockId: LockId):
     return newState;
   }
 
+  const room = newState.puzzle.rooms[newState.currentRoomId]!;
+  const hasItem = newState.inventory.includes(itemId)
+    || (!item.pickupable && room.visibleItems.includes(itemId));
+  if (!hasItem) {
+    addLog(newState, 'error', `你沒有 ${item.name}。`);
+    return newState;
+  }
+
   if (lock.insertedItems.includes(itemId)) {
     addLog(newState, 'error', `你已經對 ${lock.name} 使用過 ${item.name} 了。`);
     return newState;
@@ -250,7 +304,7 @@ export function useItemOnLock(state: GameState, itemId: ItemId, lockId: LockId):
 
   const allInserted = lock.requiredItems.every(reqId => lock.insertedItems.includes(reqId));
   if (allInserted) {
-    performUnlock(lock, newState);
+    tryUnlockAfterInsert(lock, newState);
   } else if (lock.requiredItems.length > 1) {
     addLog(newState, 'info', lock.partialDescription ?? `${lock.name} 似乎還需要其他東西...`);
     addLog(newState, 'info', `(${lock.insertedItems.length}/${lock.requiredItems.length})`);
@@ -326,6 +380,21 @@ export function moveToRoom(state: GameState, lockId: LockId): GameState {
   return newState;
 }
 
+export function completeMinigame(state: GameState, lockId: LockId): GameState {
+  const lock = state.puzzle.locks[lockId];
+  if (!lock || !lock.isLocked || lock.mechanism !== 'minigame') return state;
+  const newState = cloneState(state);
+  const clonedLock = newState.puzzle.locks[lockId]!;
+  const allInserted = clonedLock.requiredItems.every(reqId => clonedLock.insertedItems.includes(reqId));
+  if (!allInserted) {
+    addLog(newState, 'error', '還沒有收齊所有零件。');
+    return newState;
+  }
+  addLog(newState, 'success', '小遊戲完成！');
+  performUnlock(clonedLock, newState);
+  return newState;
+}
+
 // ═══════════════════════════════════════════
 //  MUD 文字指令系統
 // ═══════════════════════════════════════════
@@ -358,7 +427,7 @@ export function executeCommand(cmd: string, state: GameState): GameState {
       if (newState.inventory.length === 0) {
         addLog(newState, 'system', '你的背包是空的。');
       } else {
-        const list = newState.inventory.map(id => `- ${newState.puzzle.items[id]!.name}`).join('\n');
+        const list = newState.inventory.map(id => `- ${getEntityName(id, newState.puzzle)}`).join('\n');
         addLog(newState, 'system', `你身上有：\n${list}`);
       }
       break;
@@ -382,19 +451,21 @@ export function executeCommand(cmd: string, state: GameState): GameState {
     case 'take':
     case 't': {
       if (!rest) { addLog(newState, 'error', '你要拿什麼？'); break; }
-      const item = findVisibleItem(rest, newState);
-      if (!item) { addLog(newState, 'error', `地上沒有「${rest}」。`); break; }
-      const room = newState.puzzle.rooms[newState.currentRoomId]!;
-      room.visibleItems = room.visibleItems.filter(id => id !== item.id);
-      newState.inventory.push(item.id);
-      addLog(newState, 'success', `你拿起了 ${item.name}。`);
+      const foundItem = findVisibleItem(rest, newState);
+      const foundLock = foundItem ? undefined : findInRoom(rest, newState);
+      if (!foundItem && !foundLock) { addLog(newState, 'error', `這裡沒有「${rest}」。`); break; }
+      pickupEntity(foundItem?.id ?? foundLock!.id, newState);
       break;
     }
 
     case 'use': {
       const match = rest.match(/(.*?)\s+on\s+(.*)/i);
       if (!match) { addLog(newState, 'error', '指令格式：use [物品] on [機關]'); break; }
-      const item = findInventoryItem(match[1]!, newState);
+      let item = findInventoryItem(match[1]!, newState);
+      if (!item) {
+        const roomItem = findVisibleItem(match[1]!, newState);
+        if (roomItem && !roomItem.pickupable) item = roomItem;
+      }
       if (!item) { addLog(newState, 'error', `你身上沒有「${match[1]}」。`); break; }
       const lock = findInRoom(match[2]!, newState);
       if (!lock) { addLog(newState, 'error', `找不到機關「${match[2]}」。`); break; }
@@ -419,7 +490,7 @@ export function executeCommand(cmd: string, state: GameState): GameState {
       addLog(newState, 'system', `你使用了 ${item.name}。`);
 
       if (lock.requiredItems.every(reqId => lock.insertedItems.includes(reqId))) {
-        performUnlock(lock, newState);
+        tryUnlockAfterInsert(lock, newState);
       } else if (lock.requiredItems.length > 1) {
         addLog(newState, 'info', lock.partialDescription ?? `${lock.name} 似乎還需要其他東西...`);
       }

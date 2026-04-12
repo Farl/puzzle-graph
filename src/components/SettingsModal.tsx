@@ -10,7 +10,7 @@ interface Props {
 }
 
 /** 只列出必填的數值欄位，用於 slider UI */
-type NumericConfigKey = 'targetDepth' | 'maxRooms' | 'compositeRate' | 'depthStaggerVariance' | 'keySpreadRate' | 'crossRoomRate' | 'reuseRate' | 'maxNestingDepth' | 'consolidationRate';
+type NumericConfigKey = 'targetDepth' | 'maxRooms' | 'compositeRate' | 'depthStaggerVariance' | 'keySpreadRate' | 'crossRoomRate' | 'reuseRate' | 'maxNestingDepth' | 'consolidationRate' | 'stateLockRate';
 
 interface SliderConfig {
   key: NumericConfigKey;
@@ -32,6 +32,7 @@ const SLIDERS: SliderConfig[] = [
   { key: 'reuseRate', label: '工具復用率', desc: '已有工具被其他鎖重複使用的機率', min: 0, max: 1, step: 0.1, color: 'accent-orange-500' },
   { key: 'maxNestingDepth', label: '容器嵌套層數', desc: '容器最大嵌套深度（0=不嵌套）', min: 0, max: 5, step: 1, color: 'accent-violet-500' },
   { key: 'consolidationRate', label: '收納密度', desc: '越高越多東西藏在容器裡', min: 0, max: 1, step: 0.1, color: 'accent-teal-500' },
+  { key: 'stateLockRate', label: '狀態鎖機率', desc: '地板物品被狀態鎖（可拾取）包裹的機率', min: 0, max: 1, step: 0.1, color: 'accent-pink-500' },
 ];
 
 export default function SettingsModal({ config, defaultConfig, onApply, onClose }: Props) {

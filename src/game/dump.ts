@@ -1,6 +1,12 @@
-import type { PuzzleDefinition, ItemId, LockId } from './types';
+import type { PuzzleDefinition, GeneratorConfig, ItemId, LockId } from './types';
 
-export function dumpPuzzle(puzzle: PuzzleDefinition): string {
+function itemTag(item: { reusable: boolean; pickupable: boolean }): string {
+  if (!item.pickupable) return '[STATION]';
+  if (item.reusable) return '[TOOL]';
+  return '';
+}
+
+export function dumpPuzzle(puzzle: PuzzleDefinition, config?: GeneratorConfig): string {
   const { rooms, items, locks, startRoomId, exitLockId } = puzzle;
 
   const itemLabel = new Map<ItemId, string>();
@@ -46,6 +52,13 @@ export function dumpPuzzle(puzzle: PuzzleDefinition): string {
   const lines: string[] = [];
   lines.push(`=== PUZZLE === (seed: ${puzzle.seed})`);
 
+  if (config) {
+    const entries = Object.entries(config)
+      .filter(([k]) => k !== 'seed')
+      .map(([k, v]) => `${k}=${JSON.stringify(v)}`);
+    lines.push(`CONFIG: ${entries.join(', ')}`);
+  }
+
   // Rooms
   lines.push('\nROOMS');
   for (const roomId of roomIds) {
@@ -61,7 +74,7 @@ export function dumpPuzzle(puzzle: PuzzleDefinition): string {
     const toIdx = lock.targetRoomId ? roomIds.indexOf(lock.targetRoomId) : '?';
     const reqLabels = lock.requiredItems.map(id => {
       const item = items[id]!;
-      return `(${itemLabel.get(id)}${item.reusable ? '[TOOL]' : ''})`;
+      return `(${itemLabel.get(id)}${itemTag(item)})`;
     }).join(', ');
     lines.push(`  R${fromIdx} ──${reqLabels}──► R${toIdx}`);
   }
@@ -69,7 +82,7 @@ export function dumpPuzzle(puzzle: PuzzleDefinition): string {
   // Exit
   const exitReqLabels = exitLock.requiredItems.map(id => {
     const item = items[id]!;
-    return `(${itemLabel.get(id)}${item.reusable ? '[TOOL]' : ''})`;
+    return `(${itemLabel.get(id)}${itemTag(item)})`;
   }).join(', ');
   const exitRoomIdx = roomIds.indexOf(exitLock.roomId);
   lines.push(`  R${exitRoomIdx}  EXIT needs ${exitReqLabels}`);
@@ -86,7 +99,7 @@ export function dumpPuzzle(puzzle: PuzzleDefinition): string {
       const hidesLabels = lock.contents.map(id => {
         const item = items[id];
         if (item) {
-          return `(${itemLabel.get(id)}${item.reusable ? '[TOOL]' : ''})`;
+          return `(${itemLabel.get(id)}${itemTag(item)})`;
         }
         const childLock = locks[id];
         if (childLock) {
@@ -98,13 +111,14 @@ export function dumpPuzzle(puzzle: PuzzleDefinition): string {
         const item = items[id]!;
         const itemRoomIdx = roomIds.indexOf(item.initialRoom);
         const isCross = item.initialRoom !== lock.roomId;
-        const label = itemLabel.get(id)! + (item.reusable ? '[TOOL]' : '');
+        const label = itemLabel.get(id)! + itemTag(item);
         if (isCross) crossDeps.push(`  (${label}) in R${itemRoomIdx} ← needed by lock in R${roomIdx}`);
         return label + (isCross ? '★' : '');
       });
       const composite = lock.requiredItems.length > 1;
       const reqStr = composite ? reqParts.join('·') : reqParts[0]!;
-      lines.push(`  R${roomIdx}: {${reqStr} → ${hidesLabels}}`);
+      const miniTag = lock.mechanism === 'minigame' ? '[MINI] ' : '';
+      lines.push(`  R${roomIdx}: ${miniTag}{${reqStr} → ${hidesLabels}}`);
     }
   }
 
@@ -115,7 +129,7 @@ export function dumpPuzzle(puzzle: PuzzleDefinition): string {
     const idx = roomIds.indexOf(roomId);
     const visLabels = room.visibleItems.map(id => {
       const item = items[id]!;
-      return `(${itemLabel.get(id)}${item.reusable ? '[TOOL]' : ''})`;
+      return `(${itemLabel.get(id)}${itemTag(item)})`;
     }).join('  ');
     lines.push(`  R${idx}: ${visLabels || '(empty)'}`);
   }
@@ -127,7 +141,7 @@ export function dumpPuzzle(puzzle: PuzzleDefinition): string {
     for (const item of reusableItems) {
       const usedBy = Object.values(locks).filter(l => l.requiredItems.includes(item.id));
       const roomIdx = roomIds.indexOf(item.initialRoom);
-      lines.push(`  (${itemLabel.get(item.id)}[TOOL]) in R${roomIdx}, used by ${usedBy.length} lock(s)`);
+      lines.push(`  (${itemLabel.get(item.id)}${itemTag(item)}) in R${roomIdx}, used by ${usedBy.length} lock(s)`);
     }
   }
 
