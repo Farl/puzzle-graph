@@ -464,8 +464,13 @@ export function generatePuzzleContent(
   initialTargets: PhaseBTarget[],
 ): void {
   const queue: PhaseBTarget[] = [...initialTargets];
-  // 追蹤目前被鎖在 container 內的物品，防止間接循環依賴
   const itemsInContainers = new Set<ItemId>();
+
+  // 狀態鎖配對用的查詢表
+  const keyTplByName = new Map(KEY_TEMPLATES.map(k => [k.name, k]));
+  const stateLockTemplates = LOCK_TEMPLATES.filter(
+    l => l.pickupable && l.category === 'container' && l.stateTags && l.stateTags.length > 0,
+  );
 
   // Phase A 已把 item 放進 visibleItems，Phase B 會重新決定最終歸宿
   for (const target of initialTargets) {
@@ -484,6 +489,24 @@ export function generatePuzzleContent(
     if (!depthBudgetReached && !lockLimitReached) {
       const eligibleRooms = new Set(roomIds.slice(0, target.criticalRoomIndex));
 
+      // ── 狀態鎖優先：若物品有 stateTags 且命中 stateLockRate，嘗試用狀態鎖包裹 ──
+      const stateLockRate = config.stateLockRate ?? 0;
+      let stateLockTemplate: LockTemplate | null = null;
+      if (stateLockRate > 0 && ctx.rng.next() < stateLockRate) {
+        const item = ctx.items[target.itemId];
+        if (item) {
+          const keyTpl = keyTplByName.get(item.name);
+          if (keyTpl?.stateTags && keyTpl.stateTags.length > 0) {
+            const matching = stateLockTemplates.filter(lt =>
+              lt.stateTags!.some(tag => keyTpl.stateTags!.includes(tag)),
+            );
+            if (matching.length > 0) {
+              stateLockTemplate = matching[ctx.rng.nextInt(matching.length)]!;
+            }
+          }
+        }
+      }
+
       // 嘗試多次選取合法模板（避免單次 canWrap 失敗就放棄）
       const MAX_WRAP_ATTEMPTS = 5;
       const maxReuses = config.maxReusesPerTool ?? Infinity;
@@ -491,8 +514,10 @@ export function generatePuzzleContent(
       let wrapped = false;
 
       for (let attempt = 0; attempt < MAX_WRAP_ATTEMPTS; attempt++) {
-        const tryComposite = ctx.rng.next() < config.compositeRate;
-        const lockTemplate = ctx.selectLock(false, tryComposite, config, itemsInContainers);
+        // 第一次嘗試用狀態鎖（如果有配對的話），之後回到通用模板
+        const lockTemplate = (attempt === 0 && stateLockTemplate)
+          ? stateLockTemplate
+          : ctx.selectLock(false, ctx.rng.next() < config.compositeRate, config, itemsInContainers);
 
         // 驗證鎖模板的 reusable tool 依賴是否合法
         // - 直接循環：模板需要的工具就是正在被包裹的物品本身
@@ -809,97 +834,6 @@ function consolidate(
   }
 }
 
-// ─── Phase D：狀態鎖生成 ───
-
-/**
- * 透過 stateTags 配對，將地板上的物品包裹在狀態鎖中。
- *
- * 配對邏輯：地板物品的 KeyTemplate.stateTags 與 LockTemplate.stateTags 取交集，
- * 有交集 → 該物品可被此狀態鎖包裹。
- *
- * 例：手電筒 (stateTags: ['light-tool']) 配對到 沒電的手電筒 (stateTags: ['light-tool'])
- * → 手電筒放入沒電的手電筒 → 玩家裝電池後取得手電筒
- */
-function generateStateLocks(
-  config: GeneratorConfig,
-  ctx: GeneratorContext,
-  roomIds: RoomId[],
-): PhaseBTarget[] {
-  const newFloorItems: PhaseBTarget[] = [];
-  const stateLockRate = config.stateLockRate ?? 0;
-  if (stateLockRate <= 0) return newFloorItems;
-
-  const stateLockTemplates = LOCK_TEMPLATES.filter(
-    l => l.pickupable && l.category === 'container' && l.stateTags && l.stateTags.length > 0,
-  );
-  if (stateLockTemplates.length === 0) return newFloorItems;
-
-  const keyTplByName = new Map(KEY_TEMPLATES.map(k => [k.name, k]));
-
-  for (const roomId of roomIds) {
-    const room = ctx.rooms[roomId]!;
-    const candidates = [...room.visibleItems];
-
-    for (const itemId of candidates) {
-      if (ctx.rng.next() >= stateLockRate) continue;
-      if (!room.visibleItems.includes(itemId)) continue; // 可能已被前一輪移除
-
-      // 找出此物品對應的 KeyTemplate 和它的 stateTags
-      const item = ctx.items[itemId]!;
-      const keyTpl = keyTplByName.get(item.name);
-      if (!keyTpl?.stateTags || keyTpl.stateTags.length === 0) continue;
-
-      // 找出配對的狀態鎖模板（stateTags 有交集）
-      const matching = stateLockTemplates.filter(lt =>
-        lt.stateTags!.some(tag => keyTpl.stateTags!.includes(tag)),
-      );
-      if (matching.length === 0) continue;
-
-      const lockTemplate = matching[ctx.rng.nextInt(matching.length)]!;
-
-      // 建立狀態鎖
-      const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
-      const stateLock = ctx.createLock(
-        variation, false, roomId, false,
-        lockTemplate.capacity, lockTemplate.volume, true,
-      );
-      stateLock.mechanism = lockTemplate.mechanism;
-      stateLock.contents.push(itemId);
-
-      // 從地板移除原物品，狀態鎖加入 lockIds（玩家可拾取）
-      room.visibleItems = room.visibleItems.filter(id => id !== itemId);
-      room.lockIds.push(stateLock.id);
-
-      // 建立 required keys
-      for (const reqKeyTplId of lockTemplate.requiredKeys) {
-        const reqKeyTpl = findKeyTemplate(reqKeyTplId)!;
-        const keyId = ctx.resolveOrCreateKey(reqKeyTpl);
-
-        stateLock.requiredItems.push(keyId);
-
-        if (reqKeyTpl.reusable) {
-          ctx.toolReuseCount[keyId] = (ctx.toolReuseCount[keyId] ?? 0) + 1;
-        }
-
-        // 新建的 key 放在同房間，並加入 Phase B 候選（讓 Phase B 再處理深度）
-        if (!ctx.items[keyId]!.initialRoom) {
-          ctx.items[keyId]!.initialRoom = roomId;
-          room.visibleItems.push(keyId);
-          const roomIndex = roomIds.indexOf(roomId);
-          newFloorItems.push({
-            itemId: keyId,
-            currentRoom: roomId,
-            currentRoomIndex: roomIndex,
-            depth: 0,
-            criticalRoomIndex: roomIndex + 1,
-          });
-        }
-      }
-    }
-  }
-  return newFloorItems;
-}
-
 // ─── 主生成函式 ───
 
 export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
@@ -908,11 +842,6 @@ export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
   const rng = new SeededRandom(config.seed);
   const { ctx, roomIds, startRoomId, exitLockId, floorItems } = generateRoomSkeleton(config, rng);
   generatePuzzleContent(config, ctx, roomIds, floorItems);
-  const stateLockKeys = generateStateLocks(config, ctx, roomIds);
-  // Phase D 產生的 keys 回饋到 Phase B，讓它們被容器鎖包裹（增加解謎深度）
-  if (stateLockKeys.length > 0) {
-    generatePuzzleContent(config, ctx, roomIds, stateLockKeys);
-  }
   consolidate(ctx, roomIds, config);
 
   return {
