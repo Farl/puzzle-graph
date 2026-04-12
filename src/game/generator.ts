@@ -42,7 +42,7 @@ class GeneratorContext {
   locks: Record<LockId, Lock> = {};
 
   rng: SeededRandom;
-  availableThemes: { name: string; description: string }[];
+  availableThemes: { name: string; description: string; capacity: number }[];
   availableLocks: LockTemplate[];
   reusableItemCache: Record<string, ItemId> = {};
   consumableCount: Record<string, number> = {};
@@ -61,19 +61,20 @@ class GeneratorContext {
     this.availableLocks = shuffle([...LOCK_TEMPLATES], rng);
   }
 
-  createRoom(name: string, description: string): Room {
+  createRoom(name: string, description: string, capacity: number): Room {
     const room: Room = {
       id: generateId('r'),
       name,
       description,
       lockIds: [],
       visibleItems: [],
+      capacity,
     };
     this.rooms[room.id] = room;
     return room;
   }
 
-  createItem(name: string, reusable: boolean, description?: string): Item {
+  createItem(name: string, reusable: boolean, volume: number, description?: string): Item {
     const item: Item = {
       id: generateId('item'),
       name,
@@ -81,6 +82,7 @@ class GeneratorContext {
       type: reusable ? 'tool' : 'key',
       reusable,
       initialRoom: '',
+      volume,
     };
     this.items[item.id] = item;
     return item;
@@ -91,6 +93,8 @@ class GeneratorContext {
     isSpatial: boolean,
     roomId: RoomId,
     isExit: boolean = false,
+    capacity: number = 0,
+    volume: number = 0,
   ): Lock {
     const lockName = getUniqueName(variation.name, this.usedLockNames, ADJECTIVES, this.rng);
     const lock: Lock = {
@@ -105,7 +109,9 @@ class GeneratorContext {
       roomId,
       requiredItems: [],
       insertedItems: [],
-      containsItems: [],
+      contents: [],
+      capacity,
+      volume,
       isLocked: true,
       isExit,
     };
@@ -114,22 +120,22 @@ class GeneratorContext {
   }
 
   /** 取得或建立可重複使用的道具 */
-  getOrCreateReusableItem(name: string): ItemId {
+  getOrCreateReusableItem(name: string, volume: number): ItemId {
     const cached = this.reusableItemCache[name];
     if (cached) return cached;
-    const item = this.createItem(name, true);
+    const item = this.createItem(name, true, volume);
     this.reusableItemCache[name] = item.id;
     return item.id;
   }
 
   /** 建立消耗型道具（自動處理名稱衝突） */
-  createConsumableItem(name: string): Item {
+  createConsumableItem(name: string, volume: number): Item {
     this.consumableCount[name] = (this.consumableCount[name] ?? 0) + 1;
     let keyName = name;
     if (this.consumableCount[name]! > 1) {
       keyName = `${name} (${String.fromCharCode(64 + this.consumableCount[name]!)})`;
     }
-    return this.createItem(keyName, false);
+    return this.createItem(keyName, false, volume);
   }
 
   /** 確認選取：從池中移除模板並更新 tag 追蹤 */
@@ -278,9 +284,9 @@ function enqueueKeysForLock(
     let keyId: ItemId;
 
     if (keyTpl.reusable) {
-      keyId = ctx.getOrCreateReusableItem(keyTpl.name);
+      keyId = ctx.getOrCreateReusableItem(keyTpl.name, keyTpl.volume);
     } else {
-      const item = ctx.createConsumableItem(keyTpl.name);
+      const item = ctx.createConsumableItem(keyTpl.name, keyTpl.volume);
       keyId = item.id;
 
       if (isPasswordLock && lock.password) {
@@ -357,8 +363,8 @@ export function generateRoomSkeleton(config: GeneratorConfig, rng: SeededRandom)
 
   // 建立所有房間
   for (let i = 0; i < config.maxRooms; i++) {
-    const theme = ctx.availableThemes.pop() ?? { name: `房間 ${i + 1}`, description: '一個房間。' };
-    const room = ctx.createRoom(theme.name, theme.description);
+    const theme = ctx.availableThemes.pop() ?? { name: `房間 ${i + 1}`, description: '一個房間。', capacity: 50 };
+    const room = ctx.createRoom(theme.name, theme.description, theme.capacity);
     roomIds.push(room.id);
   }
 
@@ -373,7 +379,7 @@ export function generateRoomSkeleton(config: GeneratorConfig, rng: SeededRandom)
     const lockTemplate = ctx.selectLock(true, false, config);
     const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
 
-    const doorLock = ctx.createLock(variation, true, fromRoomId);
+    const doorLock = ctx.createLock(variation, true, fromRoomId, false, 0, 0);
     doorLock.targetRoomId = toRoomId;
     ctx.rooms[fromRoomId]!.lockIds.push(doorLock.id);
 
@@ -382,9 +388,9 @@ export function generateRoomSkeleton(config: GeneratorConfig, rng: SeededRandom)
     const keyTpl = findKeyTemplate(keyTemplateId)!;
     let keyId: ItemId;
     if (keyTpl.reusable) {
-      keyId = ctx.getOrCreateReusableItem(keyTpl.name);
+      keyId = ctx.getOrCreateReusableItem(keyTpl.name, keyTpl.volume);
     } else {
-      keyId = ctx.createConsumableItem(keyTpl.name).id;
+      keyId = ctx.createConsumableItem(keyTpl.name, keyTpl.volume).id;
     }
     doorLock.requiredItems.push(keyId);
 
@@ -413,11 +419,12 @@ export function generateRoomSkeleton(config: GeneratorConfig, rng: SeededRandom)
     true,   // isSpatial=true，讓出口鎖計入 spatial 類別（N-1 門 + 1 出口 = N 個 spatial 鎖）
     exitRoomId,
     true,   // isExit=true
+    0, 0,
   );
   ctx.rooms[exitRoomId]!.lockIds.push(exitLock.id);
 
   // 建立出口鑰匙
-  const exitKey = ctx.createItem('終極逃生卡', false, '帶有最高權限的特殊磁卡。');
+  const exitKey = ctx.createItem('終極逃生卡', false, 0.5, '帶有最高權限的特殊磁卡。');
   exitLock.requiredItems.push(exitKey.id);
 
   const exitKeyRoom = pickRoom(roomIds, roomIds.length - 1, keySpreadRate, ctx);
@@ -483,9 +490,9 @@ export function generatePuzzleContent(
 
       if (canWrap) {
         const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
-        const containerLock = ctx.createLock(variation, false, target.currentRoom);
+        const containerLock = ctx.createLock(variation, false, target.currentRoom, false, lockTemplate.capacity, lockTemplate.volume);
         ctx.lockCount++;
-        containerLock.containsItems.push(target.itemId);
+        containerLock.contents.push(target.itemId);
         itemsInContainers.add(target.itemId);
         ctx.items[target.itemId]!.initialRoom = target.currentRoom;
 

@@ -15,6 +15,7 @@ export interface Item {
   type: ItemType;
   reusable: boolean;
   initialRoom: RoomId;
+  volume: number;
 }
 
 // ─── 鎖類型 ───
@@ -38,7 +39,9 @@ export interface Lock {
   targetRoomId?: RoomId;
   requiredItems: ItemId[];
   insertedItems: ItemId[];
-  containsItems: ItemId[];
+  contents: string[];
+  capacity: number;
+  volume: number;
   password?: string;
   passwordHint?: string;
   isLocked: boolean;
@@ -53,6 +56,7 @@ export interface Room {
   description: string;
   lockIds: LockId[];
   visibleItems: ItemId[];
+  capacity: number;
 }
 
 // ─── 謎題定義（生成器輸出，不可變） ───
@@ -107,6 +111,8 @@ export interface GeneratorConfig {
   tagDiversityMode?: TagDiversityMode;       // 'weighted' | 'balanced' | 'no-repeat'
   reuseRate?: number;                        // 0-1，已有可重複工具時復用的機率
   maxReusesPerTool?: number;                 // 每個工具最多被幾把鎖共用
+  maxNestingDepth?: number;
+  consolidationRate?: number;
 }
 
 // ─── 變體與主題 ───
@@ -121,6 +127,7 @@ export interface FamilyVariation {
 export interface RoomTheme {
   name: string;
   description: string;
+  capacity: number;
 }
 
 // ─── 模板系統（階段 1）───
@@ -142,7 +149,8 @@ export interface LockTemplate {
   partialDescription?: string;
   category: LockCategory;
   mechanism: LockMechanism;
-  maxItems: number;
+  capacity: number;
+  volume: number;
   tags: string[];
   requiredKeys: string[];       // references KeyTemplate.id
   variations: FamilyVariation[];

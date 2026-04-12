@@ -5,9 +5,9 @@ import type { KeyTemplate, LockTemplate } from './types';
 export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   // 消耗型鑰匙
   { id: 'rusty_key', name: '生鏽的鑰匙', description: '一把佈滿鐵鏽的老舊鑰匙。', type: 'key', reusable: false, volume: 1 },
-  { id: 'password_note', name: '寫著密碼的紙條', description: '一張皺巴巴的紙條。', type: 'clue', reusable: false, volume: 1 },
+  { id: 'password_note', name: '寫著密碼的紙條', description: '一張皺巴巴的紙條。', type: 'clue', reusable: false, volume: 0.5 },
   { id: 'power_cable', name: '備用電源線', description: '一條粗重的電源線。', type: 'key', reusable: false, volume: 2 },
-  { id: 'usb_drive', name: '解密隨身碟', description: '一個不起眼的隨身碟。', type: 'key', reusable: false, volume: 1 },
+  { id: 'usb_drive', name: '解密隨身碟', description: '一個不起眼的隨身碟。', type: 'key', reusable: false, volume: 0.5 },
   { id: 'red_reagent', name: '紅色酸性試劑', description: '裝著紅色液體的瓶子。', type: 'key', reusable: false, volume: 2 },
   { id: 'blue_reagent', name: '藍色鹼性試劑', description: '裝著藍色液體的瓶子。', type: 'key', reusable: false, volume: 2 },
   { id: 'large_gear', name: '黃銅大齒輪', description: '一個沉重的黃銅齒輪。', type: 'key', reusable: false, volume: 3 },
@@ -21,7 +21,7 @@ export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   { id: 'flashlight', name: '手電筒', description: '一把堅固的金屬手電筒。', type: 'tool', reusable: true, volume: 2 },
   { id: 'hammer', name: '鐵鎚', description: '一把沉重的鐵鎚。', type: 'tool', reusable: true, volume: 3 },
   { id: 'crowbar', name: '撬棍', description: '一根堅固的金屬撬棍。', type: 'tool', reusable: true, volume: 3 },
-  { id: 'keycard', name: '門禁磁卡', description: '一張帶有磁條的門禁卡。', type: 'tool', reusable: true, volume: 1 },
+  { id: 'keycard', name: '門禁磁卡', description: '一張帶有磁條的門禁卡。', type: 'tool', reusable: true, volume: 0.5 },
   { id: 'bolt_cutter', name: '破壞剪', description: '一把大型的金屬剪。', type: 'tool', reusable: true, volume: 3 },
 ];
 
@@ -33,7 +33,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     id: 'locked_chest', name: '上鎖的寶箱',
     lockedDescription: '一個沉重的鐵寶箱，上面有一個十字鎖孔。',
     unlockDescription: '喀啦一聲，你轉動鑰匙，寶箱打開了。',
-    category: 'container', mechanism: 'physical', maxItems: 3,
+    category: 'container', mechanism: 'physical', capacity: 8, volume: 5,
     tags: ['physical', 'key-lock'],
     requiredKeys: ['rusty_key'],
     variations: [
@@ -45,7 +45,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     id: 'dark_corner', name: '黑暗的角落',
     lockedDescription: '角落非常暗，伸手不見五指。',
     unlockDescription: '手電筒的強光照亮了角落，露出了隱藏的東西。',
-    category: 'container', mechanism: 'hidden', maxItems: 2,
+    category: 'container', mechanism: 'hidden', capacity: 4, volume: 3,
     tags: ['hidden', 'light'],
     requiredKeys: ['flashlight'],
     variations: [
@@ -57,7 +57,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     id: 'display_case', name: '堅固的展示櫃',
     lockedDescription: '玻璃展示櫃被強化玻璃保護著。',
     unlockDescription: '你用鐵鎚用力砸碎了玻璃。',
-    category: 'container', mechanism: 'hidden', maxItems: 2,
+    category: 'container', mechanism: 'hidden', capacity: 4, volume: 3,
     tags: ['hidden', 'brute-force'],
     requiredKeys: ['hammer'],
     variations: [
@@ -70,7 +70,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     lockedDescription: '工具箱上有一個四位數密碼鎖。',
     unlockDescription: '輸入紙條上的密碼後，工具箱彈開了。',
     partialDescription: '密碼鎖需要正確的密碼。',
-    category: 'container', mechanism: 'password', maxItems: 3,
+    category: 'container', mechanism: 'password', capacity: 8, volume: 5,
     tags: ['password', 'code'],
     requiredKeys: ['password_note'],
     variations: [
@@ -82,7 +82,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     id: 'nailed_box', name: '被釘住的木箱',
     lockedDescription: '木箱被粗大的鐵釘釘死。',
     unlockDescription: '你用撬棍拔出了鐵釘，撬開了木板。',
-    category: 'container', mechanism: 'hidden', maxItems: 3,
+    category: 'container', mechanism: 'hidden', capacity: 8, volume: 5,
     tags: ['hidden', 'brute-force'],
     requiredKeys: ['crowbar'],
     variations: [
@@ -94,7 +94,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     id: 'hightech_safe', name: '高級電子保險箱',
     lockedDescription: '一個高科技保險箱，沒有通電，且需要數位密鑰。',
     unlockDescription: '接通電源並讀取密鑰成功，保險箱彈開了。',
-    category: 'container', mechanism: 'combination', maxItems: 3,
+    category: 'container', mechanism: 'combination', capacity: 14, volume: 8,
     tags: ['combination', 'electronic'],
     requiredKeys: ['power_cable', 'usb_drive'],
     variations: [
@@ -105,7 +105,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     id: 'chemical_mixer', name: '化學混合裝置',
     lockedDescription: '一個特殊的玻璃罩，旁邊連接了兩個空的試劑瓶插槽。',
     unlockDescription: '紅藍試劑混合產生劇烈氣體，腐蝕了玻璃罩的卡榫。',
-    category: 'container', mechanism: 'combination', maxItems: 2,
+    category: 'container', mechanism: 'combination', capacity: 4, volume: 3,
     tags: ['combination', 'chemical'],
     requiredKeys: ['red_reagent', 'blue_reagent'],
     variations: [
@@ -116,7 +116,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     id: 'gear_mechanism', name: '大型齒輪機關',
     lockedDescription: '牆上的一個大型機械裝置卡死了，少了幾個齒輪。',
     unlockDescription: '齒輪咬合，機關開始順暢運轉，打開了暗格。',
-    category: 'container', mechanism: 'combination', maxItems: 2,
+    category: 'container', mechanism: 'combination', capacity: 4, volume: 3,
     tags: ['combination', 'mechanical'],
     requiredKeys: ['large_gear', 'small_gear'],
     variations: [
@@ -129,7 +129,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     id: 'iron_door', name: '厚重的鐵門',
     lockedDescription: '一扇佈滿鐵鏽的重門，鎖孔非常大。',
     unlockDescription: '你費力地轉動鑰匙，鐵門發出沉重的摩擦聲開啟了。',
-    category: 'spatial', mechanism: 'physical', maxItems: 20,
+    category: 'spatial', mechanism: 'physical', capacity: 0, volume: 0,
     tags: ['physical', 'key-lock', 'door'],
     requiredKeys: ['brass_key'],
     variations: [
@@ -140,7 +140,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     id: 'electronic_door', name: '電子感應門',
     lockedDescription: '門旁有一個紅色的刷卡機。',
     unlockDescription: '嗶一聲，刷卡機亮起綠燈，自動門滑開了。',
-    category: 'spatial', mechanism: 'hidden', maxItems: 20,
+    category: 'spatial', mechanism: 'hidden', capacity: 0, volume: 0,
     tags: ['hidden', 'electronic', 'door'],
     requiredKeys: ['keycard'],
     variations: [
@@ -151,7 +151,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     id: 'chained_door', name: '被鐵鍊鎖住的門',
     lockedDescription: '這扇門被粗大的鐵鍊死死纏住。',
     unlockDescription: '你用破壞剪剪斷了鐵鍊，門終於可以推開。',
-    category: 'spatial', mechanism: 'hidden', maxItems: 20,
+    category: 'spatial', mechanism: 'hidden', capacity: 0, volume: 0,
     tags: ['hidden', 'brute-force', 'door'],
     requiredKeys: ['bolt_cutter'],
     variations: [
@@ -162,7 +162,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     id: 'handleless_door', name: '無把手的滑門',
     lockedDescription: '滑門的把手被拔掉了，只剩下一個孔洞。',
     unlockDescription: '你裝上把手並用力拉動，滑門被打開了。',
-    category: 'spatial', mechanism: 'physical', maxItems: 20,
+    category: 'spatial', mechanism: 'physical', capacity: 0, volume: 0,
     tags: ['physical', 'door'],
     requiredKeys: ['door_handle'],
     variations: [
@@ -173,7 +173,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     id: 'airlock_door', name: '氣密隔離門',
     lockedDescription: '隔離門上需要同時轉動兩個閥門才能解除氣壓鎖定。',
     unlockDescription: '兩個閥門同時轉動，洩壓聲響起，隔離門緩緩升起。',
-    category: 'spatial', mechanism: 'combination', maxItems: 20,
+    category: 'spatial', mechanism: 'combination', capacity: 0, volume: 0,
     tags: ['combination', 'mechanical', 'door'],
     requiredKeys: ['left_valve', 'right_valve'],
     variations: [
