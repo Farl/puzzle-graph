@@ -295,14 +295,13 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     roomGroups.push({ roomId: rid, roomName: room.name, ...box });
   }
 
+  // 容器 group 只框內容物（不含鎖本身），避免跨 rank 的大框覆蓋不相關節點
   const containerGroups: ContainerGroup[] = [];
   for (const lock of allLocks) {
     if (lock.category !== 'container' || lock.contents.length === 0) continue;
     const childNodes = layoutNodes.filter(n => containerMap.get(n.id) === lock.id);
-    const lockNode = layoutNodes.find(n => n.id === lock.id);
-    const allGroupNodes = lockNode ? [lockNode, ...childNodes] : childNodes;
-    if (allGroupNodes.length === 0) continue;
-    const box = boundingBox(allGroupNodes, GROUP_PAD / 2);
+    if (childNodes.length === 0) continue;
+    const box = boundingBox(childNodes, GROUP_PAD / 2);
     containerGroups.push({ lockId: lock.id, lockName: lock.name, roomId: lock.roomId, ...box });
   }
 
