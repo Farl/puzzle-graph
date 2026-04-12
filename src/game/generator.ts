@@ -817,14 +817,15 @@ function generateStateLocks(
   config: GeneratorConfig,
   ctx: GeneratorContext,
   roomIds: RoomId[],
-): void {
+): PhaseBTarget[] {
+  const newFloorItems: PhaseBTarget[] = [];
   const stateLockRate = config.stateLockRate ?? 0;
-  if (stateLockRate <= 0) return;
+  if (stateLockRate <= 0) return newFloorItems;
 
   const stateLockTemplates = LOCK_TEMPLATES.filter(
     l => l.pickupable && l.category === 'container' && l.stateTags && l.stateTags.length > 0,
   );
-  if (stateLockTemplates.length === 0) return;
+  if (stateLockTemplates.length === 0) return newFloorItems;
 
   for (const roomId of roomIds) {
     const room = ctx.rooms[roomId]!;
@@ -878,14 +879,23 @@ function generateStateLocks(
           ctx.toolReuseCount[keyId] = (ctx.toolReuseCount[keyId] ?? 0) + 1;
         }
 
-        // 新建的 key 放在同房間
+        // 新建的 key 放在同房間，並加入 Phase B 候選（讓 Phase B 再處理深度）
         if (!ctx.items[keyId]!.initialRoom) {
           ctx.items[keyId]!.initialRoom = roomId;
           room.visibleItems.push(keyId);
+          const roomIndex = roomIds.indexOf(roomId);
+          newFloorItems.push({
+            itemId: keyId,
+            currentRoom: roomId,
+            currentRoomIndex: roomIndex,
+            depth: 0,
+            criticalRoomIndex: roomIndex + 1,
+          });
         }
       }
     }
   }
+  return newFloorItems;
 }
 
 // ─── 主生成函式 ───
@@ -896,7 +906,11 @@ export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
   const rng = new SeededRandom(config.seed);
   const { ctx, roomIds, startRoomId, exitLockId, floorItems } = generateRoomSkeleton(config, rng);
   generatePuzzleContent(config, ctx, roomIds, floorItems);
-  generateStateLocks(config, ctx, roomIds);
+  const stateLockKeys = generateStateLocks(config, ctx, roomIds);
+  // Phase D 產生的 keys 回饋到 Phase B，讓它們被容器鎖包裹（增加解謎深度）
+  if (stateLockKeys.length > 0) {
+    generatePuzzleContent(config, ctx, roomIds, stateLockKeys);
+  }
   consolidate(ctx, roomIds, config);
 
   return {
