@@ -247,8 +247,14 @@ function InventoryPanel({
         ) : (
           <div className="flex flex-col gap-1.5 md:gap-2">
             {inventory.map(itemId => {
-              const item = puzzle.items[itemId]!;
+              const item = puzzle.items[itemId];
+              const lock = item ? null : puzzle.locks[itemId];
+              const entity = item ?? lock;
+              if (!entity) return null;
               const isSelected = selectedItem === itemId;
+              const badgeLabel = item
+                ? (item.reusable ? '工具' : item.type === 'clue' ? '線索' : '道具')
+                : '裝置';
               return (
                 <div key={itemId} className={`flex rounded border overflow-hidden shadow-sm transition-all ${
                   isSelected
@@ -260,11 +266,11 @@ function InventoryPanel({
                     className="flex-1 text-left px-2.5 py-2 md:py-2.5 text-[11px] md:text-xs flex items-center gap-1.5 truncate"
                   >
                     <MousePointerClick size={12} className={`shrink-0 ${isSelected ? 'text-blue-300' : 'text-slate-500'}`} />
-                    <span className={`truncate font-bold ${isSelected ? 'text-white' : 'text-slate-300'}`}>{item.name}</span>
+                    <span className={`truncate font-bold ${isSelected ? 'text-white' : 'text-slate-300'}`}>{entity.name}</span>
                     <span className={`text-[9px] px-1 rounded flex items-center gap-0.5 border shrink-0 ml-auto ${
                       isSelected ? 'text-blue-200 bg-blue-950 border-blue-700' : 'text-slate-400 bg-slate-900 border-slate-800'
                     }`}>
-                      <Package size={8} /> {item.reusable ? '工具' : item.type === 'clue' ? '線索' : '道具'}
+                      <Package size={8} /> {badgeLabel}
                     </span>
                   </button>
                   <button
