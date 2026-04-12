@@ -482,42 +482,54 @@ export function generatePuzzleContent(
     const lockLimitReached = config.maxLocks != null && ctx.lockCount >= config.maxLocks;
 
     if (!depthBudgetReached && !lockLimitReached) {
-      const tryComposite = ctx.rng.next() < config.compositeRate;
-      // 傳入 itemsInContainers，讓 reuse 路徑跳過已鎖住的工具（防間接循環）
-      const lockTemplate = ctx.selectLock(false, tryComposite, config, itemsInContainers);
-
-      // 驗證鎖模板的 reusable tool 依賴是否合法（單次遍歷）
-      // - 直接循環：模板需要的工具就是正在被包裹的物品本身
-      // - 空間錯誤：工具已放在 criticalRoomIndex 範圍外（玩家在需要前無法取得）
       const eligibleRooms = new Set(roomIds.slice(0, target.criticalRoomIndex));
-      const canWrap = lockTemplate.requiredKeys.every(keyTplId => {
-        const keyTpl = findKeyTemplate(keyTplId)!;
-        if (!keyTpl.reusable) return true;
-        if (ctx.reusableItemCache[keyTpl.name] === target.itemId) return false;
-        const existingId = ctx.reusableItemCache[keyTpl.name];
-        if (!existingId) return true;
-        const placedRoom = ctx.items[existingId]!.initialRoom;
-        if (!placedRoom) return true;
-        if (keyTpl.pickupable === false && placedRoom !== target.currentRoom) return false;
-        return eligibleRooms.has(placedRoom);
-      });
 
-      if (canWrap) {
-        const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
-        const containerLock = ctx.createLock(variation, false, target.currentRoom, false, lockTemplate.capacity, lockTemplate.volume);
-        ctx.lockCount++;
-        containerLock.contents.push(target.itemId);
-        itemsInContainers.add(target.itemId);
-        ctx.items[target.itemId]!.initialRoom = target.currentRoom;
+      // 嘗試多次選取合法模板（避免單次 canWrap 失敗就放棄）
+      const MAX_WRAP_ATTEMPTS = 5;
+      let wrapped = false;
 
-        const targetRoom = ctx.rooms[target.currentRoom]!;
-        const vIdx = targetRoom.visibleItems.indexOf(target.itemId);
-        if (vIdx !== -1) targetRoom.visibleItems.splice(vIdx, 1);
+      for (let attempt = 0; attempt < MAX_WRAP_ATTEMPTS; attempt++) {
+        const tryComposite = ctx.rng.next() < config.compositeRate;
+        const lockTemplate = ctx.selectLock(false, tryComposite, config, itemsInContainers);
 
-        targetRoom.lockIds.push(containerLock.id);
-        enqueueKeysForLock(ctx, containerLock.id, lockTemplate, target, config, roomIds, queue);
-        continue;
+        // 驗證鎖模板的 reusable tool 依賴是否合法
+        // - 直接循環：模板需要的工具就是正在被包裹的物品本身
+        // - 空間錯誤：工具已放在 criticalRoomIndex 範圍外
+        // - 間接循環：stationary tool 被鎖在容器內
+        const canWrap = lockTemplate.requiredKeys.every(keyTplId => {
+          const keyTpl = findKeyTemplate(keyTplId)!;
+          if (!keyTpl.reusable) return true;
+          if (ctx.reusableItemCache[keyTpl.name] === target.itemId) return false;
+          const existingId = ctx.reusableItemCache[keyTpl.name];
+          if (!existingId) return true;
+          // 已鎖住的 reusable tool 不能作為鑰匙（防間接循環）
+          if (itemsInContainers.has(existingId)) return false;
+          const placedRoom = ctx.items[existingId]!.initialRoom;
+          if (!placedRoom) return true;
+          if (keyTpl.pickupable === false && placedRoom !== target.currentRoom) return false;
+          return eligibleRooms.has(placedRoom);
+        });
+
+        if (canWrap) {
+          const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
+          const containerLock = ctx.createLock(variation, false, target.currentRoom, false, lockTemplate.capacity, lockTemplate.volume);
+          ctx.lockCount++;
+          containerLock.contents.push(target.itemId);
+          itemsInContainers.add(target.itemId);
+          ctx.items[target.itemId]!.initialRoom = target.currentRoom;
+
+          const targetRoom = ctx.rooms[target.currentRoom]!;
+          const vIdx = targetRoom.visibleItems.indexOf(target.itemId);
+          if (vIdx !== -1) targetRoom.visibleItems.splice(vIdx, 1);
+
+          targetRoom.lockIds.push(containerLock.id);
+          enqueueKeysForLock(ctx, containerLock.id, lockTemplate, target, config, roomIds, queue);
+          wrapped = true;
+          break;
+        }
       }
+
+      if (wrapped) continue;
     }
 
     // base case：物品直接留在地板
@@ -745,9 +757,6 @@ function consolidate(
 
         // Dependency check: candidate must not be a prerequisite for this container
         if (wouldCreateCycle(candidate, containerId, ctx, contentToContainer)) continue;
-
-        // Check item count limit (prevent loot piñata containers)
-        if (container.contents.length >= 2) continue;
 
         // Check volume
         let usedVolume = 0;

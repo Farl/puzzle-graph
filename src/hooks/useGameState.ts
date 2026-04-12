@@ -109,8 +109,8 @@ export function useGameState(initialConfig: GeneratorConfig = DEFAULT_CONFIG) {
   }, []);
 
   const dump = useCallback(() => {
-    return originalPuzzle ? dumpPuzzle(originalPuzzle) : '';
-  }, [originalPuzzle]);
+    return originalPuzzle ? dumpPuzzle(originalPuzzle, config) : '';
+  }, [originalPuzzle, config]);
 
   return {
     gameState,
