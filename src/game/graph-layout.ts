@@ -56,6 +56,7 @@ const X_GAP = 40;
 const Y_GAP = 80;
 const GROUP_PAD = 20;
 const CONTAINER_GAP = 30;  // 不同容器群之間的水平間距
+const ROOM_X_GAP = 60;    // 不同房間之間的水平間距
 
 /**
  * DAG 佈局：Y = 拓撲 rank（深度向下），X = 同層展開
@@ -148,10 +149,29 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     rankLayers[r]!.push(id);
   }
 
-  // ─── Node 資訊 ───
+  // ─── Node 資訊 + 房間順序 ───
 
   const nodeRoom = (id: string): string =>
     puzzle.items[id]?.initialRoom ?? puzzle.locks[id]?.roomId ?? '';
+
+  // 房間順序：BFS from startRoom
+  const roomOrder: string[] = [];
+  const visitedRooms = new Set<string>();
+  const roomQueue = [puzzle.startRoomId];
+  visitedRooms.add(puzzle.startRoomId);
+  while (roomQueue.length > 0) {
+    const rid = roomQueue.shift()!;
+    roomOrder.push(rid);
+    for (const lock of allLocks) {
+      if (lock.category === 'spatial' && lock.roomId === rid && lock.targetRoomId && !visitedRooms.has(lock.targetRoomId)) {
+        visitedRooms.add(lock.targetRoomId);
+        roomQueue.push(lock.targetRoomId);
+      }
+    }
+  }
+  for (const rid of Object.keys(puzzle.rooms)) {
+    if (!visitedRooms.has(rid)) roomOrder.push(rid);
+  }
 
   const makeNode = (id: string, x: number, y: number): LayoutNode | null => {
     const item = puzzle.items[id];
@@ -199,44 +219,49 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
       return parents.reduce((sum, pid) => sum + nodePos.get(pid)!.x, 0) / parents.length;
     };
 
-    // 分組：容器 contents 群 vs 自由節點
-    const groups = new Map<string, string[]>();
+    // 先按房間分群，再按容器/barycenter 排列（確保房間群不重疊）
+    const byRoom = new Map<string, string[]>();
     for (const id of layer) {
-      const parent = containerMap.get(id) ?? '';
-      if (!groups.has(parent)) groups.set(parent, []);
-      groups.get(parent)!.push(id);
+      const rid = nodeRoom(id);
+      if (!byRoom.has(rid)) byRoom.set(rid, []);
+      byRoom.get(rid)!.push(id);
     }
 
-    // 每群的排序鍵 = 群內最小 barycenter（容器群用父鎖 X）
-    const groupEntries: { key: string; ids: string[]; sortVal: number }[] = [];
-    for (const [key, ids] of groups) {
-      let sortVal: number;
-      if (key !== '') {
-        // 容器群：用父鎖的 X
-        sortVal = nodePos.get(key)?.x ?? Infinity;
-      } else {
-        // 自由節點群：用各自 barycenter 的最小值
-        sortVal = Math.min(...ids.map(barycenter));
-      }
-      groupEntries.push({ key, ids, sortVal });
-    }
-    groupEntries.sort((a, b) => a.sortVal - b.sortVal);
+    // 房間按 roomOrder 排序
+    const sortedRooms = [...byRoom.keys()].sort(
+      (a, b) => roomOrder.indexOf(a) - roomOrder.indexOf(b),
+    );
 
-    // 自由節點群內部也按 barycenter 排序
-    for (const entry of groupEntries) {
-      if (entry.key === '') {
-        entry.ids.sort((a, b) => barycenter(a) - barycenter(b));
-      }
-    }
-
-    // 分配 X 座標
     let currentX = 0;
-    for (const entry of groupEntries) {
-      for (const id of entry.ids) {
-        nodePos.set(id, { x: currentX, y });
-        currentX += NODE_W + X_GAP;
+    for (const rid of sortedRooms) {
+      const roomIds = byRoom.get(rid)!;
+
+      // 房間內按容器群/barycenter 排序
+      const groups = new Map<string, string[]>();
+      for (const id of roomIds) {
+        const parent = containerMap.get(id) ?? '';
+        if (!groups.has(parent)) groups.set(parent, []);
+        groups.get(parent)!.push(id);
       }
-      currentX += CONTAINER_GAP;
+
+      const groupEntries: { key: string; ids: string[] }[] = [];
+      for (const [key, ids] of groups) groupEntries.push({ key, ids });
+      groupEntries.sort((a, b) => {
+        const aVal = a.key !== '' ? (nodePos.get(a.key)?.x ?? Infinity) : Math.min(...a.ids.map(barycenter));
+        const bVal = b.key !== '' ? (nodePos.get(b.key)?.x ?? Infinity) : Math.min(...b.ids.map(barycenter));
+        return aVal - bVal;
+      });
+
+      for (const entry of groupEntries) {
+        if (entry.key === '') entry.ids.sort((a, b) => barycenter(a) - barycenter(b));
+        for (const id of entry.ids) {
+          nodePos.set(id, { x: currentX, y });
+          currentX += NODE_W + X_GAP;
+        }
+        currentX += CONTAINER_GAP;
+      }
+
+      currentX += ROOM_X_GAP; // 房間之間的間距
     }
   }
 
