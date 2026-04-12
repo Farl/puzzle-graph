@@ -504,8 +504,8 @@ export function generatePuzzleContent(
       const lockTemplate = ctx.drawLock(false, config, itemsInContainers, isTemplateValid, stateLockCandidates);
 
       if (lockTemplate) {
-        const eligibleList = roomIds.slice(0, target.criticalRoomIndex);
-        const lockRoomId = pickRoom(eligibleList, eligibleList.indexOf(target.currentRoom), crossRoomRate, ctx);
+        // 容器鎖放在物品所在的房間（鑰匙才跨房間）
+        const lockRoomId = target.currentRoom;
 
         const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
         const lockPickupable = lockTemplate.pickupable === true;
