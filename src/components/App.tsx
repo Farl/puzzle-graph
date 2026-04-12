@@ -24,6 +24,7 @@ export default function App() {
     enterPassword,
     moveToRoom,
     inspectEntity,
+    completeMinigame,
     dump,
   } = useGameState(DEFAULT_CONFIG);
 
@@ -158,6 +159,7 @@ export default function App() {
               onEnterPassword={enterPassword}
               onMoveToRoom={moveToRoom}
               onInspect={inspectEntity}
+              onCompleteMinigame={completeMinigame}
             />
           </div>
 
