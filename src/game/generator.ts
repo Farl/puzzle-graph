@@ -805,8 +805,13 @@ function consolidate(
 // ─── Phase D：狀態鎖生成 ───
 
 /**
- * 狀態鎖（pickupable lock）包裹地板上的物品。
- * 玩家撿起狀態鎖 → 帶到有固定裝置（stationary key）的房間 → 使用 → 取得內容物。
+ * 透過 stateTags 配對，將地板上的物品包裹在狀態鎖中。
+ *
+ * 配對邏輯：地板物品的 KeyTemplate.stateTags 與 LockTemplate.stateTags 取交集，
+ * 有交集 → 該物品可被此狀態鎖包裹。
+ *
+ * 例：手電筒 (stateTags: ['light-tool']) 配對到 沒電的手電筒 (stateTags: ['light-tool'])
+ * → 手電筒放入沒電的手電筒 → 玩家裝電池後取得手電筒
  */
 function generateStateLocks(
   config: GeneratorConfig,
@@ -816,34 +821,31 @@ function generateStateLocks(
   const stateLockRate = config.stateLockRate ?? 0;
   if (stateLockRate <= 0) return;
 
-  // 收集所有 pickupable 的 lock template（狀態鎖）
-  const stateLockTemplates = LOCK_TEMPLATES.filter(l => l.pickupable && l.category === 'container');
+  const stateLockTemplates = LOCK_TEMPLATES.filter(
+    l => l.pickupable && l.category === 'container' && l.stateTags && l.stateTags.length > 0,
+  );
   if (stateLockTemplates.length === 0) return;
 
-  // 遍歷每個房間的地板物品
   for (const roomId of roomIds) {
     const room = ctx.rooms[roomId]!;
     const candidates = [...room.visibleItems];
 
     for (const itemId of candidates) {
       if (ctx.rng.next() >= stateLockRate) continue;
+      if (!room.visibleItems.includes(itemId)) continue; // 可能已被前一輪移除
 
-      // 隨機選一個狀態鎖模板
-      const lockTemplate = stateLockTemplates[ctx.rng.nextInt(stateLockTemplates.length)]!;
+      // 找出此物品對應的 KeyTemplate 和它的 stateTags
+      const item = ctx.items[itemId]!;
+      const keyTpl = KEY_TEMPLATES.find(k => k.name === item.name);
+      if (!keyTpl?.stateTags || keyTpl.stateTags.length === 0) continue;
 
-      // 驗證：所需的 stationary key 是否能放在合法房間
-      const canApply = lockTemplate.requiredKeys.every(keyTplId => {
-        const keyTpl = findKeyTemplate(keyTplId)!;
-        if (!keyTpl.reusable) return true;
-        const existingId = ctx.reusableItemCache[keyTpl.name];
-        if (!existingId) return true;  // 尚未建立，可以放在同房間
-        // 已建立的 stationary key 必須在同房間或可達的房間
-        const placedRoom = ctx.items[existingId]!.initialRoom;
-        if (!placedRoom) return true;
-        if (keyTpl.pickupable === false) return true;  // stationary key 可被多房間復用
-        return true;
-      });
-      if (!canApply) continue;
+      // 找出配對的狀態鎖模板（stateTags 有交集）
+      const matching = stateLockTemplates.filter(lt =>
+        lt.stateTags!.some(tag => keyTpl.stateTags!.includes(tag)),
+      );
+      if (matching.length === 0) continue;
+
+      const lockTemplate = matching[ctx.rng.nextInt(matching.length)]!;
 
       // 建立狀態鎖
       const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
@@ -854,29 +856,29 @@ function generateStateLocks(
       stateLock.mechanism = lockTemplate.mechanism;
       stateLock.contents.push(itemId);
 
-      // 從地板移除原物品，狀態鎖取代它在 lockIds 中（玩家可拾取）
+      // 從地板移除原物品，狀態鎖加入 lockIds（玩家可拾取）
       room.visibleItems = room.visibleItems.filter(id => id !== itemId);
       room.lockIds.push(stateLock.id);
 
-      // 建立 required keys（stationary key 放在同房間）
-      for (const keyTplId of lockTemplate.requiredKeys) {
-        const keyTpl = findKeyTemplate(keyTplId)!;
-        const keyPickupable = keyTpl.pickupable !== false;
+      // 建立 required keys
+      for (const reqKeyTplId of lockTemplate.requiredKeys) {
+        const reqKeyTpl = findKeyTemplate(reqKeyTplId)!;
+        const keyPickupable = reqKeyTpl.pickupable !== false;
         let keyId: ItemId;
 
-        if (keyTpl.reusable) {
-          keyId = ctx.getOrCreateReusableItem(keyTpl.name, keyTpl.volume, keyPickupable);
+        if (reqKeyTpl.reusable) {
+          keyId = ctx.getOrCreateReusableItem(reqKeyTpl.name, reqKeyTpl.volume, keyPickupable);
         } else {
-          keyId = ctx.createConsumableItem(keyTpl.name, keyTpl.volume, keyPickupable).id;
+          keyId = ctx.createConsumableItem(reqKeyTpl.name, reqKeyTpl.volume, keyPickupable).id;
         }
 
         stateLock.requiredItems.push(keyId);
 
-        if (keyTpl.reusable) {
+        if (reqKeyTpl.reusable) {
           ctx.toolReuseCount[keyId] = (ctx.toolReuseCount[keyId] ?? 0) + 1;
         }
 
-        // 如果 key 尚未放置，放在同房間
+        // 新建的 key 放在同房間
         if (!ctx.items[keyId]!.initialRoom) {
           ctx.items[keyId]!.initialRoom = roomId;
           room.visibleItems.push(keyId);

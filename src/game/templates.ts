@@ -18,14 +18,14 @@ export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   { id: 'right_valve', name: '右半閥門', description: '半圓形的閥門零件。', type: 'key', reusable: false, volume: 2 },
 
   // 可重複使用工具
-  { id: 'flashlight', name: '手電筒', description: '一把堅固的金屬手電筒。', type: 'tool', reusable: true, volume: 2 },
+  { id: 'flashlight', name: '手電筒', description: '一把堅固的金屬手電筒。', type: 'tool', reusable: true, volume: 2, stateTags: ['light-tool'] },
   { id: 'hammer', name: '鐵鎚', description: '一把沉重的鐵鎚。', type: 'tool', reusable: true, volume: 3 },
   { id: 'crowbar', name: '撬棍', description: '一根堅固的金屬撬棍。', type: 'tool', reusable: true, volume: 3 },
   { id: 'keycard', name: '門禁磁卡', description: '一張帶有磁條的門禁卡。', type: 'tool', reusable: true, volume: 0.5 },
   { id: 'bolt_cutter', name: '破壞剪', description: '一把大型的金屬剪。', type: 'tool', reusable: true, volume: 3 },
 
   // 固定裝置（不可拾取的鑰匙，顯示在機關區）
-  { id: 'water_basin', name: '水盆', description: '一個裝滿清水的石盆，嵌在桌面上。', type: 'tool', reusable: true, pickupable: false, volume: 3 },
+  { id: 'water_basin', name: '水盆', description: '一個裝滿清水的石盆，嵌在桌面上。', type: 'tool', reusable: true, pickupable: false, volume: 3, stateTags: ['water-station'] },
   { id: 'workbench', name: '工作台', description: '一張堅固的金屬工作台，上面有各種夾具和工具。', type: 'tool', reusable: true, pickupable: false, volume: 5 },
 
   // 合成／轉換零件（可拾取的鑰匙）
@@ -260,6 +260,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     tags: ['conversion', 'water'],
     requiredKeys: ['water_basin'],
     pickupable: true,
+    stateTags: ['water-station'],
     variations: [
       { name: '乾布', lockMsg: '一塊乾燥的布，如果能浸濕就好了。', unlockMsg: '你把布浸入水中擰乾，現在它變成了實用的濕布。' },
       { name: '空水壺', lockMsg: '一個空的水壺，需要裝水才有用。', unlockMsg: '你把水壺浸入水中，灌滿了清水。' },
@@ -276,6 +277,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     tags: ['crafting', 'assembly'],
     requiredKeys: ['battery', 'battery'],
     pickupable: true,
+    stateTags: ['light-tool'],
     variations: [
       { name: '沒電的手電筒', lockMsg: '手電筒電池槽是空的。', unlockMsg: '你裝入電池，手電筒亮了起來！', partialMsg: '還需要更多電池。' },
     ],

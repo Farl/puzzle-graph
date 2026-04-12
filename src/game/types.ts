@@ -152,6 +152,7 @@ export interface KeyTemplate {
   reusable: boolean;
   volume: number;
   pickupable?: boolean;
+  stateTags?: string[];          // 狀態鎖配對用（如 ['light-tool']）
 }
 
 export interface LockTemplate {
@@ -169,4 +170,5 @@ export interface LockTemplate {
   variations: FamilyVariation[];
   minigameType?: string;
   pickupable?: boolean;           // true = 玩家可拾取進背包（轉換鎖、合成鎖）
+  stateTags?: string[];           // 狀態鎖配對用，匹配 KeyTemplate.stateTags
 }
