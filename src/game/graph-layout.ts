@@ -273,6 +273,44 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     });
   }
 
+  // ─── 第三遍：展開共享子節點的兄弟（跨層 sibling spread）───
+  // 同一鎖的多個 requiredItems 若在不同層但相同 X → 展開成扇形
+
+  for (const lock of allLocks) {
+    if (lock.requiredItems.length < 2) continue;
+    if (!allNodeIds.has(lock.id)) continue;
+
+    const lockPos = nodePos.get(lock.id);
+    if (!lockPos) continue;
+
+    // 收集有位置的 required items
+    const siblings = lock.requiredItems.filter(id => nodePos.has(id));
+    if (siblings.length < 2) continue;
+
+    // 檢查是否所有 siblings 在同一 X（或接近）
+    const xs = siblings.map(id => nodePos.get(id)!.x);
+    const uniqueXs = new Set(xs);
+    if (uniqueXs.size >= siblings.length) continue; // 已經分散
+
+    // 以鎖的 X 為中心，展開 siblings
+    const totalWidth = (siblings.length - 1) * (NODE_W + X_GAP);
+    const startX = lockPos.x - totalWidth / 2;
+
+    siblings.forEach((id, i) => {
+      const pos = nodePos.get(id)!;
+      pos.x = startX + i * (NODE_W + X_GAP);
+    });
+  }
+
+  // 確保所有 X >= 0
+  let minX = Infinity;
+  for (const pos of nodePos.values()) {
+    if (pos.x < minX) minX = pos.x;
+  }
+  if (minX < 0) {
+    for (const pos of nodePos.values()) pos.x -= minX;
+  }
+
   // ─── 生成 LayoutNode ───
 
   for (const [id, pos] of nodePos) {
