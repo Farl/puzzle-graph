@@ -67,6 +67,8 @@ describe('Phase 3 兩階段生成整合', () => {
       for (const lock of containerLocks) {
         for (const reqItemId of lock.requiredItems) {
           const reqItem = puzzle.items[reqItemId]!;
+          // 可重複使用的工具可能已在其他房間，跳過檢查
+          if (reqItem.reusable) continue;
           expect(reqItem.initialRoom).toBe(lock.roomId);
         }
       }

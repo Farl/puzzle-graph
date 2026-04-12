@@ -34,7 +34,7 @@ describe('reuse path (reuseRate)', () => {
     }
   });
 
-  it('maxReusesPerTool limits how many locks share one tool', () => {
+  it('maxReusesPerTool limits how many container locks share one tool', () => {
     for (let i = 0; i < 20; i++) {
       const puzzle = generatePuzzle({
         ...BASE_CONFIG,
@@ -43,8 +43,10 @@ describe('reuse path (reuseRate)', () => {
         maxLocks: 8,
         targetDepth: 5,
       });
+      // 只計算容器鎖的復用次數（Phase A 的門鎖不受 maxReusesPerTool 追蹤）
       const reuseCount: Record<string, number> = {};
       for (const lock of Object.values(puzzle.locks)) {
+        if (lock.category !== 'container') continue;
         for (const itemId of lock.requiredItems) {
           const item = puzzle.items[itemId];
           if (item?.reusable) {
@@ -53,7 +55,7 @@ describe('reuse path (reuseRate)', () => {
         }
       }
       for (const [itemId, count] of Object.entries(reuseCount)) {
-        expect(count, `Tool "${puzzle.items[itemId]!.name}" used ${count} times`).toBeLessThanOrEqual(2);
+        expect(count, `Tool "${puzzle.items[itemId]!.name}" used ${count} times in containers`).toBeLessThanOrEqual(2);
       }
     }
   });

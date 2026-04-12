@@ -124,6 +124,123 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     ],
   },
 
+  // ── 小型容器 (capacity 4L, volume 3L) ──
+  {
+    id: 'locked_drawer', name: '上鎖的抽屜',
+    lockedDescription: '桌面下方有一個小抽屜，鎖孔很精緻。',
+    unlockDescription: '你轉動鑰匙，抽屜滑出，裡面塞了一些東西。',
+    category: 'container', mechanism: 'physical', capacity: 4, volume: 3,
+    tags: ['physical', 'key-lock'],
+    requiredKeys: ['rusty_key'],
+    variations: [
+      { name: '上鎖的抽屜', lockMsg: '桌面下方有一個小抽屜，鎖孔很精緻。', unlockMsg: '你轉動鑰匙，抽屜滑出，裡面塞了一些東西。' },
+      { name: '迷你保險盒', lockMsg: '一個巴掌大的金屬保險盒，上面有個小鎖。', unlockMsg: '小鎖彈開，盒蓋掀起。' },
+    ],
+  },
+  {
+    id: 'password_lockbox', name: '密碼小鐵盒',
+    lockedDescription: '一個不起眼的鐵盒，上面有三位數轉盤鎖。',
+    unlockDescription: '轉盤對準正確數字，鐵盒咔噠一聲打開。',
+    partialDescription: '轉盤鎖需要正確的密碼。',
+    category: 'container', mechanism: 'password', capacity: 4, volume: 3,
+    tags: ['password', 'code'],
+    requiredKeys: ['password_note'],
+    variations: [
+      { name: '密碼小鐵盒', lockMsg: '一個不起眼的鐵盒，上面有三位數轉盤鎖。', unlockMsg: '轉盤對準正確數字，鐵盒咔噠一聲打開。', partialMsg: '轉盤鎖需要正確的密碼。' },
+      { name: '密封藥盒', lockMsg: '一個醫療用的密封藥盒，面板上有數字按鍵。', unlockMsg: '嗶嗶兩聲，藥盒的氣密蓋彈開了。', partialMsg: '藥盒需要正確的密碼。' },
+    ],
+  },
+
+  // ── 中型容器 (capacity 8L, volume 5L) ──
+  {
+    id: 'filing_cabinet', name: '檔案鐵櫃',
+    lockedDescription: '一個辦公用的鐵櫃，抽屜上有簡易鎖頭。',
+    unlockDescription: '鎖頭應聲而開，你拉開了鐵櫃抽屜。',
+    category: 'container', mechanism: 'physical', capacity: 8, volume: 5,
+    tags: ['physical', 'key-lock'],
+    requiredKeys: ['rusty_key'],
+    variations: [
+      { name: '檔案鐵櫃', lockMsg: '一個辦公用的鐵櫃，抽屜上有簡易鎖頭。', unlockMsg: '鎖頭應聲而開，你拉開了鐵櫃抽屜。' },
+      { name: '彈藥箱', lockMsg: '一個軍用綠漆的金屬箱，扣環上掛著一把鎖。', unlockMsg: '你打開了彈藥箱的扣環。' },
+    ],
+  },
+  {
+    id: 'supply_crate', name: '封裝的補給箱',
+    lockedDescription: '一個用塑膠膜密封的補給箱，邊緣釘死了。',
+    unlockDescription: '你用撬棍撬開箱蓋，裡面整齊地裝著物資。',
+    category: 'container', mechanism: 'hidden', capacity: 8, volume: 5,
+    tags: ['hidden', 'brute-force'],
+    requiredKeys: ['crowbar'],
+    variations: [
+      { name: '封裝的補給箱', lockMsg: '一個用塑膠膜密封的補給箱，邊緣釘死了。', unlockMsg: '你用撬棍撬開箱蓋，裡面整齊地裝著物資。' },
+      { name: '封死的通風口蓋板', lockMsg: '通風口的金屬蓋板被螺栓焊死了。', unlockMsg: '你用撬棍硬生生扳開了蓋板，裡面有個空間。' },
+    ],
+  },
+  {
+    id: 'shadow_alcove', name: '陰暗的壁龕',
+    lockedDescription: '牆壁上有一個深邃的凹洞，完全看不清裡面。',
+    unlockDescription: '手電筒照進壁龕深處，光線在潮濕的石壁上反射。',
+    category: 'container', mechanism: 'hidden', capacity: 8, volume: 5,
+    tags: ['hidden', 'light'],
+    requiredKeys: ['flashlight'],
+    variations: [
+      { name: '陰暗的壁龕', lockMsg: '牆壁上有一個深邃的凹洞，完全看不清裡面。', unlockMsg: '手電筒照進壁龕深處，光線在潮濕的石壁上反射。' },
+      { name: '天花板維修口', lockMsg: '天花板有個黑漆漆的維修口，什麼都看不見。', unlockMsg: '你舉起手電筒往上照，發現裡面藏了東西。' },
+    ],
+  },
+
+  // ── 大型容器 (capacity 14L, volume 8L) ──
+  {
+    id: 'reinforced_locker', name: '強化儲物櫃',
+    lockedDescription: '一個特別厚實的金屬儲物櫃，面板被釘死了。',
+    unlockDescription: '你用撬棍撬開了儲物櫃的面板。',
+    category: 'container', mechanism: 'hidden', capacity: 14, volume: 8,
+    tags: ['hidden', 'brute-force'],
+    requiredKeys: ['crowbar'],
+    variations: [
+      { name: '強化儲物櫃', lockMsg: '一個特別厚實的金屬儲物櫃，面板被釘死了。', unlockMsg: '你用撬棍撬開了儲物櫃的面板。' },
+      { name: '焊死的設備箱', lockMsg: '一個大型設備箱，開口被鐵條焊住了。', unlockMsg: '你用撬棍逐一扳開鐵條，設備箱終於能打開了。' },
+    ],
+  },
+  {
+    id: 'combination_wardrobe', name: '密碼衣櫃',
+    lockedDescription: '一個老舊的大衣櫃，門上有電子密碼鎖。',
+    unlockDescription: '密碼正確，衣櫃門吱呀打開，裡面空間不小。',
+    partialDescription: '衣櫃的密碼鎖需要正確的密碼。',
+    category: 'container', mechanism: 'password', capacity: 14, volume: 8,
+    tags: ['password', 'code'],
+    requiredKeys: ['password_note'],
+    variations: [
+      { name: '密碼衣櫃', lockMsg: '一個老舊的大衣櫃，門上有電子密碼鎖。', unlockMsg: '密碼正確，衣櫃門吱呀打開，裡面空間不小。', partialMsg: '衣櫃的密碼鎖需要正確的密碼。' },
+      { name: '落地金庫', lockMsg: '一個半人高的落地金庫，面板上有密碼轉盤。', unlockMsg: '最後一個數字對齊，金庫門沉重地開啟了。', partialMsg: '金庫需要正確的密碼。' },
+    ],
+  },
+
+  // ── 超大型容器 (capacity 20L, volume 12L) ──
+  {
+    id: 'industrial_cabinet', name: '工業配電箱',
+    lockedDescription: '一個巨大的配電箱，面板上需要電源和數位密鑰才能開啟。',
+    unlockDescription: '系統啟動，配電箱面板緩緩滑開，裡面遠比想像的大。',
+    category: 'container', mechanism: 'combination', capacity: 20, volume: 12,
+    tags: ['combination', 'electronic'],
+    requiredKeys: ['power_cable', 'usb_drive'],
+    variations: [
+      { name: '工業配電箱', lockMsg: '一個巨大的配電箱，面板上需要電源和數位密鑰才能開啟。', unlockMsg: '系統啟動，配電箱面板緩緩滑開，裡面遠比想像的大。' },
+      { name: '伺服器機櫃', lockMsg: '一個高大的伺服器機櫃，需要接通電源並插入認證碟。', unlockMsg: '風扇開始運轉，機櫃側板彈開，裡面塞了很多東西。' },
+    ],
+  },
+  {
+    id: 'sealed_container', name: '密封貨櫃',
+    lockedDescription: '一個大型密封貨櫃，紅藍兩個化學封條鎖住了開關。',
+    unlockDescription: '化學反應溶解了封條，貨櫃門轟然打開。',
+    category: 'container', mechanism: 'combination', capacity: 20, volume: 12,
+    tags: ['combination', 'chemical'],
+    requiredKeys: ['red_reagent', 'blue_reagent'],
+    variations: [
+      { name: '密封貨櫃', lockMsg: '一個大型密封貨櫃，紅藍兩個化學封條鎖住了開關。', unlockMsg: '化學反應溶解了封條，貨櫃門轟然打開。' },
+    ],
+  },
+
   // ── 空間鎖 ──
   {
     id: 'iron_door', name: '厚重的鐵門',

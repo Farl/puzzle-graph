@@ -52,45 +52,49 @@ export default function InteractionPanel({
         <p className="text-[11px] md:text-xs text-slate-400 leading-relaxed">{room.description}</p>
       </div>
 
-      {/* Scrollable content */}
-      <div className="p-3 md:p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 space-y-4 flex-1">
+      {/* Split scrollable sections */}
+      <div className="flex flex-col flex-1 min-h-0">
 
-        {/* Visible items */}
-        <div>
-          <h4 className="text-[10px] md:text-[11px] text-slate-500 uppercase tracking-widest mb-2 font-bold flex items-center gap-1.5">
+        {/* Visible items — independent scroll */}
+        <div className="flex flex-col min-h-0 max-h-[40%] border-b border-slate-800/50">
+          <h4 className="text-[10px] md:text-[11px] text-slate-500 uppercase tracking-widest px-3 md:px-4 pt-3 md:pt-3 pb-1.5 font-bold flex items-center gap-1.5 shrink-0">
             <Search size={12} /> 此處的可見物品
+            {visibleItems.length > 0 && <span className="text-slate-600 font-normal">({visibleItems.length})</span>}
           </h4>
-          {visibleItems.length === 0 ? (
-            <span className="text-[11px] text-slate-600 block bg-slate-950/50 p-2 rounded border border-slate-800 border-dashed text-center">
-              空無一物
-            </span>
-          ) : (
-            <div className="flex flex-col gap-1.5 md:gap-2">
-              {visibleItems.map(item => (
-                <div key={item.id} className="flex bg-slate-800 rounded border border-slate-700 overflow-hidden shadow-sm hover:border-slate-600 active:bg-slate-700">
-                  <button
-                    onClick={() => onTakeItem(item.id)}
-                    className="flex-1 text-emerald-400 px-3 py-2 md:py-2.5 text-xs text-left truncate font-bold"
-                  >
-                    + 拿取 {item.name}
-                  </button>
-                  <button
-                    onClick={() => onInspect(item.id)}
-                    className="text-slate-400 px-3 py-2 md:py-2.5 border-l border-slate-700 shrink-0 active:bg-slate-600"
-                  >
-                    <Search size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="px-3 md:px-4 pb-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 flex-1 min-h-0">
+            {visibleItems.length === 0 ? (
+              <span className="text-[11px] text-slate-600 block bg-slate-950/50 p-2 rounded border border-slate-800 border-dashed text-center">
+                空無一物
+              </span>
+            ) : (
+              <div className="flex flex-col gap-1.5 md:gap-2">
+                {visibleItems.map(item => (
+                  <div key={item.id} className="flex bg-slate-800 rounded border border-slate-700 overflow-hidden shadow-sm hover:border-slate-600 active:bg-slate-700">
+                    <button
+                      onClick={() => onTakeItem(item.id)}
+                      className="flex-1 text-emerald-400 px-3 py-2 md:py-2.5 text-xs text-left truncate font-bold"
+                    >
+                      + 拿取 {item.name}
+                    </button>
+                    <button
+                      onClick={() => onInspect(item.id)}
+                      className="text-slate-400 px-3 py-2 md:py-2.5 border-l border-slate-700 shrink-0 active:bg-slate-600"
+                    >
+                      <Search size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Locks & Paths */}
-        <div>
-          <h4 className="text-[10px] md:text-[11px] text-slate-500 uppercase tracking-widest mb-2 font-bold flex items-center gap-1.5">
+        {/* Locks & Paths — independent scroll */}
+        <div className="flex flex-col min-h-0 flex-1">
+          <h4 className="text-[10px] md:text-[11px] text-slate-500 uppercase tracking-widest px-3 md:px-4 pt-2 pb-1.5 font-bold flex items-center gap-1.5 shrink-0">
             <Key size={12} /> 機關與通道
           </h4>
+          <div className="px-3 md:px-4 pb-3 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 flex-1 min-h-0">
           <div className="flex flex-col gap-1.5 md:gap-2">
             {locks.map(lock => {
               const isSpatial = lock.category === 'spatial';
@@ -160,6 +164,7 @@ export default function InteractionPanel({
                 </div>
               );
             })}
+          </div>
           </div>
         </div>
       </div>
