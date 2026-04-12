@@ -302,6 +302,26 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     });
   }
 
+  // ─── 第四遍：碰撞解決 — 同 Y 的節點不能重疊 ───
+
+  const rankNodes = new Map<number, string[]>();
+  for (const [id, pos] of nodePos) {
+    const r = pos.y;
+    if (!rankNodes.has(r)) rankNodes.set(r, []);
+    rankNodes.get(r)!.push(id);
+  }
+
+  for (const [, ids] of rankNodes) {
+    if (ids.length <= 1) continue;
+    ids.sort((a, b) => nodePos.get(a)!.x - nodePos.get(b)!.x);
+    for (let i = 1; i < ids.length; i++) {
+      const prev = nodePos.get(ids[i - 1]!)!;
+      const curr = nodePos.get(ids[i]!)!;
+      const minRight = prev.x + NODE_W + X_GAP;
+      if (curr.x < minRight) curr.x = minRight;
+    }
+  }
+
   // 確保所有 X >= 0
   let minX = Infinity;
   for (const pos of nodePos.values()) {
@@ -346,14 +366,32 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     roomGroups.push({ roomId, roomName: room.name, ...box });
   }
 
+  // 容器 group：只有 lock 和 content 在相鄰 rank 時才畫框
+  // 跨多層的容器用 contains 邊表達，不畫 bounding box（避免框到不相關節點）
   const containerGroups: ContainerGroup[] = [];
   for (const lock of allLocks) {
     if (lock.category !== 'container' || lock.contents.length === 0) continue;
-    const childNodes = layoutNodes.filter(n => containerMap.get(n.id) === lock.id);
     const lockNode = layoutNodes.find(n => n.id === lock.id);
-    const groupNodes = lockNode ? [lockNode, ...childNodes] : childNodes;
-    if (groupNodes.length === 0) continue;
+    if (!lockNode) continue;
+    const childNodes = layoutNodes.filter(n => containerMap.get(n.id) === lock.id);
+    if (childNodes.length === 0) continue;
+
+    // 只在 lock 和所有 content 的 Y 距離 <= 1 層時才畫框
+    const maxChildY = Math.max(...childNodes.map(n => n.y));
+    const rankStep = NODE_H + Y_GAP;
+    if (maxChildY - lockNode.y > rankStep * 1.5) continue;
+
+    // 確認框內沒有不相關的節點
+    const groupNodes = [lockNode, ...childNodes];
     const box = boundingBox(groupNodes, GROUP_PAD / 2);
+    const groupIds = new Set(groupNodes.map(n => n.id));
+    const hasIntruder = layoutNodes.some(n =>
+      !groupIds.has(n.id)
+      && n.x + NODE_W > box.x && n.x < box.x + box.width
+      && n.y + NODE_H > box.y && n.y < box.y + box.height,
+    );
+    if (hasIntruder) continue;
+
     containerGroups.push({ lockId: lock.id, lockName: lock.name, roomId: lock.roomId, ...box });
   }
 
