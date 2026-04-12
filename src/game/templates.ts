@@ -25,6 +25,34 @@ export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   { id: 'bolt_cutter', name: '破壞剪', description: '一把大型的金屬剪。', type: 'tool', reusable: true, volume: 3, stateTags: ['cutting-tool'] },
   { id: 'wet_cloth', name: '濕布', description: '一塊浸濕的布，可以用來擦拭髒污。', type: 'tool', reusable: true, volume: 1, stateTags: ['water-station'] },
 
+  // 組合鎖零件（消耗型）
+  { id: 'soldering_iron', name: '焊槍', description: '一把小型電焊槍。', type: 'key', reusable: false, volume: 2 },
+  { id: 'solder_wire', name: '焊條', description: '一卷銀色焊條。', type: 'key', reusable: false, volume: 1 },
+  { id: 'antenna', name: '天線', description: '一根可伸縮的金屬天線。', type: 'key', reusable: false, volume: 1 },
+  { id: 'battery_pack', name: '電池組', description: '一個沉甸甸的電池組。', type: 'key', reusable: false, volume: 2 },
+  { id: 'lens', name: '透鏡', description: '一片精密研磨的玻璃透鏡。', type: 'key', reusable: false, volume: 1 },
+  { id: 'prism', name: '稜鏡', description: '一個三角形的玻璃稜鏡。', type: 'key', reusable: false, volume: 1 },
+  { id: 'hydraulic_tube', name: '液壓管', description: '一條高壓液壓管。', type: 'key', reusable: false, volume: 2 },
+  { id: 'hydraulic_fluid', name: '液壓油瓶', description: '一瓶紅色的液壓油。', type: 'key', reusable: false, volume: 2 },
+  { id: 'fuse', name: '保險絲', description: '一根玻璃管保險絲。', type: 'key', reusable: false, volume: 0.5 },
+  { id: 'switch_handle', name: '開關把手', description: '一個電閘的拉桿把手。', type: 'key', reusable: false, volume: 1 },
+  { id: 'red_gem', name: '紅寶石', description: '一顆發著微光的紅寶石。', type: 'key', reusable: false, volume: 1 },
+  { id: 'blue_gem', name: '藍寶石', description: '一顆冰冷的藍寶石。', type: 'key', reusable: false, volume: 1 },
+  { id: 'green_gem', name: '綠寶石', description: '一顆翠綠色的寶石。', type: 'key', reusable: false, volume: 1 },
+  { id: 'red_wire', name: '紅色電線', description: '一段紅色絕緣電線。', type: 'key', reusable: false, volume: 0.5 },
+  { id: 'blue_wire', name: '藍色電線', description: '一段藍色絕緣電線。', type: 'key', reusable: false, volume: 0.5 },
+  { id: 'green_wire', name: '綠色電線', description: '一段綠色絕緣電線。', type: 'key', reusable: false, volume: 0.5 },
+  { id: 'filter_core', name: '濾芯', description: '一個圓柱形的過濾芯。', type: 'key', reusable: false, volume: 1 },
+  { id: 'carbon_pack', name: '活性碳包', description: '一袋黑色的活性碳。', type: 'key', reusable: false, volume: 1 },
+  { id: 'pipe_connector', name: '水管接頭', description: '一個金屬水管接頭。', type: 'key', reusable: false, volume: 1 },
+  { id: 'fuel_canister', name: '燃料罐', description: '一個密封的金屬燃料罐。', type: 'key', reusable: false, volume: 2 },
+  { id: 'igniter', name: '點火器', description: '一個電子點火裝置。', type: 'key', reusable: false, volume: 1 },
+  { id: 'nav_chip', name: '導航晶片', description: '一塊軍規導航晶片。', type: 'key', reusable: false, volume: 0.5 },
+  { id: 'hard_drive', name: '硬碟', description: '一顆3.5吋硬碟。', type: 'key', reusable: false, volume: 2 },
+  { id: 'ram_stick', name: '記憶體', description: '一條DDR記憶體模組。', type: 'key', reusable: false, volume: 0.5 },
+  { id: 'cpu_chip', name: 'CPU', description: '一顆處理器晶片。', type: 'key', reusable: false, volume: 0.5 },
+  { id: 'power_module', name: '電源模組', description: '一個方形的電源供應模組。', type: 'key', reusable: false, volume: 2 },
+
   // 固定裝置（不可拾取的鑰匙，顯示在機關區）
   { id: 'water_basin', name: '水盆', description: '一個裝滿清水的石盆，嵌在桌面上。', type: 'tool', reusable: true, pickupable: false, volume: 3, stateTags: ['water-station'] },
   { id: 'workbench', name: '工作台', description: '一張堅固的金屬工作台，上面有各種夾具和工具。', type: 'tool', reusable: true, pickupable: false, volume: 5 },
@@ -160,6 +188,104 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     ],
   },
 
+  // ── 組合鎖 2 鑰匙（新增） ──
+  {
+    id: 'soldering_station', name: '焊接工作台',
+    lockedDescription: '一個金屬面板被焊死了，需要重新焊接打開。',
+    unlockDescription: '焊槍和焊條修復了電路，面板彈開了。',
+    category: 'container', mechanism: 'combination', capacity: 8, volume: 5,
+    tags: ['combination', 'mechanical'],
+    requiredKeys: ['soldering_iron', 'solder_wire'],
+    variations: [
+      { name: '焊接工作台', lockMsg: '一個金屬面板被焊死了，需要重新焊接打開。', unlockMsg: '焊槍和焊條修復了電路，面板彈開了。' },
+    ],
+  },
+  {
+    id: 'radio_receiver', name: '無線電接收台',
+    lockedDescription: '一台老式無線電，天線斷了，也沒有電池。',
+    unlockDescription: '裝上天線和電池組，無線電嗶嗶作響，螢幕顯示出密碼。',
+    category: 'container', mechanism: 'combination', capacity: 4, volume: 3,
+    tags: ['combination', 'electronic'],
+    requiredKeys: ['antenna', 'battery_pack'],
+    variations: [
+      { name: '無線電接收台', lockMsg: '一台老式無線電，天線斷了，也沒有電池。', unlockMsg: '裝上天線和電池組，無線電嗶嗶作響，螢幕顯示出密碼。' },
+      { name: '對講機基座', lockMsg: '一台壁掛式對講機，天線折斷，電池槽是空的。', unlockMsg: '天線裝回、電池推入，對講機傳來一段錄音訊息。' },
+    ],
+  },
+  {
+    id: 'optical_device', name: '光學感應裝置',
+    lockedDescription: '牆上一個精密的光學感應器，缺少透鏡和稜鏡。',
+    unlockDescription: '光線通過透鏡和稜鏡折射到感應器上，暗門無聲地打開。',
+    category: 'container', mechanism: 'combination', capacity: 8, volume: 5,
+    tags: ['combination', 'mechanical'],
+    requiredKeys: ['lens', 'prism'],
+    variations: [
+      { name: '光學感應裝置', lockMsg: '牆上一個精密的光學感應器，缺少透鏡和稜鏡。', unlockMsg: '光線通過透鏡和稜鏡折射到感應器上，暗門無聲地打開。' },
+    ],
+  },
+
+  // ── 組合鎖 3 鑰匙 ──
+  {
+    id: 'gem_altar', name: '寶石祭壇',
+    lockedDescription: '一座古老的石祭壇，上面有紅、藍、綠三個凹槽。',
+    unlockDescription: '三顆寶石放入凹槽，祭壇發出光芒，石板緩緩移開。',
+    category: 'container', mechanism: 'combination', capacity: 14, volume: 8,
+    tags: ['combination', 'mechanical'],
+    requiredKeys: ['red_gem', 'blue_gem', 'green_gem'],
+    variations: [
+      { name: '寶石祭壇', lockMsg: '一座古老的石祭壇，上面有紅、藍、綠三個凹槽。', unlockMsg: '三顆寶石放入凹槽，祭壇發出光芒，石板緩緩移開。' },
+      { name: '符文基座', lockMsg: '一座刻滿符文的基座，三個寶石插槽閃爍微光。', unlockMsg: '寶石歸位，符文亮起，基座底部的暗格打開了。' },
+    ],
+  },
+  {
+    id: 'wiring_panel', name: '配電盤',
+    lockedDescription: '一個大型配電盤，三個接線柱上空無一物。',
+    unlockDescription: '紅藍綠三條電線各歸其位，電力恢復，面板背後的隔間打開。',
+    category: 'container', mechanism: 'combination', capacity: 14, volume: 8,
+    tags: ['combination', 'electronic'],
+    requiredKeys: ['red_wire', 'blue_wire', 'green_wire'],
+    variations: [
+      { name: '配電盤', lockMsg: '一個大型配電盤，三個接線柱上空無一物。', unlockMsg: '紅藍綠三條電線各歸其位，電力恢復，面板背後的隔間打開。' },
+      { name: '電路接線箱', lockMsg: '一個壁掛式接線箱，紅藍綠三個端子都斷開了。', unlockMsg: '三條線接好，指示燈全亮，箱門彈開。' },
+    ],
+  },
+  {
+    id: 'water_purifier', name: '淨水裝置',
+    lockedDescription: '一台大型淨水裝置，缺少濾芯、活性碳和管路接頭。',
+    unlockDescription: '零件安裝完畢，清水開始流出，隱藏的置物格浮了上來。',
+    category: 'container', mechanism: 'combination', capacity: 8, volume: 5,
+    tags: ['combination', 'mechanical'],
+    requiredKeys: ['filter_core', 'carbon_pack', 'pipe_connector'],
+    variations: [
+      { name: '淨水裝置', lockMsg: '一台大型淨水裝置，缺少濾芯、活性碳和管路接頭。', unlockMsg: '零件安裝完畢，清水開始流出，隱藏的置物格浮了上來。' },
+    ],
+  },
+
+  // ── 組合鎖 4 鑰匙 ──
+  {
+    id: 'rocket_launcher', name: '火箭發射台',
+    lockedDescription: '一座小型火箭發射台，控制面板上三個插槽空著，燃料箱也是空的。',
+    unlockDescription: '燃料注入、點火器就位、導航設定完成。發射！煙霧散去後露出底座下方的密室。',
+    category: 'container', mechanism: 'combination', capacity: 20, volume: 12,
+    tags: ['combination', 'mechanical'],
+    requiredKeys: ['fuel_canister', 'igniter', 'nav_chip'],
+    variations: [
+      { name: '火箭發射台', lockMsg: '一座小型火箭發射台，控制面板上三個插槽空著，燃料箱也是空的。', unlockMsg: '燃料注入、點火器就位、導航設定完成。發射！煙霧散去後露出底座下方的密室。' },
+    ],
+  },
+  {
+    id: 'server_rack', name: '監控主機',
+    lockedDescription: '一台大型監控主機，硬碟、記憶體、CPU 和電源模組全被拔走了。',
+    unlockDescription: '四個零件歸位，螢幕亮起，主機側板打開露出內部儲物空間。',
+    category: 'container', mechanism: 'combination', capacity: 20, volume: 12,
+    tags: ['combination', 'electronic'],
+    requiredKeys: ['hard_drive', 'ram_stick', 'cpu_chip', 'power_module'],
+    variations: [
+      { name: '監控主機', lockMsg: '一台大型監控主機，硬碟、記憶體、CPU 和電源模組全被拔走了。', unlockMsg: '四個零件歸位，螢幕亮起，主機側板打開露出內部儲物空間。' },
+      { name: '伺服器機櫃', lockMsg: '一個伺服器機櫃，四個關鍵元件的插槽都是空的。', unlockMsg: '元件就位，風扇嗡嗡運轉，機櫃門自動彈開。' },
+    ],
+  },
+
   // ── 小型容器 (capacity 4L, volume 3L) ──
   {
     id: 'locked_drawer', name: '上鎖的抽屜',
@@ -254,26 +380,27 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
 
   // ── 超大型容器 (capacity 20L, volume 12L) ──
   {
-    id: 'industrial_cabinet', name: '工業配電箱',
-    lockedDescription: '一個巨大的配電箱，面板上需要電源和數位密鑰才能開啟。',
-    unlockDescription: '系統啟動，配電箱面板緩緩滑開，裡面遠比想像的大。',
+    id: 'hydraulic_platform', name: '液壓升降台',
+    lockedDescription: '一座工業液壓升降台，液壓系統已經乾涸。',
+    unlockDescription: '液壓油注入管路，升降台緩緩升起，底下藏著一個大空間。',
     category: 'container', mechanism: 'combination', capacity: 20, volume: 12,
-    tags: ['combination', 'electronic'],
-    requiredKeys: ['power_cable', 'usb_drive'],
+    tags: ['combination', 'mechanical'],
+    requiredKeys: ['hydraulic_tube', 'hydraulic_fluid'],
     variations: [
-      { name: '工業配電箱', lockMsg: '一個巨大的配電箱，面板上需要電源和數位密鑰才能開啟。', unlockMsg: '系統啟動，配電箱面板緩緩滑開，裡面遠比想像的大。' },
-      { name: '伺服器機櫃', lockMsg: '一個高大的伺服器機櫃，需要接通電源並插入認證碟。', unlockMsg: '風扇開始運轉，機櫃側板彈開，裡面塞了很多東西。' },
+      { name: '液壓升降台', lockMsg: '一座工業液壓升降台，液壓系統已經乾涸。', unlockMsg: '液壓油注入管路，升降台緩緩升起，底下藏著一個大空間。' },
+      { name: '液壓貨梯', lockMsg: '一台故障的液壓貨梯，卡在半層樓高的位置。', unlockMsg: '液壓恢復，貨梯降下，露出後方的儲藏區。' },
     ],
   },
   {
-    id: 'sealed_container', name: '密封貨櫃',
-    lockedDescription: '一個大型密封貨櫃，紅藍兩個化學封條鎖住了開關。',
-    unlockDescription: '化學反應溶解了封條，貨櫃門轟然打開。',
+    id: 'fuse_box', name: '保險絲盒',
+    lockedDescription: '一個大型配電箱，保險絲燒斷了，電閘也缺了把手。',
+    unlockDescription: '換上保險絲，拉下電閘，配電箱內部亮起燈光。',
     category: 'container', mechanism: 'combination', capacity: 20, volume: 12,
-    tags: ['combination', 'chemical'],
-    requiredKeys: ['red_reagent', 'blue_reagent'],
+    tags: ['combination', 'electronic'],
+    requiredKeys: ['fuse', 'switch_handle'],
     variations: [
-      { name: '密封貨櫃', lockMsg: '一個大型密封貨櫃，紅藍兩個化學封條鎖住了開關。', unlockMsg: '化學反應溶解了封條，貨櫃門轟然打開。' },
+      { name: '保險絲盒', lockMsg: '一個大型配電箱，保險絲燒斷了，電閘也缺了把手。', unlockMsg: '換上保險絲，拉下電閘，配電箱內部亮起燈光。' },
+      { name: '工業配電箱', lockMsg: '一個巨大的工業配電箱，斷路器跳脫且控制桿不見了。', unlockMsg: '裝回保險絲和控制桿，電力恢復，面板彈開。' },
     ],
   },
 
