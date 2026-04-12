@@ -168,6 +168,7 @@ export default function App() {
             gameState={gameState}
             selectedItem={selectedItem}
             onSelectItem={setSelectedItem}
+            onUseItemOnLock={useItemOnLock}
             onInspect={inspectEntity}
           />
         </div>
@@ -220,14 +221,32 @@ function InventoryPanel({
   gameState,
   selectedItem,
   onSelectItem,
+  onUseItemOnLock,
   onInspect,
 }: {
   gameState: GameState;
   selectedItem: ItemId | null;
   onSelectItem: (id: ItemId | null) => void;
+  onUseItemOnLock: (itemId: string, lockId: string) => void;
   onInspect: (entityId: string) => void;
 }) {
   const { puzzle, inventory } = gameState;
+
+  /** 點擊背包中的另一個物件：判斷 key/lock 關係並使用 */
+  const handleInventoryUse = (targetId: string) => {
+    if (!selectedItem || selectedItem === targetId) return;
+    const selectedIsLock = !!puzzle.locks[selectedItem];
+    const targetIsLock = !!puzzle.locks[targetId];
+
+    if (selectedIsLock && !targetIsLock) {
+      // selected=lock, target=key → use key on lock
+      onUseItemOnLock(targetId, selectedItem);
+    } else if (!selectedIsLock && targetIsLock) {
+      // selected=key, target=lock → use key on lock
+      onUseItemOnLock(selectedItem, targetId);
+    }
+    // both keys or both locks → invalid, ignore
+  };
 
   return (
     <div className="border border-slate-800 rounded-xl p-3 md:p-4 bg-slate-900 shrink-0 h-[30%] md:h-[35%] flex flex-col shadow-lg">
@@ -252,6 +271,9 @@ function InventoryPanel({
               const entity = item ?? lock;
               if (!entity) return null;
               const isSelected = selectedItem === itemId;
+              // 是否能作為「使用」目標（selected 和 target 一個是 key 一個是 lock）
+              const canBeUseTarget = !!selectedItem && selectedItem !== itemId
+                && (!!puzzle.locks[selectedItem]) !== (!!puzzle.locks[itemId]);
               const badgeLabel = item
                 ? (item.reusable ? '工具' : item.type === 'clue' ? '線索' : '道具')
                 : '裝置';
@@ -259,10 +281,20 @@ function InventoryPanel({
                 <div key={itemId} className={`flex rounded border overflow-hidden shadow-sm transition-all ${
                   isSelected
                     ? 'bg-blue-900 border-blue-400 ring-2 ring-blue-500/30'
-                    : 'bg-slate-800 border-slate-700 hover:border-slate-600'
+                    : canBeUseTarget
+                      ? 'bg-emerald-900/50 border-emerald-600 hover:border-emerald-400'
+                      : 'bg-slate-800 border-slate-700 hover:border-slate-600'
                 }`}>
                   <button
-                    onClick={() => onSelectItem(isSelected ? null : itemId)}
+                    onClick={() => {
+                      if (isSelected) {
+                        onSelectItem(null);
+                      } else if (selectedItem && selectedItem !== itemId) {
+                        handleInventoryUse(itemId);
+                      } else {
+                        onSelectItem(itemId);
+                      }
+                    }}
                     className="flex-1 text-left px-2.5 py-2 md:py-2.5 text-[11px] md:text-xs flex items-center gap-1.5 truncate"
                   >
                     <MousePointerClick size={12} className={`shrink-0 ${isSelected ? 'text-blue-300' : 'text-slate-500'}`} />
