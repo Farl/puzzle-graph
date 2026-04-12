@@ -232,12 +232,6 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     // 分配 X 座標
     let currentX = 0;
     for (const entry of groupEntries) {
-      // 容器群：對齊父鎖 X（如果父鎖比 currentX 更右）
-      if (entry.key !== '') {
-        const parentX = nodePos.get(entry.key)?.x ?? currentX;
-        if (parentX > currentX) currentX = parentX;
-      }
-
       for (const id of entry.ids) {
         nodePos.set(id, { x: currentX, y });
         currentX += NODE_W + X_GAP;
@@ -273,36 +267,7 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     });
   }
 
-  // ─── 第三遍：展開共享子節點的兄弟（跨層 sibling spread）───
-  // 同一鎖的多個 requiredItems 若在不同層但相同 X → 展開成扇形
-
-  for (const lock of allLocks) {
-    if (lock.requiredItems.length < 2) continue;
-    if (!allNodeIds.has(lock.id)) continue;
-
-    const lockPos = nodePos.get(lock.id);
-    if (!lockPos) continue;
-
-    // 收集有位置的 required items
-    const siblings = lock.requiredItems.filter(id => nodePos.has(id));
-    if (siblings.length < 2) continue;
-
-    // 檢查是否所有 siblings 在同一 X（或接近）
-    const xs = siblings.map(id => nodePos.get(id)!.x);
-    const uniqueXs = new Set(xs);
-    if (uniqueXs.size >= siblings.length) continue; // 已經分散
-
-    // 以鎖的 X 為中心，展開 siblings
-    const totalWidth = (siblings.length - 1) * (NODE_W + X_GAP);
-    const startX = lockPos.x - totalWidth / 2;
-
-    siblings.forEach((id, i) => {
-      const pos = nodePos.get(id)!;
-      pos.x = startX + i * (NODE_W + X_GAP);
-    });
-  }
-
-  // ─── 第四遍：碰撞解決 — 同 Y 的節點不能重疊 ───
+  // ─── 第三遍：碰撞解決 — 同 Y 的節點不能重疊 ───
 
   const rankNodes = new Map<number, string[]>();
   for (const [id, pos] of nodePos) {
@@ -347,54 +312,27 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     };
   };
 
-  // 收集所有容器群的 ID 和 bounding box
+  // 收集相鄰 rank 的容器群（鎖和所有 content 在 ≤ 1 rank 步內）
+  const rankStep = NODE_H + Y_GAP;
   const containerGroupData: { lockId: string; memberIds: Set<string>; box: Box }[] = [];
   for (const lock of allLocks) {
     if (lock.category !== 'container' || lock.contents.length === 0) continue;
-    if (!nodePos.has(lock.id)) continue;
+    const lockP = nodePos.get(lock.id);
+    if (!lockP) continue;
     const childIds = lock.contents.filter(id => nodePos.has(id));
     if (childIds.length === 0) continue;
+
+    // 只對相鄰 rank 的容器畫框（遠距離的用 contains 邊表達）
+    const maxChildY = Math.max(...childIds.map(id => nodePos.get(id)!.y));
+    if (maxChildY - lockP.y > rankStep * 1.5) continue;
+
     const memberIds = new Set([lock.id, ...childIds]);
     const box = posBox([...memberIds], GROUP_PAD / 2);
     if (box) containerGroupData.push({ lockId: lock.id, memberIds, box });
   }
 
-  // 迭代推開（最多 10 輪避免無限循環）
-  for (let iter = 0; iter < 10; iter++) {
-    let anyPushed = false;
-
-    for (const cg of containerGroupData) {
-      for (const [id, pos] of nodePos) {
-        if (cg.memberIds.has(id)) continue;
-        // 檢查碰撞
-        if (pos.x + NODE_W > cg.box.x && pos.x < cg.box.x + cg.box.width
-          && pos.y + NODE_H > cg.box.y && pos.y < cg.box.y + cg.box.height) {
-          pos.x = cg.box.x + cg.box.width + X_GAP;
-          anyPushed = true;
-        }
-      }
-    }
-
-    if (!anyPushed) break;
-
-    // 重跑同 Y 碰撞解決
-    for (const [, ids] of rankNodes) {
-      if (ids.length <= 1) continue;
-      ids.sort((a, b) => nodePos.get(a)!.x - nodePos.get(b)!.x);
-      for (let i = 1; i < ids.length; i++) {
-        const prev = nodePos.get(ids[i - 1]!)!;
-        const curr = nodePos.get(ids[i]!)!;
-        const minRight = prev.x + NODE_W + X_GAP;
-        if (curr.x < minRight) curr.x = minRight;
-      }
-    }
-
-    // 更新容器框
-    for (const cg of containerGroupData) {
-      const newBox = posBox([...cg.memberIds], GROUP_PAD / 2);
-      if (newBox) cg.box = newBox;
-    }
-  }
+  // 容器框已建立，不做推開（避免造成巨大 X 間距）
+  // 容器框內可能含非成員節點 — 這是 position-based 框的固有限制
 
   // ─── 生成 LayoutNode ───
 
