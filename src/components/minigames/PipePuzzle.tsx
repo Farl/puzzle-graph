@@ -223,9 +223,9 @@ export default function PipePuzzle({ config, onComplete }: Props) {
   const rotate = useCallback((r: number, c: number) => {
     if (solved) return;
     setGrid(prev => {
-      const next = prev.map(row => row.map(cell => ({ ...cell })));
-      const cell = next[r]![c]!;
-      cell.rotation = (cell.rotation + 1) % 4;
+      const next = prev.map((row, ri) =>
+        ri === r ? row.map((cell, ci) => ci === c ? { ...cell, rotation: (cell.rotation + 1) % 4 } : cell) : row
+      );
       return next;
     });
   }, [solved]);

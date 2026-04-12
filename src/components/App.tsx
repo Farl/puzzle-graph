@@ -265,7 +265,9 @@ function InventoryPanel({
           </span>
         ) : (
           <div className="flex flex-col gap-1.5 md:gap-2">
-            {inventory.map(itemId => {
+            {(() => {
+              const selectedIsLock = selectedItem ? !!puzzle.locks[selectedItem] : false;
+              return inventory.map(itemId => {
               const item = puzzle.items[itemId];
               const lock = item ? null : puzzle.locks[itemId];
               const entity = item ?? lock;
@@ -273,7 +275,7 @@ function InventoryPanel({
               const isSelected = selectedItem === itemId;
               // 是否能作為「使用」目標（selected 和 target 一個是 key 一個是 lock）
               const canBeUseTarget = !!selectedItem && selectedItem !== itemId
-                && (!!puzzle.locks[selectedItem]) !== (!!puzzle.locks[itemId]);
+                && selectedIsLock !== (!!puzzle.locks[itemId]);
               const badgeLabel = item
                 ? (item.reusable ? '工具' : item.type === 'clue' ? '線索' : '道具')
                 : '裝置';
@@ -320,7 +322,8 @@ function InventoryPanel({
                   </button>
                 </div>
               );
-            })}
+            });
+            })()}
           </div>
         )}
       </div>

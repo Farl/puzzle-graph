@@ -33,12 +33,17 @@ export default function InteractionPanel({
   const room = puzzle.rooms[currentRoomId]!;
 
   // Visible items: pickupable items + pickupable locks
-  const pickupableItems = room.visibleItems.map(id => puzzle.items[id]!).filter(item => item.pickupable);
-  const pickupableLocks = room.lockIds.map(id => puzzle.locks[id]!).filter(lock => lock.pickupable);
-
-  // Mechanisms: non-pickupable locks (normal locks/doors) + non-pickupable items (stationary workbenches, etc.)
-  const stationaryItems = room.visibleItems.map(id => puzzle.items[id]!).filter(item => !item.pickupable);
-  const nonPickupableLocks = room.lockIds.map(id => puzzle.locks[id]!).filter(lock => !lock.pickupable);
+  const pickupableItems: typeof puzzle.items[string][] = [];
+  const stationaryItems: typeof puzzle.items[string][] = [];
+  for (const id of room.visibleItems) {
+    const item = puzzle.items[id]!;
+    (item.pickupable ? pickupableItems : stationaryItems).push(item);
+  }
+  const pickupableLocks: typeof puzzle.locks[string][] = [];
+  const nonPickupableLocks: typeof puzzle.locks[string][] = [];
+  for (const lock of room.lockIds.map(id => puzzle.locks[id]!)) {
+    (lock.pickupable ? pickupableLocks : nonPickupableLocks).push(lock);
+  }
   const locks = [...nonPickupableLocks, ...getReturnDoors(puzzle, currentRoomId)];
 
   const passwordLock = passwordLockId ? puzzle.locks[passwordLockId] : null;

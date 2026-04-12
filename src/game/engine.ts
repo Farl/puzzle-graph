@@ -140,8 +140,7 @@ function performUnlock(lock: Lock, state: GameState): void {
       } else if (id in state.puzzle.locks) {
         room.lockIds.push(id);
       }
-      const name = state.puzzle.items[id]?.name ?? state.puzzle.locks[id]?.name ?? id;
-      contentNames.push(name);
+      contentNames.push(getEntityName(id, state.puzzle));
     }
     if (isInInventory) {
       addLog(state, 'success', `你獲得了：${contentNames.join('、')}！`);
