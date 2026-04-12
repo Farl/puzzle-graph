@@ -518,19 +518,31 @@ export function generatePuzzleContent(
         });
 
         if (canWrap) {
+          // 容器鎖的房間：crossRoomRate 機率搬到其他 eligible 房間（分散內容）
+          const crossRoomRate = config.crossRoomRate ?? 0;
+          const eligibleList = roomIds.slice(0, target.criticalRoomIndex);
+          const lockRoomId = pickRoom(eligibleList, eligibleList.indexOf(target.currentRoom), crossRoomRate, ctx);
+
           const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
           const lockPickupable = lockTemplate.pickupable === true;
-          const containerLock = ctx.createLock(variation, false, target.currentRoom, false, lockTemplate.capacity, lockTemplate.volume, lockPickupable);
+          const containerLock = ctx.createLock(variation, false, lockRoomId, false, lockTemplate.capacity, lockTemplate.volume, lockPickupable);
           ctx.lockCount++;
           containerLock.contents.push(target.itemId);
           itemsInContainers.add(target.itemId);
-          ctx.items[target.itemId]!.initialRoom = target.currentRoom;
+          ctx.items[target.itemId]!.initialRoom = lockRoomId;
 
-          const targetRoom = ctx.rooms[target.currentRoom]!;
-          const vIdx = targetRoom.visibleItems.indexOf(target.itemId);
-          if (vIdx !== -1) targetRoom.visibleItems.splice(vIdx, 1);
+          // 從原房間移除物品（如果在那裡）
+          const origRoom = ctx.rooms[target.currentRoom]!;
+          const vIdx = origRoom.visibleItems.indexOf(target.itemId);
+          if (vIdx !== -1) origRoom.visibleItems.splice(vIdx, 1);
 
-          targetRoom.lockIds.push(containerLock.id);
+          // 容器鎖放到目標房間
+          ctx.rooms[lockRoomId]!.lockIds.push(containerLock.id);
+
+          // 更新 target 的房間（影響子鑰匙放置）
+          target.currentRoom = lockRoomId;
+          target.currentRoomIndex = roomIds.indexOf(lockRoomId);
+
           enqueueKeysForLock(ctx, containerLock.id, lockTemplate, target, config, roomIds, queue);
           wrapped = true;
           break;
