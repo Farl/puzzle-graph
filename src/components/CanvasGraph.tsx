@@ -235,18 +235,32 @@ export default function CanvasGraph({ puzzle }: Props) {
             const target = nodeMap.get(edge.target);
             if (!source || !target) return null;
 
-            const startX = source.x + NODE_W;
-            const startY = source.y + NODE_H / 2;
-            const endX = target.x;
-            const endY = target.y + NODE_H / 2;
-            const cpX = startX + (endX - startX) / 2;
-
             const isContains = edge.type === 'contains';
+            const isForward = target.y > source.y || (target.y === source.y && target.x > source.x);
+
+            let d: string;
+            if (isForward) {
+              // 正向邊：從下方出發到上方進入（垂直流）
+              const sx = source.x + NODE_W / 2;
+              const sy = source.y + NODE_H;
+              const ex = target.x + NODE_W / 2;
+              const ey = target.y;
+              const cpY = sy + (ey - sy) / 2;
+              d = `M ${sx} ${sy} C ${sx} ${cpY}, ${ex} ${cpY}, ${ex} ${ey}`;
+            } else {
+              // 反向邊（回繞）：從左側出發，繞左邊弧線到目標左側
+              const sx = source.x;
+              const sy = source.y + NODE_H / 2;
+              const ex = target.x;
+              const ey = target.y + NODE_H / 2;
+              const loopX = Math.min(sx, ex) - 60;
+              d = `M ${sx} ${sy} C ${loopX} ${sy}, ${loopX} ${ey}, ${ex} ${ey}`;
+            }
 
             return (
               <path
                 key={i}
-                d={`M ${startX} ${startY} C ${cpX} ${startY}, ${cpX} ${endY}, ${endX} ${endY}`}
+                d={d}
                 fill="none"
                 stroke={isContains ? '#0891b2' : '#475569'}
                 strokeWidth="2"
