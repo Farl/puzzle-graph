@@ -204,24 +204,25 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     });
   }
 
-  // 計算房間群組邊界框
+  // 計算群組邊界框的共用邏輯
+  const boundingBox = (nodes: LayoutNode[], pad: number) => {
+    const x = Math.min(...nodes.map(n => n.x)) - pad;
+    const y = Math.min(...nodes.map(n => n.y)) - pad;
+    return {
+      x, y,
+      width: Math.max(...nodes.map(n => n.x + NODE_W)) + pad - x,
+      height: Math.max(...nodes.map(n => n.y + NODE_H)) + pad - y,
+    };
+  };
+
   const roomGroups: RoomGroup[] = [];
   for (const [roomId, room] of Object.entries(puzzle.rooms)) {
     const roomNodes = layoutNodes.filter(n => n.roomId === roomId);
     if (roomNodes.length === 0) continue;
-    const minX = Math.min(...roomNodes.map(n => n.x)) - GROUP_PAD;
-    const minY = Math.min(...roomNodes.map(n => n.y)) - GROUP_PAD;
-    const maxRX = Math.max(...roomNodes.map(n => n.x + NODE_W)) + GROUP_PAD;
-    const maxRY = Math.max(...roomNodes.map(n => n.y + NODE_H)) + GROUP_PAD;
-    roomGroups.push({
-      roomId,
-      roomName: room.name,
-      x: minX, y: minY,
-      width: maxRX - minX, height: maxRY - minY,
-    });
+    const box = boundingBox(roomNodes, GROUP_PAD);
+    roomGroups.push({ roomId, roomName: room.name, ...box });
   }
 
-  // 計算容器群組邊界框
   const containerGroups: ContainerGroup[] = [];
   for (const lock of allLocks) {
     if (lock.category !== 'container' || lock.contents.length === 0) continue;
@@ -229,18 +230,8 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     const lockNode = layoutNodes.find(n => n.id === lock.id);
     const allGroupNodes = lockNode ? [lockNode, ...childNodes] : childNodes;
     if (allGroupNodes.length === 0) continue;
-    const halfPad = GROUP_PAD / 2;
-    const minX = Math.min(...allGroupNodes.map(n => n.x)) - halfPad;
-    const minY = Math.min(...allGroupNodes.map(n => n.y)) - halfPad;
-    const maxCX = Math.max(...allGroupNodes.map(n => n.x + NODE_W)) + halfPad;
-    const maxCY = Math.max(...allGroupNodes.map(n => n.y + NODE_H)) + halfPad;
-    containerGroups.push({
-      lockId: lock.id,
-      lockName: lock.name,
-      roomId: lock.roomId,
-      x: minX, y: minY,
-      width: maxCX - minX, height: maxCY - minY,
-    });
+    const box = boundingBox(allGroupNodes, GROUP_PAD / 2);
+    containerGroups.push({ lockId: lock.id, lockName: lock.name, roomId: lock.roomId, ...box });
   }
 
   return { nodes: layoutNodes, edges, bounds: { maxX, maxY }, roomGroups, containerGroups };

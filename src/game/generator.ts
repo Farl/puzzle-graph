@@ -517,6 +517,11 @@ export function generatePuzzleContent(
 
 // ─── Phase C：整合搬移（Consolidation Pass） ───
 
+/** 查詢實體（物品或鎖）的體積 */
+function entityVolume(id: string, ctx: GeneratorContext): number {
+  return ctx.items[id]?.volume ?? ctx.locks[id]?.volume ?? 0;
+}
+
 /**
  * 計算每個實體的緊急度（urgency）。
  * urgency(item) = 所有需要此 item 的鎖中，最小的 roomIndex。
@@ -590,13 +595,25 @@ function currentNestingDepth(lockId: LockId, locks: Record<LockId, Lock>): numbe
 }
 
 /**
- * 收集解鎖某個 lock 所需的所有前置物品與鎖（遞迴展開）。
- * 結果包含：此鎖的 requiredItems，以及那些 item 被鎖在哪個容器裡時，
- * 該容器的 requiredItems（遞迴）。
+ * 建立反向映射：entityId → 包含它的容器鎖 ID（O(1) 查找）
+ */
+function buildContentToContainerMap(locks: Record<LockId, Lock>): Map<string, LockId> {
+  const map = new Map<string, LockId>();
+  for (const lock of Object.values(locks)) {
+    for (const id of lock.contents) {
+      map.set(id, lock.id);
+    }
+  }
+  return map;
+}
+
+/**
+ * 收集解鎖某個 lock 所需的所有前置物品（遞迴展開容器鏈）。
  */
 function collectPrerequisites(
   lockId: LockId,
   locks: Record<LockId, Lock>,
+  contentToContainer: Map<string, LockId>,
 ): Set<string> {
   const result = new Set<string>();
   const visited = new Set<LockId>();
@@ -608,28 +625,13 @@ function collectPrerequisites(
     if (!lock) return;
     for (const itemId of lock.requiredItems) {
       result.add(itemId);
-    }
-  }
-
-  // For each item needed to open this lock, find if it's inside a container lock
-  // and recursively collect that container's prerequisites too
-  function walkItem(itemId: ItemId): void {
-    for (const lock of Object.values(locks)) {
-      if (lock.contents.includes(itemId) && !visited.has(lock.id)) {
-        walk(lock.id);
-        // Also walk items needed for that parent lock
-        for (const reqId of lock.requiredItems) {
-          walkItem(reqId);
-        }
-      }
+      // 如果這個物品被鎖在某個容器裡，那個容器的前置也是間接前置
+      const parentLock = contentToContainer.get(itemId);
+      if (parentLock) walk(parentLock);
     }
   }
 
   walk(lockId);
-  for (const itemId of locks[lockId]?.requiredItems ?? []) {
-    walkItem(itemId);
-  }
-
   return result;
 }
 
@@ -642,8 +644,9 @@ function wouldCreateCycle(
   candidateId: string,
   containerId: LockId,
   ctx: GeneratorContext,
+  contentToContainer: Map<string, LockId>,
 ): boolean {
-  const prereqs = collectPrerequisites(containerId, ctx.locks);
+  const prereqs = collectPrerequisites(containerId, ctx.locks, contentToContainer);
 
   // If candidate is an item directly needed
   if (candidateId in ctx.items) {
@@ -686,6 +689,7 @@ function consolidate(
   if (consolidationRate <= 0) return;
 
   const urgency = computeUrgency(ctx, roomIds);
+  const contentToContainer = buildContentToContainerMap(ctx.locks);
 
   for (const roomId of roomIds) {
     const room = ctx.rooms[roomId]!;
@@ -712,7 +716,7 @@ function consolidate(
       if (candidate in ctx.locks && ctx.locks[candidate]!.category === 'spatial') continue;
 
       const candidateUrgency = urgency.get(candidate) ?? 0;
-      const candidateVolume = ctx.items[candidate]?.volume ?? ctx.locks[candidate]?.volume ?? 0;
+      const candidateVolume = entityVolume(candidate, ctx);
 
       const containers = getContainers();
 
@@ -726,12 +730,12 @@ function consolidate(
         if (containerUrgency > candidateUrgency) break;
 
         // Dependency check: candidate must not be a prerequisite for this container
-        if (wouldCreateCycle(candidate, containerId, ctx)) continue;
+        if (wouldCreateCycle(candidate, containerId, ctx, contentToContainer)) continue;
 
         // Check volume
         let usedVolume = 0;
         for (const id of container.contents) {
-          usedVolume += ctx.items[id]?.volume ?? ctx.locks[id]?.volume ?? 0;
+          usedVolume += entityVolume(id, ctx);
         }
         if (usedVolume + candidateVolume > container.capacity) continue;
 
@@ -744,6 +748,7 @@ function consolidate(
 
         // Move candidate into container
         container.contents.push(candidate);
+        contentToContainer.set(candidate, containerId);
 
         // Remove candidate from room floor
         if (candidate in ctx.items) {
