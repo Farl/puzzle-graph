@@ -209,7 +209,7 @@
 | compositeRate | 0-1 | 選擇多鑰匙組合鎖的機率 |
 | depthStaggerVariance | 0-2 | 組合鎖次要鑰匙的深度隨機偏差 |
 | keySpreadRate | 0-1 | Phase A 門鑰匙分散程度（0=緊鄰門，1=任意合法房間） |
-| crossRoomRate | 0-1 | Phase B 容器鎖和鑰匙跨房間機率 |
+| crossRoomRate | 0-1 | Phase B 鑰匙跨房間放置機率（容器鎖固定在物品所在房間） |
 | reuseRate | 0-1 | 已有可重複工具時走復用路徑的機率 |
 | maxReusesPerTool | 1-∞ | 每個工具最多被幾把鎖共用 |
 | maxLocks | 1-∞ | 容器鎖總量硬上限（與 targetDepth 互補，先到先停） |
