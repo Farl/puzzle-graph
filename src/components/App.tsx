@@ -204,6 +204,7 @@ export default function App() {
         <SettingsModal
           config={config}
           defaultConfig={DEFAULT_CONFIG}
+          currentSeed={originalPuzzle?.seed}
           onApply={cfg => startNewGame(cfg)}
           onClose={() => setIsSettingsOpen(false)}
         />

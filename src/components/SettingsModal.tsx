@@ -5,6 +5,7 @@ import type { GeneratorConfig } from '../game/types';
 interface Props {
   config: GeneratorConfig;
   defaultConfig: GeneratorConfig;
+  currentSeed?: number;
   onApply: (config: GeneratorConfig) => void;
   onClose: () => void;
 }
@@ -35,9 +36,9 @@ const SLIDERS: SliderConfig[] = [
   { key: 'stateLockRate', label: '狀態鎖機率', desc: '地板物品被狀態鎖（可拾取）包裹的機率', min: 0, max: 1, step: 0.1, color: 'accent-pink-500' },
 ];
 
-export default function SettingsModal({ config, defaultConfig, onApply, onClose }: Props) {
+export default function SettingsModal({ config, defaultConfig, currentSeed, onApply, onClose }: Props) {
   const [draft, setDraft] = useState<GeneratorConfig>({ ...config });
-  const [seedInput, setSeedInput] = useState<string>(config.seed != null ? String(config.seed) : '');
+  const [seedInput, setSeedInput] = useState<string>(currentSeed != null ? String(currentSeed) : '');
 
   const update = (key: NumericConfigKey, value: number) => {
     setDraft(prev => ({ ...prev, [key]: value }));
@@ -72,17 +73,27 @@ export default function SettingsModal({ config, defaultConfig, onApply, onClose 
           </div>
           <div>
             <div className="flex justify-between text-[11px] text-slate-400 mb-0.5">
-              <span>亂數種子</span>
-              <span className="text-slate-500">留空 = 隨機</span>
+              <span>亂數種子{currentSeed != null && <span className="text-slate-500 ml-1">(目前: {currentSeed})</span>}</span>
+              <span className="text-slate-500">清空 = 隨機</span>
             </div>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={seedInput}
-              onChange={e => setSeedInput(e.target.value)}
-              placeholder="例：12345（輸入相同種子可重現關卡）"
-              className="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30"
-            />
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={seedInput}
+                onChange={e => setSeedInput(e.target.value)}
+                placeholder="例：12345（留空 = 隨機）"
+                className="flex-1 bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30"
+              />
+              {seedInput && (
+                <button
+                  onClick={() => setSeedInput('')}
+                  className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs rounded border border-slate-700 shrink-0"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
