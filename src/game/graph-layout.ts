@@ -205,17 +205,28 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
 
     const sortedRanks = Object.keys(rankGroups).map(Number).sort((a, b) => a - b);
 
-    // 房間內的相對排列：rank 決定 x（水平），同 rank 的節點垂直排列
+    // 房間內排列：rank 決定 x（水平），同 rank 內分離容器群組和地板物品避免 bounding box 重疊
     let localCol = 0;
     let roomMaxX = roomStartX;
 
     for (const r of sortedRanks) {
       const group = rankGroups[r]!;
-      const startY = -((group.length - 1) * Y_GAP) / 2;
 
-      group.forEach((id, index) => {
+      // 分離：容器內的節點 vs 地板上的自由節點
+      const contained = group.filter(id => containerMap.has(id));
+      const free = group.filter(id => !containerMap.has(id));
+
+      // 容器節點排前面，地板節點排後面，中間多一格間距
+      const ordered = [...contained, ...free];
+      const gapIndex = contained.length > 0 && free.length > 0 ? contained.length : -1;
+      const totalSlots = ordered.length + (gapIndex >= 0 ? 0.5 : 0);
+      const startY = -(totalSlots - 1) * Y_GAP / 2;
+
+      let ySlot = 0;
+      ordered.forEach((id, index) => {
         const x = roomStartX + localCol * X_GAP;
-        const y = startY + index * Y_GAP;
+        const y = startY + ySlot * Y_GAP;
+        if (index === gapIndex) ySlot += 0.5; // 容器/地板之間的額外間距
 
         const item = puzzle.items[id];
         const lock = puzzle.locks[id];
@@ -237,6 +248,7 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
           isExit = lock.isExit;
           roomName = puzzle.rooms[rid]?.name ?? '';
         } else {
+          ySlot++;
           return;
         }
 
@@ -244,6 +256,7 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
         layoutNodes.push({ id, x, y, entityType, category, isExit, name, roomName, roomId: rid, containerId });
 
         if (x + NODE_W > roomMaxX) roomMaxX = x + NODE_W;
+        ySlot++;
       });
 
       localCol++;
