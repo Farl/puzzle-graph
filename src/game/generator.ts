@@ -344,7 +344,9 @@ function enqueueKeysForLock(
       return;
     }
 
-    const maxIdx = Math.min(target.criticalRoomIndex - 1, roomIds.length - 1);
+    // key 不能比容器鎖所在房間更遠（玩家到容器時一定能到 key）
+    const lockRoomIndex = roomIds.indexOf(lock.roomId);
+    const maxIdx = Math.min(target.criticalRoomIndex - 1, lockRoomIndex, roomIds.length - 1);
     const eligible = roomIds.slice(0, maxIdx + 1);
     const preferredIdx = eligible.indexOf(target.currentRoom);
 
@@ -699,6 +701,11 @@ function collectPrerequisites(
     visited.add(lid);
     const lock = locks[lid];
     if (!lock) return;
+
+    // 這個鎖本身如果在另一個容器裡，那個容器也是前置
+    const parentOfLock = contentToContainer.get(lid);
+    if (parentOfLock) walk(parentOfLock);
+
     for (const itemId of lock.requiredItems) {
       result.add(itemId);
       const parentLock = contentToContainer.get(itemId);
