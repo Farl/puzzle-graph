@@ -23,7 +23,7 @@ interface SliderConfig {
 }
 
 const SLIDERS: SliderConfig[] = [
-  { key: 'targetDepth', label: '謎題深度', desc: '容器鎖總數，越高解謎步驟越多', min: 1, max: 10, step: 1, color: 'accent-purple-500' },
+  { key: 'targetDepth', label: '謎題深度', desc: '容器鎖總數，越高解謎步驟越多', min: 1, max: 20, step: 1, color: 'accent-purple-500' },
   { key: 'maxRooms', label: '房間數量', desc: '關卡中的房間數', min: 1, max: 10, step: 1, color: 'accent-cyan-500' },
   { key: 'compositeRate', label: '組合鎖機率', desc: '需要多把鑰匙才能開的鎖出現機率', min: 0, max: 1, step: 0.1, color: 'accent-amber-500' },
   { key: 'depthStaggerVariance', label: '深度偏差', desc: '同一鎖的多把鑰匙之間的深度差異', min: 0, max: 2, step: 0.1, color: 'accent-blue-500' },

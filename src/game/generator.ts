@@ -550,7 +550,7 @@ export function generatePuzzleContent(
           const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
           const lockPickupable = lockTemplate.pickupable === true;
           const containerLock = ctx.createLock(variation, false, lockRoomId, false, lockTemplate.capacity, lockTemplate.volume, lockPickupable);
-          if (!lockPickupable) ctx.lockCount++;  // 狀態鎖不消耗深度預算
+          ctx.lockCount++;
           containerLock.contents.push(target.itemId);
           itemsInContainers.add(target.itemId);
           ctx.items[target.itemId]!.initialRoom = lockRoomId;

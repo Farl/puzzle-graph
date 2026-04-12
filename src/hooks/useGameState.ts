@@ -16,7 +16,7 @@ import {
 } from '../game/engine';
 
 export const DEFAULT_CONFIG: GeneratorConfig = {
-  targetDepth: 4,
+  targetDepth: 6,
   maxRooms: 3,
   compositeRate: 0.3,
   depthStaggerVariance: 1.0,
