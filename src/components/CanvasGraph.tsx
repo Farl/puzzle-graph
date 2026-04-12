@@ -257,6 +257,28 @@ export default function CanvasGraph({ puzzle }: Props) {
           })}
         </svg>
 
+        {/* Room groups */}
+        {layout.roomGroups.map(group => (
+          <div
+            key={`room-${group.roomId}`}
+            style={{ left: group.x, top: group.y, width: group.width, height: group.height }}
+            className="absolute border-2 border-blue-800/40 rounded-xl bg-blue-950/10 z-0 pointer-events-none"
+          >
+            <div className="absolute -top-5 left-2 text-[10px] text-blue-400/60 font-bold whitespace-nowrap">
+              {group.roomName}
+            </div>
+          </div>
+        ))}
+
+        {/* Container groups */}
+        {layout.containerGroups.map(group => (
+          <div
+            key={`container-${group.lockId}`}
+            style={{ left: group.x, top: group.y, width: group.width, height: group.height }}
+            className="absolute border-2 border-dashed border-rose-800/30 rounded-lg bg-rose-950/5 z-[5] pointer-events-none"
+          />
+        ))}
+
         {/* Nodes */}
         {layout.nodes.map(node => {
           let borderColor = 'border-emerald-900/60';

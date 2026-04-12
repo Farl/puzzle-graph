@@ -11,6 +11,8 @@ export interface LayoutNode {
   isExit?: boolean;
   name: string;
   roomName: string;
+  roomId: string;
+  containerId?: string;
 }
 
 export interface LayoutEdge {
@@ -19,16 +21,40 @@ export interface LayoutEdge {
   type: 'requires' | 'contains';
 }
 
+export interface RoomGroup {
+  roomId: string;
+  roomName: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface ContainerGroup {
+  lockId: string;
+  lockName: string;
+  roomId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface GraphLayout {
   nodes: LayoutNode[];
   edges: LayoutEdge[];
   bounds: { maxX: number; maxY: number };
+  roomGroups: RoomGroup[];
+  containerGroups: ContainerGroup[];
 }
 
 // ─── 佈局參數 ───
 
 const X_GAP = 280;
 const Y_GAP = 90;
+const NODE_W = 160;
+const NODE_H = 60;
+const GROUP_PAD = 20;
 
 /**
  * 使用 Kahn 拓撲排序演算法計算 DAG 佈局
@@ -65,8 +91,8 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
       }
     }
 
-    // lock → item（容器鎖隱藏物品）
-    for (const hiddenId of lock.containsItems) {
+    // lock → contents（容器鎖隱藏的物品或子鎖）
+    for (const hiddenId of lock.contents) {
       if (inDegree.hasOwnProperty(hiddenId)) {
         edges.push({ source: lock.id, target: hiddenId, type: 'contains' });
         inDegree[hiddenId]!++;
@@ -90,6 +116,14 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
           }
         }
       }
+    }
+  }
+
+  // 建立容器映射（哪些實體在哪個容器鎖內）
+  const containerMap = new Map<string, string>();
+  for (const lock of allLocks) {
+    for (const id of lock.contents) {
+      containerMap.set(id, lock.id);
     }
   }
 
@@ -142,29 +176,72 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
       let entityType: 'item' | 'lock';
       let name: string;
       let roomName: string;
+      let roomId: string;
       let category: LockCategory | undefined;
       let isExit: boolean | undefined;
 
       if (item) {
         entityType = 'item';
         name = item.name;
-        roomName = puzzle.rooms[item.initialRoom]?.name ?? '';
+        roomId = item.initialRoom;
+        roomName = puzzle.rooms[roomId]?.name ?? '';
       } else if (lock) {
         entityType = 'lock';
         name = lock.name;
         category = lock.category;
         isExit = lock.isExit;
-        roomName = puzzle.rooms[lock.roomId]?.name ?? '';
+        roomId = lock.roomId;
+        roomName = puzzle.rooms[roomId]?.name ?? '';
       } else {
         return;
       }
 
-      layoutNodes.push({ id, x, y, entityType, category, isExit, name, roomName });
+      const containerId = containerMap.get(id);
+      layoutNodes.push({ id, x, y, entityType, category, isExit, name, roomName, roomId, containerId });
 
       if (x > maxX) maxX = x;
       if (Math.abs(y) > maxY) maxY = Math.abs(y);
     });
   }
 
-  return { nodes: layoutNodes, edges, bounds: { maxX, maxY } };
+  // 計算房間群組邊界框
+  const roomGroups: RoomGroup[] = [];
+  for (const [roomId, room] of Object.entries(puzzle.rooms)) {
+    const roomNodes = layoutNodes.filter(n => n.roomId === roomId);
+    if (roomNodes.length === 0) continue;
+    const minX = Math.min(...roomNodes.map(n => n.x)) - GROUP_PAD;
+    const minY = Math.min(...roomNodes.map(n => n.y)) - GROUP_PAD;
+    const maxRX = Math.max(...roomNodes.map(n => n.x + NODE_W)) + GROUP_PAD;
+    const maxRY = Math.max(...roomNodes.map(n => n.y + NODE_H)) + GROUP_PAD;
+    roomGroups.push({
+      roomId,
+      roomName: room.name,
+      x: minX, y: minY,
+      width: maxRX - minX, height: maxRY - minY,
+    });
+  }
+
+  // 計算容器群組邊界框
+  const containerGroups: ContainerGroup[] = [];
+  for (const lock of allLocks) {
+    if (lock.category !== 'container' || lock.contents.length === 0) continue;
+    const childNodes = layoutNodes.filter(n => containerMap.get(n.id) === lock.id);
+    const lockNode = layoutNodes.find(n => n.id === lock.id);
+    const allGroupNodes = lockNode ? [lockNode, ...childNodes] : childNodes;
+    if (allGroupNodes.length === 0) continue;
+    const halfPad = GROUP_PAD / 2;
+    const minX = Math.min(...allGroupNodes.map(n => n.x)) - halfPad;
+    const minY = Math.min(...allGroupNodes.map(n => n.y)) - halfPad;
+    const maxCX = Math.max(...allGroupNodes.map(n => n.x + NODE_W)) + halfPad;
+    const maxCY = Math.max(...allGroupNodes.map(n => n.y + NODE_H)) + halfPad;
+    containerGroups.push({
+      lockId: lock.id,
+      lockName: lock.name,
+      roomId: lock.roomId,
+      x: minX, y: minY,
+      width: maxCX - minX, height: maxCY - minY,
+    });
+  }
+
+  return { nodes: layoutNodes, edges, bounds: { maxX, maxY }, roomGroups, containerGroups };
 }
