@@ -126,19 +126,30 @@ function performUnlock(lock: Lock, state: GameState): void {
   lock.isLocked = false;
   addLog(state, 'success', lock.unlockDescription);
 
+  const isInInventory = state.inventory.includes(lock.id);
+
   if (lock.category === 'container' && lock.contents.length > 0) {
     const room = state.puzzle.rooms[state.currentRoomId]!;
     const contentNames: string[] = [];
     for (const id of lock.contents) {
-      if (id in state.puzzle.items) {
+      if (isInInventory) {
+        // 背包中的狀態鎖：內容物直接進背包
+        state.inventory.push(id);
+      } else if (id in state.puzzle.items) {
         room.visibleItems.push(id);
-        contentNames.push(state.puzzle.items[id]!.name);
       } else if (id in state.puzzle.locks) {
         room.lockIds.push(id);
-        contentNames.push(state.puzzle.locks[id]!.name);
       }
+      const name = state.puzzle.items[id]?.name ?? state.puzzle.locks[id]?.name ?? id;
+      contentNames.push(name);
     }
-    addLog(state, 'success', `你從 ${lock.name} 中發現了：${contentNames.join('、')}！`);
+    if (isInInventory) {
+      addLog(state, 'success', `你獲得了：${contentNames.join('、')}！`);
+      // 消耗狀態鎖本身（從背包移除）
+      state.inventory = state.inventory.filter(id => id !== lock.id);
+    } else {
+      addLog(state, 'success', `你從 ${lock.name} 中發現了：${contentNames.join('、')}！`);
+    }
     lock.contents = [];
   }
 
