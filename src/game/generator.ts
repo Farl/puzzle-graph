@@ -746,6 +746,9 @@ function consolidate(
         // Dependency check: candidate must not be a prerequisite for this container
         if (wouldCreateCycle(candidate, containerId, ctx, contentToContainer)) continue;
 
+        // Check item count limit (prevent loot piñata containers)
+        if (container.contents.length >= 2) continue;
+
         // Check volume
         let usedVolume = 0;
         for (const id of container.contents) {
