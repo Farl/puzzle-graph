@@ -74,7 +74,7 @@ class GeneratorContext {
     return room;
   }
 
-  createItem(name: string, reusable: boolean, volume: number, description?: string): Item {
+  createItem(name: string, reusable: boolean, volume: number, description?: string, pickupable: boolean = true): Item {
     const item: Item = {
       id: generateId('item'),
       name,
@@ -83,6 +83,7 @@ class GeneratorContext {
       reusable,
       initialRoom: '',
       volume,
+      pickupable,
     };
     this.items[item.id] = item;
     return item;
@@ -120,22 +121,22 @@ class GeneratorContext {
   }
 
   /** 取得或建立可重複使用的道具 */
-  getOrCreateReusableItem(name: string, volume: number): ItemId {
+  getOrCreateReusableItem(name: string, volume: number, pickupable: boolean = true): ItemId {
     const cached = this.reusableItemCache[name];
     if (cached) return cached;
-    const item = this.createItem(name, true, volume);
+    const item = this.createItem(name, true, volume, undefined, pickupable);
     this.reusableItemCache[name] = item.id;
     return item.id;
   }
 
   /** 建立消耗型道具（自動處理名稱衝突） */
-  createConsumableItem(name: string, volume: number): Item {
+  createConsumableItem(name: string, volume: number, pickupable: boolean = true): Item {
     this.consumableCount[name] = (this.consumableCount[name] ?? 0) + 1;
     let keyName = name;
     if (this.consumableCount[name]! > 1) {
       keyName = `${name} (${String.fromCharCode(64 + this.consumableCount[name]!)})`;
     }
-    return this.createItem(keyName, false, volume);
+    return this.createItem(keyName, false, volume, undefined, pickupable);
   }
 
   /** 確認選取：從池中移除模板並更新 tag 追蹤 */
@@ -281,12 +282,13 @@ function enqueueKeysForLock(
 
   lockTemplate.requiredKeys.forEach((keyTemplateId, index) => {
     const keyTpl = findKeyTemplate(keyTemplateId)!;
+    const keyPickupable = keyTpl.pickupable !== false;
     let keyId: ItemId;
 
     if (keyTpl.reusable) {
-      keyId = ctx.getOrCreateReusableItem(keyTpl.name, keyTpl.volume);
+      keyId = ctx.getOrCreateReusableItem(keyTpl.name, keyTpl.volume, keyPickupable);
     } else {
-      const item = ctx.createConsumableItem(keyTpl.name, keyTpl.volume);
+      const item = ctx.createConsumableItem(keyTpl.name, keyTpl.volume, keyPickupable);
       keyId = item.id;
 
       if (isPasswordLock && lock.password) {
@@ -333,7 +335,12 @@ function enqueueKeysForLock(
     const eligible = roomIds.slice(0, maxIdx + 1);
     const preferredIdx = eligible.indexOf(target.currentRoom);
 
-    const keyRoomId = pickRoom(eligible, preferredIdx >= 0 ? preferredIdx : eligible.length - 1, crossRoomRate, ctx);
+    let keyRoomId: RoomId;
+    if (!keyPickupable) {
+      keyRoomId = target.currentRoom;
+    } else {
+      keyRoomId = pickRoom(eligible, preferredIdx >= 0 ? preferredIdx : eligible.length - 1, crossRoomRate, ctx);
+    }
     const keyRoomIndex = roomIds.indexOf(keyRoomId);
 
     ctx.items[keyId]!.initialRoom = keyRoomId;
@@ -386,11 +393,12 @@ export function generateRoomSkeleton(config: GeneratorConfig, rng: SeededRandom)
     // 選擇此門的鑰匙模板並建立鑰匙
     const keyTemplateId = lockTemplate.requiredKeys[0]!;
     const keyTpl = findKeyTemplate(keyTemplateId)!;
+    const keyPickupable = keyTpl.pickupable !== false;
     let keyId: ItemId;
     if (keyTpl.reusable) {
-      keyId = ctx.getOrCreateReusableItem(keyTpl.name, keyTpl.volume);
+      keyId = ctx.getOrCreateReusableItem(keyTpl.name, keyTpl.volume, keyPickupable);
     } else {
-      keyId = ctx.createConsumableItem(keyTpl.name, keyTpl.volume).id;
+      keyId = ctx.createConsumableItem(keyTpl.name, keyTpl.volume, keyPickupable).id;
     }
     doorLock.requiredItems.push(keyId);
 
@@ -424,7 +432,7 @@ export function generateRoomSkeleton(config: GeneratorConfig, rng: SeededRandom)
   ctx.rooms[exitRoomId]!.lockIds.push(exitLock.id);
 
   // 建立出口鑰匙
-  const exitKey = ctx.createItem('終極逃生卡', false, 0.5, '帶有最高權限的特殊磁卡。');
+  const exitKey = ctx.createItem('終極逃生卡', false, 0.5, '帶有最高權限的特殊磁卡。', true);
   exitLock.requiredItems.push(exitKey.id);
 
   const exitKeyRoom = pickRoom(roomIds, roomIds.length - 1, keySpreadRate, ctx);
@@ -485,6 +493,7 @@ export function generatePuzzleContent(
         if (!existingId) return true;
         const placedRoom = ctx.items[existingId]!.initialRoom;
         if (!placedRoom) return true;
+        if (keyTpl.pickupable === false && placedRoom !== target.currentRoom) return false;
         return eligibleRooms.has(placedRoom);
       });
 

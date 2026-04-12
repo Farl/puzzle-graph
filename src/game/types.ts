@@ -16,15 +16,22 @@ export interface Item {
   reusable: boolean;
   initialRoom: RoomId;
   volume: number;
+  pickupable: boolean;
 }
 
 // ─── 鎖類型 ───
+
+export interface MinigameConfig {
+  type: string;
+  seed: number;
+  params: Record<string, unknown>;
+}
 
 /** 容器鎖 = 保護物品的機關；空間鎖 = 連接房間的通道 */
 export type LockCategory = 'container' | 'spatial';
 
 /** 鎖的解鎖機制 */
-export type LockMechanism = 'physical' | 'password' | 'hidden' | 'combination';
+export type LockMechanism = 'physical' | 'password' | 'hidden' | 'combination' | 'minigame';
 
 export interface Lock {
   id: LockId;
@@ -44,6 +51,7 @@ export interface Lock {
   volume: number;
   password?: string;
   passwordHint?: string;
+  minigameConfig?: MinigameConfig;
   isLocked: boolean;
   isExit: boolean;
 }
@@ -139,6 +147,7 @@ export interface KeyTemplate {
   type: ItemType;
   reusable: boolean;
   volume: number;
+  pickupable?: boolean;
 }
 
 export interface LockTemplate {
@@ -154,4 +163,5 @@ export interface LockTemplate {
   tags: string[];
   requiredKeys: string[];       // references KeyTemplate.id
   variations: FamilyVariation[];
+  minigameType?: string;
 }
