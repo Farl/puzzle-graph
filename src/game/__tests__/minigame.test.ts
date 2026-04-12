@@ -46,19 +46,32 @@ describe('minigame + stationary item solvability', () => {
   it('new template types appear in 200 puzzles (statistical check)', () => {
     let minigameLocks = 0;
     let stationaryItems = 0;
-    const config = { ...BASE, targetDepth: 6, compositeRate: 0.5 };
+    let stateLocks = 0;
+    const config = { ...BASE, targetDepth: 6, compositeRate: 0.5, stateLockRate: 0.3 };
     for (let i = 0; i < 200; i++) {
       const puzzle = generatePuzzle(config);
       for (const lock of Object.values(puzzle.locks)) {
         if (lock.mechanism === 'minigame') minigameLocks++;
+        if (lock.pickupable) stateLocks++;
       }
       for (const item of Object.values(puzzle.items)) {
         if (!item.pickupable) stationaryItems++;
       }
     }
-    // With 200 puzzles at targetDepth=6, we should see at least some minigame locks
-    // and stationary items if the templates are being selected
-    console.log(`  [stats] minigame locks: ${minigameLocks}, stationary items: ${stationaryItems}`);
+    console.log(`  [stats] minigame: ${minigameLocks}, stationary: ${stationaryItems}, state locks: ${stateLocks}`);
     expect(minigameLocks + stationaryItems).toBeGreaterThan(0);
+    expect(stateLocks).toBeGreaterThan(0);
+  });
+
+  it('state lock puzzles are solvable: 50 runs with stateLockRate=0.5', () => {
+    const config = { ...BASE, targetDepth: 5, stateLockRate: 0.5 };
+    for (let i = 0; i < 50; i++) {
+      const puzzle = generatePuzzle(config);
+      const result = solvePuzzle(puzzle);
+      expect(
+        result.solvable,
+        `Puzzle #${i} (seed ${puzzle.seed}) not solvable.\nBlocked: ${result.blockedItems.join(', ')}\nSteps:\n${result.steps.slice(-10).join('\n')}`,
+      ).toBe(true);
+    }
   });
 });

@@ -802,6 +802,90 @@ function consolidate(
   }
 }
 
+// ─── Phase D：狀態鎖生成 ───
+
+/**
+ * 狀態鎖（pickupable lock）包裹地板上的物品。
+ * 玩家撿起狀態鎖 → 帶到有固定裝置（stationary key）的房間 → 使用 → 取得內容物。
+ */
+function generateStateLocks(
+  config: GeneratorConfig,
+  ctx: GeneratorContext,
+  roomIds: RoomId[],
+): void {
+  const stateLockRate = config.stateLockRate ?? 0;
+  if (stateLockRate <= 0) return;
+
+  // 收集所有 pickupable 的 lock template（狀態鎖）
+  const stateLockTemplates = LOCK_TEMPLATES.filter(l => l.pickupable && l.category === 'container');
+  if (stateLockTemplates.length === 0) return;
+
+  // 遍歷每個房間的地板物品
+  for (const roomId of roomIds) {
+    const room = ctx.rooms[roomId]!;
+    const candidates = [...room.visibleItems];
+
+    for (const itemId of candidates) {
+      if (ctx.rng.next() >= stateLockRate) continue;
+
+      // 隨機選一個狀態鎖模板
+      const lockTemplate = stateLockTemplates[ctx.rng.nextInt(stateLockTemplates.length)]!;
+
+      // 驗證：所需的 stationary key 是否能放在合法房間
+      const canApply = lockTemplate.requiredKeys.every(keyTplId => {
+        const keyTpl = findKeyTemplate(keyTplId)!;
+        if (!keyTpl.reusable) return true;
+        const existingId = ctx.reusableItemCache[keyTpl.name];
+        if (!existingId) return true;  // 尚未建立，可以放在同房間
+        // 已建立的 stationary key 必須在同房間或可達的房間
+        const placedRoom = ctx.items[existingId]!.initialRoom;
+        if (!placedRoom) return true;
+        if (keyTpl.pickupable === false) return true;  // stationary key 可被多房間復用
+        return true;
+      });
+      if (!canApply) continue;
+
+      // 建立狀態鎖
+      const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
+      const stateLock = ctx.createLock(
+        variation, false, roomId, false,
+        lockTemplate.capacity, lockTemplate.volume, true,
+      );
+      stateLock.mechanism = lockTemplate.mechanism;
+      stateLock.contents.push(itemId);
+
+      // 從地板移除原物品，狀態鎖取代它在 lockIds 中（玩家可拾取）
+      room.visibleItems = room.visibleItems.filter(id => id !== itemId);
+      room.lockIds.push(stateLock.id);
+
+      // 建立 required keys（stationary key 放在同房間）
+      for (const keyTplId of lockTemplate.requiredKeys) {
+        const keyTpl = findKeyTemplate(keyTplId)!;
+        const keyPickupable = keyTpl.pickupable !== false;
+        let keyId: ItemId;
+
+        if (keyTpl.reusable) {
+          keyId = ctx.getOrCreateReusableItem(keyTpl.name, keyTpl.volume, keyPickupable);
+        } else {
+          keyId = ctx.createConsumableItem(keyTpl.name, keyTpl.volume, keyPickupable).id;
+        }
+
+        stateLock.requiredItems.push(keyId);
+
+        if (keyTpl.reusable) {
+          ctx.toolReuseCount[keyId] = (ctx.toolReuseCount[keyId] ?? 0) + 1;
+        }
+
+        // 如果 key 尚未放置，放在同房間
+        if (!ctx.items[keyId]!.initialRoom) {
+          ctx.items[keyId]!.initialRoom = roomId;
+          room.visibleItems.push(keyId);
+        }
+      }
+    }
+  }
+}
+
 // ─── 主生成函式 ───
 
 export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
@@ -810,6 +894,7 @@ export function generatePuzzle(config: GeneratorConfig): PuzzleDefinition {
   const rng = new SeededRandom(config.seed);
   const { ctx, roomIds, startRoomId, exitLockId, floorItems } = generateRoomSkeleton(config, rng);
   generatePuzzleContent(config, ctx, roomIds, floorItems);
+  generateStateLocks(config, ctx, roomIds);
   consolidate(ctx, roomIds, config);
 
   return {

@@ -122,6 +122,9 @@ export interface GeneratorConfig {
   maxReusesPerTool?: number;                 // 每個工具最多被幾把鎖共用
   maxNestingDepth?: number;
   consolidationRate?: number;
+
+  // ── Phase D：狀態鎖 ──
+  stateLockRate?: number;                    // 0-1，地板物品被狀態鎖包裹的機率
 }
 
 // ─── 變體與主題 ───

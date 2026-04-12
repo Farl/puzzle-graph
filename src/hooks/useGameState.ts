@@ -25,6 +25,7 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
   reuseRate: 0.3,
   maxNestingDepth: 2,
   consolidationRate: 0.5,
+  stateLockRate: 0.3,
 };
 
 const STORAGE_KEY = 'puzzle-graph:config';
