@@ -20,9 +20,9 @@ export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   // 可重複使用工具
   { id: 'flashlight', name: '手電筒', description: '一把堅固的金屬手電筒。', type: 'tool', reusable: true, volume: 2, stateTags: ['light-tool'] },
   { id: 'hammer', name: '鐵鎚', description: '一把沉重的鐵鎚。', type: 'tool', reusable: true, volume: 3 },
-  { id: 'crowbar', name: '撬棍', description: '一根堅固的金屬撬棍。', type: 'tool', reusable: true, volume: 3 },
-  { id: 'keycard', name: '門禁磁卡', description: '一張帶有磁條的門禁卡。', type: 'tool', reusable: true, volume: 0.5 },
-  { id: 'bolt_cutter', name: '破壞剪', description: '一把大型的金屬剪。', type: 'tool', reusable: true, volume: 3 },
+  { id: 'crowbar', name: '撬棍', description: '一根堅固的金屬撬棍。', type: 'tool', reusable: true, volume: 3, stateTags: ['lever-tool'] },
+  { id: 'keycard', name: '門禁磁卡', description: '一張帶有磁條的門禁卡。', type: 'tool', reusable: true, volume: 0.5, stateTags: ['electronic-key'] },
+  { id: 'bolt_cutter', name: '破壞剪', description: '一把大型的金屬剪。', type: 'tool', reusable: true, volume: 3, stateTags: ['cutting-tool'] },
 
   // 固定裝置（不可拾取的鑰匙，顯示在機關區）
   { id: 'water_basin', name: '水盆', description: '一個裝滿清水的石盆，嵌在桌面上。', type: 'tool', reusable: true, pickupable: false, volume: 3, stateTags: ['water-station'] },
@@ -32,6 +32,9 @@ export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   { id: 'battery', name: '電池', description: '一顆標準的AA電池。', type: 'key', reusable: false, volume: 0.5 },
   { id: 'pipe_part', name: '水管零件', description: '一段金屬水管，看起來是某個系統的一部分。', type: 'key', reusable: false, volume: 1 },
   { id: 'wire_spool', name: '電線捲', description: '一捲絕緣電線。', type: 'key', reusable: false, volume: 1 },
+  { id: 'metal_rod', name: '金屬桿', description: '一根堅固的金屬桿。', type: 'key', reusable: false, volume: 2 },
+  { id: 'ic_chip', name: 'IC 晶片', description: '一塊精密的電路晶片。', type: 'key', reusable: false, volume: 0.5 },
+  { id: 'whetstone', name: '磨刀石', description: '一塊粗糙的磨刀石。', type: 'key', reusable: false, volume: 1 },
 ];
 
 // ─── 鎖目錄 ───
@@ -280,6 +283,50 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     stateTags: ['light-tool'],
     variations: [
       { name: '沒電的手電筒', lockMsg: '手電筒電池槽是空的。', unlockMsg: '你裝入電池，手電筒亮了起來！', partialMsg: '還需要更多電池。' },
+    ],
+  },
+  {
+    id: 'broken_crowbar', name: '斷裂的撬棍',
+    lockedDescription: '撬棍從中間斷裂了，需要焊接一根金屬桿來修復。',
+    unlockDescription: '你用金屬桿加固了撬棍，它又變得堅固了！',
+    category: 'container', mechanism: 'physical',
+    capacity: 4, volume: 3,
+    tags: ['crafting', 'repair'],
+    requiredKeys: ['metal_rod'],
+    pickupable: true,
+    stateTags: ['lever-tool'],
+    variations: [
+      { name: '斷裂的撬棍', lockMsg: '撬棍從中間斷裂了。', unlockMsg: '你用金屬桿修復了撬棍！' },
+      { name: '鬆脫的鐵鎚柄', lockMsg: '鐵鎚的柄鬆脫了，需要固定。', unlockMsg: '你用金屬桿固定了鐵鎚柄，修好了！' },
+    ],
+  },
+  {
+    id: 'blank_keycard', name: '空白磁卡',
+    lockedDescription: '一張沒有寫入權限的空白磁卡，需要 IC 晶片才能啟用。',
+    unlockDescription: '你將 IC 晶片插入磁卡，權限寫入成功！',
+    category: 'container', mechanism: 'physical',
+    capacity: 2, volume: 0.5,
+    tags: ['crafting', 'electronic'],
+    requiredKeys: ['ic_chip'],
+    pickupable: true,
+    stateTags: ['electronic-key'],
+    variations: [
+      { name: '空白磁卡', lockMsg: '磁卡沒有寫入權限。', unlockMsg: 'IC 晶片插入，權限寫入成功！' },
+      { name: '停用的感應器', lockMsg: '感應器的晶片被取走了。', unlockMsg: '你裝回晶片，感應器重新啟動。' },
+    ],
+  },
+  {
+    id: 'dull_bolt_cutter', name: '鈍掉的破壞剪',
+    lockedDescription: '破壞剪的刀刃已經鈍了，需要磨利才能使用。',
+    unlockDescription: '你用磨刀石磨利了刀刃，破壞剪恢復了鋒利！',
+    category: 'container', mechanism: 'physical',
+    capacity: 4, volume: 3,
+    tags: ['crafting', 'repair'],
+    requiredKeys: ['whetstone'],
+    pickupable: true,
+    stateTags: ['cutting-tool'],
+    variations: [
+      { name: '鈍掉的破壞剪', lockMsg: '刀刃已經鈍了。', unlockMsg: '你磨利了刀刃，破壞剪恢復鋒利！' },
     ],
   },
 
