@@ -52,16 +52,17 @@ export interface GraphLayout {
 
 const NODE_W = 160;
 const NODE_H = 60;
-const X_GAP = 200;
-const Y_GAP = 100;
-const GROUP_PAD = 24;
+const X_GAP = 40;
+const Y_GAP = 80;
+const GROUP_PAD = 20;
+const CONTAINER_GAP = 30;  // 不同容器群之間的水平間距
 
 /**
- * DAG 佈局：Kahn 拓撲排序 → rank 決定 Y（深度向下），同 rank 水平展開
- * 容器 contents 不參與全域 rank，而是貼在鎖的右側
+ * DAG 佈局：Y = 拓撲 rank（深度向下），X = 同層展開
+ * 容器 contents 在下一層，X 對齊父鎖，容器 group 不交疊
  */
 export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
-  // ─── 建立 DAG 邊 ───
+  // ─── 建立 DAG ───
 
   const edges: LayoutEdge[] = [];
   const inDegree: Record<string, number> = {};
@@ -114,19 +115,14 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
 
   const containerMap = new Map<string, string>();
   for (const lock of allLocks) {
-    for (const id of lock.contents) {
-      containerMap.set(id, lock.id);
-    }
+    for (const id of lock.contents) containerMap.set(id, lock.id);
   }
-  const containedIds = new Set(containerMap.keys());
 
-  // ─── Kahn 拓撲排序（只對自由節點計算 rank）───
+  // ─── Kahn 拓撲排序 ───
 
   const adj: Record<string, LayoutEdge[]> = {};
   for (const id of allNodeIds) adj[id] = [];
-  for (const edge of edges) {
-    adj[edge.source]?.push(edge);
-  }
+  for (const edge of edges) adj[edge.source]?.push(edge);
 
   const ranks: Record<string, number> = {};
   for (const id of allNodeIds) ranks[id] = 0;
@@ -143,17 +139,16 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     }
   }
 
-  // ─── 將自由節點按 rank 分層 ───
+  // ─── 按 rank 分層 ───
 
   const rankLayers: Record<number, string[]> = {};
   for (const id of allNodeIds) {
-    if (containedIds.has(id)) continue; // content 不參與全域排列
     const r = ranks[id] ?? 0;
     if (!rankLayers[r]) rankLayers[r] = [];
     rankLayers[r]!.push(id);
   }
 
-  // ─── 節點資訊 helper ───
+  // ─── Node 資訊 ───
 
   const nodeRoom = (id: string): string =>
     puzzle.items[id]?.initialRoom ?? puzzle.locks[id]?.roomId ?? '';
@@ -175,52 +170,52 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     };
   };
 
-  // ─── 計算每個容器鎖的有效 content 數量 ───
-
-  const lockValidContents = new Map<string, string[]>();
-  for (const lock of allLocks) {
-    const valid = lock.contents.filter(id => allNodeIds.has(id));
-    if (valid.length > 0) lockValidContents.set(lock.id, valid);
-  }
-
-  // ─── 佈局：X = rank（深度向右），Y = 層內展開（垂直）───
+  // ─── 佈局：Y = rank（向下），X = 層內展開 ───
+  // 同層節點按容器歸屬分組排列，使同一容器的 contents 在 X 方向對齊其父鎖
 
   const layoutNodes: LayoutNode[] = [];
-  const sortedRanks = Object.keys(rankLayers).map(Number).sort((a, b) => a - b);
+  const nodePos = new Map<string, { x: number; y: number }>();
 
-  let currentX = 0;
+  const sortedRanks = Object.keys(rankLayers).map(Number).sort((a, b) => a - b);
 
   for (const r of sortedRanks) {
     const layer = rankLayers[r]!;
+    const y = r * (NODE_H + Y_GAP);
 
-    let currentY = 0;
-    let layerMaxContentW = 0;
-
+    // 分組：按父容器 ID 分群，無容器的歸 '' 群
+    const groups = new Map<string, string[]>();
     for (const id of layer) {
-      const node = makeNode(id, currentX, currentY);
-      if (node) layoutNodes.push(node);
-
-      // 容器 contents 在鎖的下方
-      const contents = lockValidContents.get(id);
-      let blockHeight = NODE_H;
-      if (contents && contents.length > 0) {
-        contents.forEach((childId, ci) => {
-          const cx = currentX + ci * (NODE_W + 10);
-          const cy = currentY + NODE_H + GROUP_PAD;
-          const childNode = makeNode(childId, cx, cy);
-          if (childNode) layoutNodes.push(childNode);
-        });
-        blockHeight = NODE_H + GROUP_PAD + NODE_H;
-        const contentW = contents.length * (NODE_W + 10) - 10;
-        if (contentW > layerMaxContentW) layerMaxContentW = contentW;
-      }
-
-      currentY += blockHeight + Y_GAP;
+      const parent = containerMap.get(id) ?? '';
+      if (!groups.has(parent)) groups.set(parent, []);
+      groups.get(parent)!.push(id);
     }
 
-    // 下一個 rank 的 X：考慮 content 佔的寬度
-    const layerW = Math.max(NODE_W, layerMaxContentW);
-    currentX += layerW + X_GAP;
+    // 排列順序：有父容器的群先排（按父鎖的 X 位置排序），自由節點最後
+    const parentIds = [...groups.keys()].filter(k => k !== '');
+    parentIds.sort((a, b) => (nodePos.get(a)?.x ?? 0) - (nodePos.get(b)?.x ?? 0));
+    const orderedGroups: string[][] = [];
+    for (const pid of parentIds) orderedGroups.push(groups.get(pid)!);
+    if (groups.has('')) orderedGroups.push(groups.get('')!);
+
+    let currentX = 0;
+
+    for (const group of orderedGroups) {
+      // 如果這個群有父容器，對齊父鎖的 X
+      const parentId = containerMap.get(group[0]!);
+      if (parentId) {
+        const parentX = nodePos.get(parentId)?.x ?? currentX;
+        if (parentX > currentX) currentX = parentX;
+      }
+
+      for (const id of group) {
+        nodePos.set(id, { x: currentX, y });
+        const node = makeNode(id, currentX, y);
+        if (node) layoutNodes.push(node);
+        currentX += NODE_W + X_GAP;
+      }
+
+      currentX += CONTAINER_GAP; // 群之間的額外間距
+    }
   }
 
   // ─── 邊界和群組 ───
@@ -253,8 +248,7 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
 
   const containerGroups: ContainerGroup[] = [];
   for (const lock of allLocks) {
-    const contents = lockValidContents.get(lock.id);
-    if (!contents) continue;
+    if (lock.category !== 'container' || lock.contents.length === 0) continue;
     const childNodes = layoutNodes.filter(n => containerMap.get(n.id) === lock.id);
     const lockNode = layoutNodes.find(n => n.id === lock.id);
     const groupNodes = lockNode ? [lockNode, ...childNodes] : childNodes;

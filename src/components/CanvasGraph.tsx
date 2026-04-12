@@ -237,35 +237,27 @@ export default function CanvasGraph({ puzzle }: Props) {
 
             const isContains = edge.type === 'contains';
 
-            const goesRight = target.x > source.x + NODE_W / 2;
-            const sameCol = Math.abs(target.x - source.x) < NODE_W;
+            // Y = rank（深度向下），所有連接上下方向
+            const goesDown = target.y > source.y + NODE_H / 2;
 
             let d: string;
-            if (sameCol) {
-              // 同 rank 列（如鎖→下方 content）
+            if (goesDown) {
+              // 正向（向下）：從底部中央出發，到頂部中央
               const sx = source.x + NODE_W / 2;
               const sy = source.y + NODE_H;
               const ex = target.x + NODE_W / 2;
               const ey = target.y;
-              d = `M ${sx} ${sy} L ${ex} ${ey}`;
-            } else if (goesRight) {
-              // 正向（右方）：從右側中央出發，到左側中央
-              const sx = source.x + NODE_W;
+              const dist = ey - sy;
+              const cpY = Math.min(dist * 0.4, 40);
+              d = `M ${sx} ${sy} C ${sx} ${sy + cpY}, ${ex} ${ey - cpY}, ${ex} ${ey}`;
+            } else {
+              // 反向（向上回繞）：從左側出發，繞弧到目標左側
+              const sx = source.x;
               const sy = source.y + NODE_H / 2;
               const ex = target.x;
               const ey = target.y + NODE_H / 2;
-              const dist = ex - sx;
-              const cpX1 = sx + Math.min(dist * 0.4, 60);
-              const cpX2 = ex - Math.min(dist * 0.4, 60);
-              d = `M ${sx} ${sy} C ${cpX1} ${sy}, ${cpX2} ${ey}, ${ex} ${ey}`;
-            } else {
-              // 反向（左方回繞）：從上側出發，繞弧到目標上側
-              const sx = source.x + NODE_W / 2;
-              const sy = source.y;
-              const ex = target.x + NODE_W / 2;
-              const ey = target.y;
-              const loopY = Math.min(sy, ey) - 60;
-              d = `M ${sx} ${sy} C ${sx} ${loopY}, ${ex} ${loopY}, ${ex} ${ey}`;
+              const loopX = Math.min(sx, ex) - 60;
+              d = `M ${sx} ${sy} C ${loopX} ${sy}, ${loopX} ${ey}, ${ex} ${ey}`;
             }
 
             return (
