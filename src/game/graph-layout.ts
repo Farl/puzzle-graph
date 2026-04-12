@@ -52,150 +52,117 @@ export interface GraphLayout {
 
 const NODE_W = 160;
 const NODE_H = 60;
-const X_GAP = 200;      // 同 rank 內節點水平間距
-const Y_GAP = 100;      // rank 之間垂直間距
-const CONTENT_X_OFFSET = NODE_W + 20;  // content 在鎖右側
-const GROUP_PAD = 20;
-const ROOM_X_GAP = 80;  // 房間之間水平間距
+const X_GAP = 200;
+const Y_GAP = 100;
+const GROUP_PAD = 24;
 
 /**
- * DAG 佈局：房間水平排列，每房間內依 rank 垂直排列（深度向下）
- * content 節點貼在鎖的右側作為區塊
+ * DAG 佈局：Kahn 拓撲排序 → rank 決定 Y（深度向下），同 rank 水平展開
+ * 容器 contents 不參與全域 rank，而是貼在鎖的右側
  */
 export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
+  // ─── 建立 DAG 邊 ───
+
   const edges: LayoutEdge[] = [];
   const inDegree: Record<string, number> = {};
-  const nodeIds: string[] = [];
+  const allNodeIds = new Set<string>();
 
   for (const item of Object.values(puzzle.items)) {
-    nodeIds.push(item.id);
+    allNodeIds.add(item.id);
     inDegree[item.id] = 0;
   }
 
   const allLocks = Object.values(puzzle.locks);
-
   for (const lock of allLocks) {
     if (lock.requiredItems.length > 0) {
-      nodeIds.push(lock.id);
+      allNodeIds.add(lock.id);
       inDegree[lock.id] = 0;
     }
   }
 
   for (const lock of allLocks) {
-    if (!inDegree.hasOwnProperty(lock.id)) continue;
+    if (!allNodeIds.has(lock.id)) continue;
 
     for (const reqId of lock.requiredItems) {
-      if (inDegree.hasOwnProperty(reqId)) {
+      if (allNodeIds.has(reqId)) {
         edges.push({ source: reqId, target: lock.id, type: 'requires' });
-        inDegree[lock.id]!++;
+        inDegree[lock.id] = (inDegree[lock.id] ?? 0) + 1;
       }
     }
 
     for (const hiddenId of lock.contents) {
-      if (inDegree.hasOwnProperty(hiddenId)) {
+      if (allNodeIds.has(hiddenId)) {
         edges.push({ source: lock.id, target: hiddenId, type: 'contains' });
-        inDegree[hiddenId]!++;
+        inDegree[hiddenId] = (inDegree[hiddenId] ?? 0) + 1;
       }
     }
 
     if (lock.category === 'spatial' && lock.targetRoomId) {
       const targetRoom = puzzle.rooms[lock.targetRoomId];
       if (targetRoom) {
-        for (const lockId of targetRoom.lockIds) {
-          if (inDegree.hasOwnProperty(lockId) && lockId !== lock.id) {
-            edges.push({ source: lock.id, target: lockId, type: 'contains' });
-            inDegree[lockId]!++;
-          }
-        }
-        for (const itemId of targetRoom.visibleItems) {
-          if (inDegree.hasOwnProperty(itemId)) {
-            edges.push({ source: lock.id, target: itemId, type: 'contains' });
-            inDegree[itemId]!++;
+        for (const id of [...targetRoom.lockIds, ...targetRoom.visibleItems]) {
+          if (allNodeIds.has(id) && id !== lock.id) {
+            edges.push({ source: lock.id, target: id, type: 'contains' });
+            inDegree[id] = (inDegree[id] ?? 0) + 1;
           }
         }
       }
     }
   }
 
-  // 容器映射
+  // ─── 容器映射 ───
+
   const containerMap = new Map<string, string>();
   for (const lock of allLocks) {
     for (const id of lock.contents) {
       containerMap.set(id, lock.id);
     }
   }
+  const containedIds = new Set(containerMap.keys());
 
-  // Kahn 拓撲排序 → rank
+  // ─── Kahn 拓撲排序（只對自由節點計算 rank）───
+
   const adj: Record<string, LayoutEdge[]> = {};
-  for (const id of nodeIds) adj[id] = [];
+  for (const id of allNodeIds) adj[id] = [];
   for (const edge of edges) {
     adj[edge.source]?.push(edge);
   }
 
   const ranks: Record<string, number> = {};
-  for (const id of nodeIds) ranks[id] = 0;
+  for (const id of allNodeIds) ranks[id] = 0;
 
-  const queue = nodeIds.filter(id => inDegree[id] === 0);
+  const inDegreeCopy = { ...inDegree };
+  const queue = [...allNodeIds].filter(id => inDegreeCopy[id] === 0);
   while (queue.length > 0) {
     const u = queue.shift()!;
     for (const edge of adj[u]!) {
       const v = edge.target;
       ranks[v] = Math.max(ranks[v]!, (ranks[u] ?? 0) + 1);
-      inDegree[v]!--;
-      if (inDegree[v] === 0) queue.push(v);
+      inDegreeCopy[v]!--;
+      if (inDegreeCopy[v] === 0) queue.push(v);
     }
   }
 
-  // ─── 節點房間歸屬 ───
+  // ─── 將自由節點按 rank 分層 ───
 
-  const nodeRoom = (id: string): string => {
-    return puzzle.items[id]?.initialRoom ?? puzzle.locks[id]?.roomId ?? '';
-  };
-
-  // 房間順序：BFS from startRoom
-  const roomOrder: string[] = [];
-  const visited = new Set<string>();
-  const roomQueue = [puzzle.startRoomId];
-  visited.add(puzzle.startRoomId);
-  while (roomQueue.length > 0) {
-    const rid = roomQueue.shift()!;
-    roomOrder.push(rid);
-    for (const lock of allLocks) {
-      if (lock.category === 'spatial' && lock.roomId === rid && lock.targetRoomId && !visited.has(lock.targetRoomId)) {
-        visited.add(lock.targetRoomId);
-        roomQueue.push(lock.targetRoomId);
-      }
-    }
-  }
-  for (const rid of Object.keys(puzzle.rooms)) {
-    if (!visited.has(rid)) roomOrder.push(rid);
+  const rankLayers: Record<number, string[]> = {};
+  for (const id of allNodeIds) {
+    if (containedIds.has(id)) continue; // content 不參與全域排列
+    const r = ranks[id] ?? 0;
+    if (!rankLayers[r]) rankLayers[r] = [];
+    rankLayers[r]!.push(id);
   }
 
-  // ─── 佈局：X=房間，Y=rank（深度向下）───
+  // ─── 節點資訊 helper ───
 
-  const layoutNodes: LayoutNode[] = [];
-  const containedIds = new Set(containerMap.keys());
+  const nodeRoom = (id: string): string =>
+    puzzle.items[id]?.initialRoom ?? puzzle.locks[id]?.roomId ?? '';
 
-  // 每個容器鎖的 content 數量
-  const lockContentCount = new Map<string, number>();
-  for (const lock of allLocks) {
-    const validContents = lock.contents.filter(id => nodeIds.includes(id));
-    if (validContents.length > 0) lockContentCount.set(lock.id, validContents.length);
-  }
-
-  // 收集自由節點
-  const roomFreeNodes: Record<string, string[]> = {};
-  for (const rid of roomOrder) roomFreeNodes[rid] = [];
-  for (const id of nodeIds) {
-    if (containedIds.has(id)) continue;
-    const rid = nodeRoom(id);
-    if (roomFreeNodes[rid]) roomFreeNodes[rid]!.push(id);
-  }
-
-  const makeNode = (id: string, x: number, y: number, rid: string): LayoutNode | null => {
+  const makeNode = (id: string, x: number, y: number): LayoutNode | null => {
     const item = puzzle.items[id];
     const lock = puzzle.locks[id];
     if (!item && !lock) return null;
+    const rid = nodeRoom(id);
     return {
       id, x, y,
       entityType: item ? 'item' : 'lock',
@@ -208,63 +175,53 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
     };
   };
 
-  let roomStartX = 0;
+  // ─── 計算每個容器鎖的有效 content 數量 ───
 
-  for (const rid of roomOrder) {
-    const freeIds = roomFreeNodes[rid]!;
-    if (freeIds.length === 0) continue;
+  const lockValidContents = new Map<string, string[]>();
+  for (const lock of allLocks) {
+    const valid = lock.contents.filter(id => allNodeIds.has(id));
+    if (valid.length > 0) lockValidContents.set(lock.id, valid);
+  }
 
-    // 按 rank 分組（Y 方向，深度向下）
-    const rankGroups: Record<number, string[]> = {};
-    for (const id of freeIds) {
-      const r = ranks[id] ?? 0;
-      if (!rankGroups[r]) rankGroups[r] = [];
-      rankGroups[r]!.push(id);
+  // ─── 佈局：Y = rank 層（向下），X = 層內展開 ───
+
+  const layoutNodes: LayoutNode[] = [];
+  const sortedRanks = Object.keys(rankLayers).map(Number).sort((a, b) => a - b);
+
+  let currentY = 0;
+
+  for (const r of sortedRanks) {
+    const layer = rankLayers[r]!;
+
+    let currentX = 0;
+    let layerMaxContentH = 0;
+
+    for (const id of layer) {
+      // 放置自由節點
+      const node = makeNode(id, currentX, currentY);
+      if (node) layoutNodes.push(node);
+
+      // 放置容器 contents 在鎖的右側
+      const contents = lockValidContents.get(id);
+      let blockWidth = NODE_W;
+      if (contents && contents.length > 0) {
+        contents.forEach((childId, ci) => {
+          const cx = currentX + NODE_W + GROUP_PAD;
+          const cy = currentY + ci * (NODE_H + 10);
+          const childNode = makeNode(childId, cx, cy);
+          if (childNode) layoutNodes.push(childNode);
+        });
+        blockWidth = NODE_W + GROUP_PAD + NODE_W;
+        const contentH = contents.length * (NODE_H + 10) - 10;
+        if (contentH > layerMaxContentH) layerMaxContentH = contentH;
+      }
+
+      currentX += blockWidth + X_GAP;
     }
 
-    const sortedRanks = Object.keys(rankGroups).map(Number).sort((a, b) => a - b);
-    let currentY = 0;
-    let roomMaxX = roomStartX;
-
-    for (const r of sortedRanks) {
-      const group = rankGroups[r]!;
-
-      // 同 rank 節點水平排列
-      group.forEach((id, index) => {
-        const x = roomStartX + index * X_GAP;
-        const y = currentY;
-
-        const node = makeNode(id, x, y, rid);
-        if (node) layoutNodes.push(node);
-
-        // content 節點在鎖的右側
-        const contentCount = lockContentCount.get(id);
-        if (contentCount) {
-          const lock = puzzle.locks[id]!;
-          let ci = 0;
-          for (const childId of lock.contents) {
-            if (!nodeIds.includes(childId)) continue;
-            const cx = x + CONTENT_X_OFFSET;
-            const cy = y + ci * (NODE_H + 10);
-            const childNode = makeNode(childId, cx, cy, nodeRoom(childId));
-            if (childNode) layoutNodes.push(childNode);
-            if (cx + NODE_W > roomMaxX) roomMaxX = cx + NODE_W;
-            ci++;
-          }
-        }
-
-        if (x + NODE_W > roomMaxX) roomMaxX = x + NODE_W;
-      });
-
-      // 下一個 rank 的 Y：考慮容器鎖佔的額外高度
-      const maxContentHeight = group.reduce((max, id) => {
-        const cc = lockContentCount.get(id) ?? 0;
-        return Math.max(max, cc > 0 ? cc * (NODE_H + 10) : NODE_H);
-      }, NODE_H);
-      currentY += maxContentHeight + Y_GAP - NODE_H;
-    }
-
-    roomStartX = roomMaxX + ROOM_X_GAP;
+    // 下一層 Y：考慮 content 佔的高度
+    const layerH = Math.max(NODE_H, layerMaxContentH);
+    currentY += layerH + Y_GAP;
   }
 
   // ─── 邊界和群組 ───
@@ -277,6 +234,7 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
   }
 
   const boundingBox = (nodes: LayoutNode[], pad: number) => {
+    if (nodes.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
     const x = Math.min(...nodes.map(n => n.x)) - pad;
     const y = Math.min(...nodes.map(n => n.y)) - pad;
     return {
@@ -287,23 +245,22 @@ export function buildGraphLayout(puzzle: PuzzleDefinition): GraphLayout {
   };
 
   const roomGroups: RoomGroup[] = [];
-  for (const rid of roomOrder) {
-    const room = puzzle.rooms[rid];
-    if (!room) continue;
-    const rNodes = layoutNodes.filter(n => n.roomId === rid);
+  for (const [roomId, room] of Object.entries(puzzle.rooms)) {
+    const rNodes = layoutNodes.filter(n => n.roomId === roomId);
     if (rNodes.length === 0) continue;
     const box = boundingBox(rNodes, GROUP_PAD);
-    roomGroups.push({ roomId: rid, roomName: room.name, ...box });
+    roomGroups.push({ roomId, roomName: room.name, ...box });
   }
 
   const containerGroups: ContainerGroup[] = [];
   for (const lock of allLocks) {
-    if (lock.category !== 'container' || lock.contents.length === 0) continue;
+    const contents = lockValidContents.get(lock.id);
+    if (!contents) continue;
     const childNodes = layoutNodes.filter(n => containerMap.get(n.id) === lock.id);
     const lockNode = layoutNodes.find(n => n.id === lock.id);
-    const allGroupNodes = lockNode ? [lockNode, ...childNodes] : childNodes;
-    if (allGroupNodes.length === 0) continue;
-    const box = boundingBox(allGroupNodes, GROUP_PAD / 2);
+    const groupNodes = lockNode ? [lockNode, ...childNodes] : childNodes;
+    if (groupNodes.length === 0) continue;
+    const box = boundingBox(groupNodes, GROUP_PAD / 2);
     containerGroups.push({ lockId: lock.id, lockName: lock.name, roomId: lock.roomId, ...box });
   }
 

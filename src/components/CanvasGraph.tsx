@@ -236,24 +236,37 @@ export default function CanvasGraph({ puzzle }: Props) {
             if (!source || !target) return null;
 
             const isContains = edge.type === 'contains';
-            const isForward = target.y > source.y || (target.y === source.y && target.x > source.x);
+
+            // 判斷方向
+            const goesDown = target.y > source.y + NODE_H / 2;
+            const goesRight = target.x > source.x;
+            const sameRow = Math.abs(target.y - source.y) < NODE_H;
 
             let d: string;
-            if (isForward) {
-              // 正向邊：從下方出發到上方進入（垂直流）
+            if (sameRow && goesRight) {
+              // 同層右邊（如鎖→右側 content）
+              const sx = source.x + NODE_W;
+              const sy = source.y + NODE_H / 2;
+              const ex = target.x;
+              const ey = target.y + NODE_H / 2;
+              d = `M ${sx} ${sy} L ${ex} ${ey}`;
+            } else if (goesDown) {
+              // 正向（下方）：從底部中央出發，到頂部中央
               const sx = source.x + NODE_W / 2;
               const sy = source.y + NODE_H;
               const ex = target.x + NODE_W / 2;
               const ey = target.y;
-              const cpY = sy + (ey - sy) / 2;
-              d = `M ${sx} ${sy} C ${sx} ${cpY}, ${ex} ${cpY}, ${ex} ${ey}`;
+              const dist = ey - sy;
+              const cpY1 = sy + Math.min(dist * 0.4, 50);
+              const cpY2 = ey - Math.min(dist * 0.4, 50);
+              d = `M ${sx} ${sy} C ${sx} ${cpY1}, ${ex} ${cpY2}, ${ex} ${ey}`;
             } else {
-              // 反向邊（回繞）：從左側出發，繞左邊弧線到目標左側
+              // 反向/上方：從左側出發，繞弧到目標左側
               const sx = source.x;
               const sy = source.y + NODE_H / 2;
               const ex = target.x;
               const ey = target.y + NODE_H / 2;
-              const loopX = Math.min(sx, ex) - 60;
+              const loopX = Math.min(sx, ex) - 80;
               d = `M ${sx} ${sy} C ${loopX} ${sy}, ${loopX} ${ey}, ${ex} ${ey}`;
             }
 
