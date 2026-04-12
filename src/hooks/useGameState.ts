@@ -21,6 +21,9 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
   depthStaggerVariance: 1.0,
   keySpreadRate: 0.5,
   crossRoomRate: 0.3,
+  reuseRate: 0.3,
+  maxNestingDepth: 2,
+  consolidationRate: 0.5,
 };
 
 const STORAGE_KEY = 'puzzle-graph:config';
