@@ -201,3 +201,67 @@ export function generateId(prefix: string): string {
 export function resetIdCounter(): void {
   idCounter = 0;
 }
+
+/**
+ * BFS 從起點遍歷空間鎖，回傳房間順序。
+ * 適用於 graph-layout 和 generator 共用的房間拓撲。
+ */
+export function bfsRoomOrder(
+  startRoomId: string,
+  allRoomIds: string[],
+  locks: Record<string, { category: string; roomId: string; targetRoomId?: string }>,
+): string[] {
+  const order: string[] = [];
+  const visited = new Set<string>([startRoomId]);
+  const queue = [startRoomId];
+  while (queue.length > 0) {
+    const rid = queue.shift()!;
+    order.push(rid);
+    for (const lock of Object.values(locks)) {
+      if (lock.category === 'spatial' && lock.roomId === rid && lock.targetRoomId && !visited.has(lock.targetRoomId)) {
+        visited.add(lock.targetRoomId);
+        queue.push(lock.targetRoomId);
+      }
+    }
+  }
+  for (const rid of allRoomIds) {
+    if (!visited.has(rid)) order.push(rid);
+  }
+  return order;
+}
+
+/**
+ * 建立每個房間需要經過哪些空間鎖才能到達的映射（從起點 BFS）。
+ */
+export function buildRoomGateLocks(
+  startRoomId: string,
+  locks: Record<string, { id: string; category: string; roomId: string; targetRoomId?: string }>,
+): Map<string, string[]> {
+  const result = new Map<string, string[]>();
+  const visited = new Set<string>([startRoomId]);
+  const queue: { roomId: string; gates: string[] }[] = [{ roomId: startRoomId, gates: [] }];
+  while (queue.length > 0) {
+    const { roomId, gates } = queue.shift()!;
+    result.set(roomId, gates);
+    for (const lock of Object.values(locks)) {
+      if (lock.category === 'spatial' && lock.roomId === roomId && lock.targetRoomId && !visited.has(lock.targetRoomId)) {
+        visited.add(lock.targetRoomId);
+        queue.push({ roomId: lock.targetRoomId, gates: [...gates, lock.id] });
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * 查詢實體（item 或 lock）是否可攜帶。
+ */
+export function isEntityPickupable(
+  id: string,
+  items: Record<string, { pickupable?: boolean }>,
+  locks: Record<string, { pickupable?: boolean }>,
+): boolean {
+  if (id in items) return items[id]!.pickupable !== false;
+  if (id in locks) return locks[id]!.pickupable === true;
+  return true;
+}

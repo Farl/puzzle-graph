@@ -12,7 +12,7 @@ import type {
 } from './types';
 import { ROOM_THEMES, ADJECTIVES } from './families';
 import { KEY_TEMPLATES, LOCK_TEMPLATES, findKeyTemplate } from './templates';
-import { SeededRandom, shuffle, getUniqueName, PasswordFormatPool, generateId, resetIdCounter } from './utils';
+import { SeededRandom, shuffle, getUniqueName, PasswordFormatPool, generateId, resetIdCounter, buildRoomGateLocks, isEntityPickupable } from './utils';
 import { generateMinigameConfig } from './minigames';
 
 // ─── Phase B BFS 佇列項目 ───
@@ -98,6 +98,7 @@ class GeneratorContext {
     capacity: number = 0,
     volume: number = 0,
     pickupable: boolean = false,
+    stateTags?: string[],
   ): Lock {
     const lockName = getUniqueName(variation.name, this.usedLockNames, ADJECTIVES, this.rng);
     const lock: Lock = {
@@ -116,6 +117,7 @@ class GeneratorContext {
       capacity,
       volume,
       pickupable,
+      stateTags,
       isLocked: true,
       isExit,
     };
@@ -509,7 +511,7 @@ export function generatePuzzleContent(
     const lockLimitReached = config.maxLocks != null && ctx.lockCount >= config.maxLocks;
     const canUseGenericLock = !depthBudgetReached && !lockLimitReached;
 
-    if (stateLockTemplate || canUseGenericLock) {
+    if ((stateLockTemplate || canUseGenericLock) && !itemsInContainers.has(target.itemId)) {
       const MAX_WRAP_ATTEMPTS = 5;
       let wrapped = false;
 
@@ -549,7 +551,7 @@ export function generatePuzzleContent(
 
           const variation = lockTemplate.variations[ctx.rng.nextInt(lockTemplate.variations.length)]!;
           const lockPickupable = lockTemplate.pickupable === true;
-          const containerLock = ctx.createLock(variation, false, lockRoomId, false, lockTemplate.capacity, lockTemplate.volume, lockPickupable);
+          const containerLock = ctx.createLock(variation, false, lockRoomId, false, lockTemplate.capacity, lockTemplate.volume, lockPickupable, lockTemplate.stateTags);
           ctx.lockCount++;
           containerLock.contents.push(target.itemId);
           itemsInContainers.add(target.itemId);
@@ -576,11 +578,13 @@ export function generatePuzzleContent(
       if (wrapped) continue;
     }
 
-    // base case：物品直接留在地板
-    ctx.items[target.itemId]!.initialRoom = target.currentRoom;
-    const room = ctx.rooms[target.currentRoom]!;
-    if (!room.visibleItems.includes(target.itemId)) {
-      room.visibleItems.push(target.itemId);
+    // base case：物品直接留在地板（但已在容器內的物品不動）
+    if (!itemsInContainers.has(target.itemId)) {
+      ctx.items[target.itemId]!.initialRoom = target.currentRoom;
+      const room = ctx.rooms[target.currentRoom]!;
+      if (!room.visibleItems.includes(target.itemId)) {
+        room.visibleItems.push(target.itemId);
+      }
     }
   }
 }
@@ -678,12 +682,14 @@ function buildContentToContainerMap(locks: Record<LockId, Lock>): Map<string, Lo
 }
 
 /**
- * 收集解鎖某個 lock 所需的所有前置物品（遞迴展開容器鏈）。
+ * 收集解鎖某個 lock 所需的所有前置物品（遞迴展開容器鏈 + 空間鎖鏈）。
  */
 function collectPrerequisites(
   lockId: LockId,
   locks: Record<LockId, Lock>,
   contentToContainer: Map<string, LockId>,
+  items: Record<string, { initialRoom: string }>,
+  roomGateLocks: Map<string, string[]>,
 ): Set<string> {
   const result = new Set<string>();
   const visited = new Set<LockId>();
@@ -695,9 +701,13 @@ function collectPrerequisites(
     if (!lock) return;
     for (const itemId of lock.requiredItems) {
       result.add(itemId);
-      // 如果這個物品被鎖在某個容器裡，那個容器的前置也是間接前置
       const parentLock = contentToContainer.get(itemId);
       if (parentLock) walk(parentLock);
+      // 物品在其他房間 → 到達那個房間需要的空間鎖也是前置
+      const itemRoom = items[itemId]?.initialRoom;
+      if (itemRoom) {
+        for (const gateLockId of roomGateLocks.get(itemRoom) ?? []) walk(gateLockId);
+      }
     }
   }
 
@@ -715,8 +725,9 @@ function wouldCreateCycle(
   containerId: LockId,
   ctx: GeneratorContext,
   contentToContainer: Map<string, LockId>,
+  roomGateLocks: Map<string, string[]>,
 ): boolean {
-  const prereqs = collectPrerequisites(containerId, ctx.locks, contentToContainer);
+  const prereqs = collectPrerequisites(containerId, ctx.locks, contentToContainer, ctx.items, roomGateLocks);
 
   // If candidate is an item directly needed
   if (candidateId in ctx.items) {
@@ -760,6 +771,7 @@ function consolidate(
 
   const urgency = computeUrgency(ctx, roomIds);
   const contentToContainer = buildContentToContainerMap(ctx.locks);
+  const roomGateLocks = buildRoomGateLocks(roomIds[0]!, ctx.locks);
 
   for (const roomId of roomIds) {
     const room = ctx.rooms[roomId]!;
@@ -774,9 +786,13 @@ function consolidate(
     floorEntities.sort((a, b) => (urgency.get(b) ?? 0) - (urgency.get(a) ?? 0));
 
     // Get container locks in this room sorted by urgency ASCENDING (most urgent first)
+    // 排除狀態鎖（stateTags 有值 = 合成/轉換鎖，內容物語意固定）
     const getContainers = () =>
       room.lockIds
-        .filter(lid => ctx.locks[lid]!.category === 'container')
+        .filter(lid => {
+          const l = ctx.locks[lid]!;
+          return l.category === 'container' && !l.stateTags?.length;
+        })
         .sort((a, b) => (urgency.get(a) ?? 0) - (urgency.get(b) ?? 0));
 
     for (const candidate of [...floorEntities]) {
@@ -800,7 +816,7 @@ function consolidate(
         if (containerUrgency > candidateUrgency) break;
 
         // Dependency check: candidate must not be a prerequisite for this container
-        if (wouldCreateCycle(candidate, containerId, ctx, contentToContainer)) continue;
+        if (wouldCreateCycle(candidate, containerId, ctx, contentToContainer, roomGateLocks)) continue;
 
         // Check volume
         let usedVolume = 0;
@@ -808,6 +824,9 @@ function consolidate(
           usedVolume += entityVolume(id, ctx);
         }
         if (usedVolume + candidateVolume > container.capacity) continue;
+
+        // 不可攜帶的物件不能塞進可攜帶的容器
+        if (container.pickupable && !isEntityPickupable(candidate, ctx.items, ctx.locks)) continue;
 
         // Check nesting depth
         if (candidate in ctx.locks) {

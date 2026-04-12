@@ -53,6 +53,7 @@ export interface Lock {
   passwordHint?: string;
   minigameConfig?: MinigameConfig;
   pickupable: boolean;
+  stateTags?: string[];
   isLocked: boolean;
   isExit: boolean;
 }

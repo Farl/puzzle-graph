@@ -124,7 +124,6 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['wet_cloth'],
     variations: [
       { name: '油膩的控制面板', lockMsg: '按鈕被黏稠的油污堵住。', unlockMsg: '你清理了面板，按鈕恢復功能。' },
-      { name: '生鏽的保險箱轉盤', lockMsg: '轉盤被鏽蝕卡住了，轉不動。', unlockMsg: '你用濕布清除鏽蝕，轉盤終於能動了。' },
     ],
   },
   {

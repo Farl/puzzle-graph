@@ -12,6 +12,22 @@ const NODE_H = 60;
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 2.5;
 
+/** 從底部中央到頂部中央的 bezier 曲線路徑 */
+function edgePath(sx: number, sy: number, ex: number, ey: number): string {
+  if (ey > sy) {
+    const midY = (sy + ey) / 2;
+    return `M ${sx} ${sy} C ${sx} ${midY}, ${ex} ${midY}, ${ex} ${ey}`;
+  }
+  const loopY = Math.max(sy, ey + NODE_H) + 60;
+  return `M ${sx} ${sy} C ${sx} ${loopY}, ${ex} ${loopY}, ${ex} ${ey}`;
+}
+
+const ARROW_MARKERS = [
+  { id: 'arrow-req', fill: '#64748b' },
+  { id: 'arrow-contains', fill: '#0891b2' },
+  { id: 'arrow-spatial', fill: '#7c3aed' },
+] as const;
+
 /** 以指定的畫面座標為中心進行縮放，scale 不變時回傳 prev（避免無效 re-render） */
 function zoomAtPoint(
   prev: { x: number; y: number; scale: number },
@@ -67,6 +83,11 @@ export default function CanvasGraph({ puzzle }: Props) {
   const nodeMap = useMemo(() => {
     const map = new Map<string, (typeof layout.nodes)[number]>();
     for (const n of layout.nodes) map.set(n.id, n);
+    return map;
+  }, [layout]);
+  const roomGroupMap = useMemo(() => {
+    const map = new Map<string, (typeof layout.roomGroups)[number]>();
+    for (const rg of layout.roomGroups) map.set(rg.roomId, rg);
     return map;
   }, [layout]);
 
@@ -212,6 +233,7 @@ export default function CanvasGraph({ puzzle }: Props) {
         <div className="mt-1.5 pt-1.5 border-t border-slate-700 space-y-1">
           <div className="flex items-center gap-1.5"><span className="w-3 border-t-2 border-slate-400" /> 需要（物品→鎖）</div>
           <div className="flex items-center gap-1.5"><span className="w-3 border-t-2 border-dashed border-cyan-600" /> 隱藏（鎖→物品）</div>
+          <div className="flex items-center gap-1.5"><span className="w-3 border-t-2 border-dashed border-purple-600" /> 通往（門→房間）</div>
         </div>
       </div>
 
@@ -223,12 +245,11 @@ export default function CanvasGraph({ puzzle }: Props) {
         {/* Edges */}
         <svg className="absolute top-0 left-0 overflow-visible z-0 pointer-events-none">
           <defs>
-            <marker id="arrow-req" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
-            </marker>
-            <marker id="arrow-contains" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#0891b2" />
-            </marker>
+            {ARROW_MARKERS.map(m => (
+              <marker key={m.id} id={m.id} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill={m.fill} />
+              </marker>
+            ))}
           </defs>
           {layout.edges.map((edge, i) => {
             const source = nodeMap.get(edge.source);
@@ -236,29 +257,7 @@ export default function CanvasGraph({ puzzle }: Props) {
             if (!source || !target) return null;
 
             const isContains = edge.type === 'contains';
-
-            // Y = rank（深度向下），所有連接上下方向
-            const goesDown = target.y > source.y + NODE_H / 2;
-
-            let d: string;
-            if (goesDown) {
-              // 正向（向下）：從底部中央出發，到頂部中央
-              const sx = source.x + NODE_W / 2;
-              const sy = source.y + NODE_H;
-              const ex = target.x + NODE_W / 2;
-              const ey = target.y;
-              const dist = ey - sy;
-              const cpY = Math.min(dist * 0.4, 40);
-              d = `M ${sx} ${sy} C ${sx} ${sy + cpY}, ${ex} ${ey - cpY}, ${ex} ${ey}`;
-            } else {
-              // 反向（向上回繞）：從左側出發，繞弧到目標左側
-              const sx = source.x;
-              const sy = source.y + NODE_H / 2;
-              const ex = target.x;
-              const ey = target.y + NODE_H / 2;
-              const loopX = Math.min(sx, ex) - 60;
-              d = `M ${sx} ${sy} C ${loopX} ${sy}, ${loopX} ${ey}, ${ex} ${ey}`;
-            }
+            const d = edgePath(source.x + NODE_W / 2, source.y + NODE_H, target.x + NODE_W / 2, target.y);
 
             return (
               <path
@@ -270,6 +269,25 @@ export default function CanvasGraph({ puzzle }: Props) {
                 strokeDasharray={isContains ? '6 3' : 'none'}
                 markerEnd={isContains ? 'url(#arrow-contains)' : 'url(#arrow-req)'}
                 className={isContains ? 'opacity-70' : 'opacity-60'}
+              />
+            );
+          })}
+          {/* Spatial edges: lock → target room group */}
+          {layout.spatialEdges.map((se, i) => {
+            const lockNode = nodeMap.get(se.lockId);
+            const targetRoom = roomGroupMap.get(se.targetRoomId);
+            if (!lockNode || !targetRoom) return null;
+            const d = edgePath(lockNode.x + NODE_W / 2, lockNode.y + NODE_H, targetRoom.x + targetRoom.width / 2, targetRoom.y);
+            return (
+              <path
+                key={`spatial-${i}`}
+                d={d}
+                fill="none"
+                stroke="#7c3aed"
+                strokeWidth="2"
+                strokeDasharray="8 4"
+                markerEnd="url(#arrow-spatial)"
+                className="opacity-50"
               />
             );
           })}
