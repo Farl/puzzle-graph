@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, RefreshCw, RotateCcw } from 'lucide-react';
 import type { GeneratorConfig } from '../game/types';
+import { PRESETS } from '../hooks/useGameState';
 
 interface Props {
   config: GeneratorConfig;
@@ -11,7 +12,7 @@ interface Props {
 }
 
 /** 只列出必填的數值欄位，用於 slider UI */
-type NumericConfigKey = 'targetDepth' | 'maxRooms' | 'compositeRate' | 'depthStaggerVariance' | 'keySpreadRate' | 'crossRoomRate' | 'reuseRate' | 'maxNestingDepth' | 'consolidationRate' | 'stateLockRate';
+type NumericConfigKey = 'targetDepth' | 'maxRooms' | 'compositeRate' | 'depthStaggerVariance' | 'keySpreadRate' | 'crossRoomRate' | 'reuseRate' | 'maxNestingDepth' | 'consolidationRate' | 'stateLockRate' | 'npcRate';
 
 interface SliderConfig {
   key: NumericConfigKey;
@@ -34,6 +35,7 @@ const SLIDERS: SliderConfig[] = [
   { key: 'maxNestingDepth', label: '容器嵌套層數', desc: '容器最大嵌套深度（0=不嵌套）', min: 0, max: 5, step: 1, color: 'accent-violet-500' },
   { key: 'consolidationRate', label: '收納密度', desc: '越高越多東西藏在容器裡', min: 0, max: 1, step: 0.1, color: 'accent-teal-500' },
   { key: 'stateLockRate', label: '狀態鎖機率', desc: '地板物品被狀態鎖（可拾取）包裹的機率', min: 0, max: 1, step: 0.1, color: 'accent-pink-500' },
+  { key: 'npcRate', label: 'NPC 鎖機率', desc: '有配對口信時選 NPC 鎖的機率', min: 0, max: 1, step: 0.1, color: 'accent-indigo-500' },
 ];
 
 export default function SettingsModal({ config, defaultConfig, currentSeed, onApply, onClose }: Props) {
@@ -99,6 +101,21 @@ export default function SettingsModal({ config, defaultConfig, currentSeed, onAp
 
         {/* 可捲動中間：參數滑桿 */}
         <div className="flex-1 overflow-y-auto p-4 md:p-5 py-3 space-y-2.5 scrollbar-thin scrollbar-thumb-slate-700">
+          <div className="mb-4">
+            <label className="block text-sm text-slate-300 mb-1">模板主題</label>
+            <select
+              className="w-full rounded border border-slate-600 bg-slate-800 px-2 py-1 text-sm text-slate-100"
+              onChange={(e) => {
+                const p = PRESETS.find(x => x.key === e.target.value);
+                if (p) setDraft({ ...p.config });
+              }}
+              defaultValue=""
+            >
+              <option value="" disabled>套用 preset……</option>
+              {PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+            </select>
+            <p className="text-xs text-slate-500 mt-1">選擇後會覆蓋以下所有數值</p>
+          </div>
           {SLIDERS.map(({ key, label, desc, min, max, step, color }) => (
             <div key={key}>
               <div className="flex justify-between items-baseline text-[11px] text-slate-400 mb-0.5">

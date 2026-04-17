@@ -28,6 +28,42 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
   stateLockRate: 0.3,
 };
 
+export const CLASSIC_PRESET: GeneratorConfig = {
+  ...DEFAULT_CONFIG,
+  excludeTemplateTags: ['investigation'],
+  npcRate: 0,
+};
+
+export const INVESTIGATION_PRESET: GeneratorConfig = {
+  targetDepth: 8,
+  maxRooms: 4,
+  depthStaggerVariance: 1,
+  compositeRate: 0.5,
+  keySpreadRate: 0.5,
+  crossRoomRate: 0.5,
+  reuseRate: 0.6,
+  maxReusesPerTool: 3,
+  maxNestingDepth: 2,
+  consolidationRate: 0.4,
+  stateLockRate: 0.3,
+  npcRate: 0.7,
+  includeTemplateTags: ['investigation'],
+};
+
+export const MIXED_PRESET: GeneratorConfig = {
+  ...DEFAULT_CONFIG,
+  targetDepth: 8,
+  maxRooms: 4,
+  npcRate: 0.4,
+  reuseRate: 0.5,
+};
+
+export const PRESETS: { key: string; label: string; config: GeneratorConfig }[] = [
+  { key: 'classic', label: '經典模式', config: CLASSIC_PRESET },
+  { key: 'mixed', label: '混合模式', config: MIXED_PRESET },
+  { key: 'investigation', label: '偵訊模式', config: INVESTIGATION_PRESET },
+];
+
 const STORAGE_KEY = 'puzzle-graph:config';
 
 function loadConfig(): GeneratorConfig {
