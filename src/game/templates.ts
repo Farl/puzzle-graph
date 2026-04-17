@@ -713,7 +713,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     unlockDescription: '看見死者日記，她情緒崩潰，所有事一併吐露。',
     category: 'container', mechanism: 'combination', capacity: 8, volume: 0,
     tags: ['investigation', 'npc', 'relative'],
-    requiredKeys: ['diary_book', 'tip_affair'],
+    requiredKeys: ['diary_book', 'tip_affair', 'tip_money'],
     pickupable: false,
     stateTags: ['tip-money'],
     variations: [
@@ -739,7 +739,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     unlockDescription: '帳戶紀錄攤開在他面前，他坐下來開始談錢的事。',
     category: 'container', mechanism: 'physical', capacity: 4, volume: 0,
     tags: ['investigation', 'npc', 'relative'],
-    requiredKeys: ['bank_statement'],
+    requiredKeys: ['bank_statement', 'dna_sample'],
     pickupable: false,
     stateTags: ['tip-money'],
     variations: [
@@ -752,7 +752,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     unlockDescription: '拼好的遺書讓她深吸一口氣，說出不為人知的家族秘密。',
     category: 'container', mechanism: 'physical', capacity: 8, volume: 0,
     tags: ['investigation', 'npc', 'relative'],
-    requiredKeys: ['restored_document'],
+    requiredKeys: ['restored_document', 'revealed_notes'],
     pickupable: false,
     stateTags: ['tip-affair'],
     variations: [
@@ -766,7 +766,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     unlockDescription: '警徽 + 律師委任狀齊備，他把完整的鑑識細節告訴你。',
     category: 'container', mechanism: 'combination', capacity: 6, volume: 0,
     tags: ['investigation', 'npc', 'professional'],
-    requiredKeys: ['police_badge', 'attorney_letter'],
+    requiredKeys: ['police_badge', 'attorney_letter', 'tip_weapon'],
     pickupable: false,
     stateTags: ['tip-weapon'],
     variations: [
@@ -779,7 +779,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     unlockDescription: '你用名片盒和他交換，他打開了採訪筆記。',
     category: 'container', mechanism: 'combination', capacity: 6, volume: 0,
     tags: ['investigation', 'npc', 'professional'],
-    requiredKeys: ['press_pass', 'business_card'],
+    requiredKeys: ['press_pass', 'business_card', 'tip_motive'],
     pickupable: false,
     stateTags: ['tip-motive'],
     variations: [
@@ -792,7 +792,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     unlockDescription: '懷錶和還原的錄音一起擺上桌，他沒辦法再裝糊塗。',
     category: 'container', mechanism: 'combination', capacity: 6, volume: 0,
     tags: ['investigation', 'npc', 'professional'],
-    requiredKeys: ['pocket_watch', 'decoded_audio'],
+    requiredKeys: ['pocket_watch', 'decoded_audio', 'tip_hideout'],
     pickupable: false,
     stateTags: ['tip-hideout'],
     variations: [
@@ -832,7 +832,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     unlockDescription: '你把現場鞋印和電話通聯紀錄攤開，他的微笑消失了。',
     category: 'container', mechanism: 'combination', capacity: 6, volume: 0,
     tags: ['investigation', 'npc', 'suspect'],
-    requiredKeys: ['shoe_print', 'phone_records'],
+    requiredKeys: ['shoe_print', 'phone_records', 'tip_quarrel'],
     pickupable: false,
     stateTags: ['tip-quarrel'],
     variations: [
