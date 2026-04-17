@@ -9,9 +9,11 @@ import type {
   LockId,
   FamilyVariation,
   LockTemplate,
+  KeyTemplate,
 } from './types';
 import { ROOM_THEMES, ADJECTIVES } from './families';
 import { KEY_TEMPLATES, LOCK_TEMPLATES, findKeyTemplate } from './templates';
+import { filterTemplatesByTags } from './template-filter';
 import { SeededRandom, shuffle, getUniqueName, PasswordFormatPool, generateId, resetIdCounter, buildRoomGateLocks, isEntityPickupable } from './utils';
 import { generateMinigameConfig } from './minigames';
 
@@ -45,6 +47,10 @@ class GeneratorContext {
   rng: SeededRandom;
   availableThemes: { name: string; description: string; capacity: number }[];
   availableLocks: LockTemplate[];
+  /** Lock templates after tag filter — used for deck reshuffle and reuse path lookup. */
+  filteredLockPool: readonly LockTemplate[];
+  /** Key templates after tag filter — used for reuse path lookup. */
+  filteredKeyPool: readonly KeyTemplate[];
   reusableItemCache: Record<string, ItemId> = {};
   consumableCount: Record<string, number> = {};
   usedItemNames = new Set<string>();
@@ -53,11 +59,21 @@ class GeneratorContext {
   lockCount = 0;
   toolReuseCount: Record<ItemId, number> = {};
 
-  constructor(maxRooms: number, rng: SeededRandom) {
+  constructor(maxRooms: number, rng: SeededRandom, config: GeneratorConfig) {
     this.rng = rng;
     this.passwordPool = new PasswordFormatPool(rng);
     this.availableThemes = shuffle(ROOM_THEMES, rng).slice(0, maxRooms);
-    this.availableLocks = shuffle([...LOCK_TEMPLATES], rng);
+    this.filteredLockPool = filterTemplatesByTags(
+      LOCK_TEMPLATES,
+      config.includeTemplateTags,
+      config.excludeTemplateTags,
+    );
+    this.filteredKeyPool = filterTemplatesByTags(
+      KEY_TEMPLATES,
+      config.includeTemplateTags,
+      config.excludeTemplateTags,
+    );
+    this.availableLocks = shuffle([...this.filteredLockPool], rng);
   }
 
   createRoom(name: string, description: string, capacity: number): Room {
@@ -202,7 +218,7 @@ class GeneratorContext {
 
     let result = drawFrom(this.availableLocks);
     if (!result) {
-      this.availableLocks = shuffle([...LOCK_TEMPLATES], this.rng);
+      this.availableLocks = shuffle([...this.filteredLockPool], this.rng);
       result = drawFrom(this.availableLocks);
     }
     return result;
@@ -224,10 +240,10 @@ class GeneratorContext {
     if (reusableToolNames.length === 0) return null;
 
     const toolName = reusableToolNames[this.rng.nextInt(reusableToolNames.length)]!;
-    const keyTpl = KEY_TEMPLATES.find(k => k.name === toolName && k.reusable);
+    const keyTpl = this.filteredKeyPool.find(k => k.name === toolName && k.reusable);
     if (!keyTpl) return null;
 
-    const compatibleLocks = LOCK_TEMPLATES.filter(
+    const compatibleLocks = this.filteredLockPool.filter(
       l => l.category === targetCategory && l.requiredKeys.includes(keyTpl.id)
         && !l.pickupable,
     );
@@ -354,7 +370,7 @@ function enqueueKeysForLock(
 // ─── Phase A：建立房間骨架 ───
 
 export function generateRoomSkeleton(config: GeneratorConfig, rng: SeededRandom): SkeletonResult {
-  const ctx = new GeneratorContext(config.maxRooms, rng);
+  const ctx = new GeneratorContext(config.maxRooms, rng, config);
   const floorItems: PhaseBTarget[] = [];
   const roomIds: RoomId[] = [];
 
@@ -448,8 +464,8 @@ export function generatePuzzleContent(
   const itemsInContainers = new Set<ItemId>();
 
   // 狀態鎖配對用的查詢表
-  const keyTplByName = new Map(KEY_TEMPLATES.map(k => [k.name, k]));
-  const stateLockTemplates = LOCK_TEMPLATES.filter(
+  const keyTplByName = new Map(ctx.filteredKeyPool.map(k => [k.name, k]));
+  const stateLockTemplates = ctx.filteredLockPool.filter(
     l => l.pickupable && l.category === 'container' && l.stateTags && l.stateTags.length > 0,
   );
 
