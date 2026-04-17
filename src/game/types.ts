@@ -116,6 +116,14 @@ export interface GeneratorConfig {
   stateLockRate?: number;
 
   compositeRate?: number;
+
+  /** Only keep templates whose tags intersect this list (empty/undefined = no filter). */
+  includeTemplateTags?: readonly string[];
+  /** Exclude templates whose tags intersect this list. */
+  excludeTemplateTags?: readonly string[];
+  /** When an item has stateTag-matching NPC candidates, probability of picking one (0-1). */
+  npcRate?: number;
+
   /** @deprecated 不再使用 */
   tagDiversityMode?: string;
   /** @deprecated 不再使用 */
@@ -146,6 +154,7 @@ export interface KeyTemplate {
   type: ItemType;
   reusable: boolean;
   volume: number;
+  tags: readonly string[];       // new — required, mirrors LockTemplate.tags
   pickupable?: boolean;
   stateTags?: string[];          // 狀態鎖配對用（如 ['light-tool']）
 }
