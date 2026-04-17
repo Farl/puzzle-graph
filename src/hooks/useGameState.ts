@@ -16,25 +16,6 @@ import {
 } from '../game/engine';
 
 export const DEFAULT_CONFIG: GeneratorConfig = {
-  targetDepth: 6,
-  maxRooms: 3,
-  compositeRate: 0.3,
-  depthStaggerVariance: 1.0,
-  keySpreadRate: 0.5,
-  crossRoomRate: 0.3,
-  reuseRate: 0.3,
-  maxNestingDepth: 2,
-  consolidationRate: 0.5,
-  stateLockRate: 0.3,
-};
-
-export const CLASSIC_PRESET: GeneratorConfig = {
-  ...DEFAULT_CONFIG,
-  excludeTemplateTags: ['investigation'],
-  npcRate: 0,
-};
-
-export const INVESTIGATION_PRESET: GeneratorConfig = {
   targetDepth: 8,
   maxRooms: 4,
   depthStaggerVariance: 1,
@@ -45,17 +26,34 @@ export const INVESTIGATION_PRESET: GeneratorConfig = {
   maxReusesPerTool: 3,
   maxNestingDepth: 2,
   consolidationRate: 0.4,
-  stateLockRate: 0.3,
-  npcRate: 0.7,
+  stateLockRate: 0.5,        // raised from 0.3 for more evidence-state chains
+  npcRate: 0.4,              // lowered for more variety
   includeTemplateTags: ['investigation'],
 };
 
+export const CLASSIC_PRESET: GeneratorConfig = {
+  targetDepth: 6,
+  maxRooms: 3,
+  compositeRate: 0.3,
+  depthStaggerVariance: 1.0,
+  keySpreadRate: 0.5,
+  crossRoomRate: 0.3,
+  reuseRate: 0.3,
+  maxNestingDepth: 2,
+  consolidationRate: 0.5,
+  stateLockRate: 0.3,
+  excludeTemplateTags: ['investigation'],
+  npcRate: 0,
+};
+
+export const INVESTIGATION_PRESET: GeneratorConfig = { ...DEFAULT_CONFIG };
+
 export const MIXED_PRESET: GeneratorConfig = {
-  ...DEFAULT_CONFIG,
+  ...CLASSIC_PRESET,
+  excludeTemplateTags: undefined, // mixed: all templates, no tag filter
+  npcRate: 0.3,
   targetDepth: 8,
   maxRooms: 4,
-  npcRate: 0.4,
-  reuseRate: 0.5,
 };
 
 export const PRESETS: { key: string; label: string; config: GeneratorConfig }[] = [
