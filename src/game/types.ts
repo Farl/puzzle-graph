@@ -154,7 +154,7 @@ export interface KeyTemplate {
   type: ItemType;
   reusable: boolean;
   volume: number;
-  tags: readonly string[];       // new — required, mirrors LockTemplate.tags
+  tags: readonly string[];       // 分類標籤（如 ['classic', 'door-key']），配合 includeTemplateTags 過濾
   pickupable?: boolean;
   stateTags?: string[];          // 狀態鎖配對用（如 ['light-tool']）
 }
@@ -169,7 +169,7 @@ export interface LockTemplate {
   mechanism: LockMechanism;
   capacity: number;
   volume: number;
-  tags: string[];
+  tags: readonly string[];
   requiredKeys: string[];       // references KeyTemplate.id
   variations: FamilyVariation[];
   minigameType?: string;
