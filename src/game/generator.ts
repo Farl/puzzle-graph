@@ -193,19 +193,33 @@ class GeneratorContext {
       const valid = deck
         .map((tpl, i) => ({ tpl, i }))
         .filter(({ tpl }) => tpl.category === targetCategory && !tpl.pickupable && (!isValid || isValid(tpl)));
-      if (valid.length === 0 && (!stateLockCandidates || stateLockCandidates.length === 0)) return null;
 
-      // 合法狀態鎖候選（已在外部過濾 isValid）
-      const validStateLocks = stateLockCandidates?.filter(tpl => !isValid || isValid(tpl)) ?? [];
+      // Split stateTag candidates: pickupable = state transform, non-pickupable = NPC
+      const stateTagValid = stateLockCandidates?.filter(tpl => !isValid || isValid(tpl)) ?? [];
+      const validStateLocks = stateTagValid.filter(tpl => tpl.pickupable === true);
+      const validNpcLocks = stateTagValid.filter(tpl => tpl.pickupable !== true);
 
-      // 有狀態鎖 → 按 stateLockRate 決定
-      if (validStateLocks.length > 0 && (valid.length === 0 || this.rng.next() < (config.stateLockRate ?? 0))) {
+      if (valid.length === 0 && validStateLocks.length === 0 && validNpcLocks.length === 0) return null;
+
+      // Priority 1: state transform lock (pickupable)
+      if (validStateLocks.length > 0 &&
+          (valid.length === 0 || this.rng.next() < (config.stateLockRate ?? 0))) {
         return validStateLocks[this.rng.nextInt(validStateLocks.length)]!;
+      }
+
+      // Priority 2: NPC lock (non-pickupable with matching stateTag)
+      if (validNpcLocks.length > 0 &&
+          (valid.length === 0 || this.rng.next() < (config.npcRate ?? 0))) {
+        // NPC lock is ALSO in the main deck; find and splice so it isn't redrawn.
+        const npc = validNpcLocks[this.rng.nextInt(validNpcLocks.length)]!;
+        const idxInDeck = deck.indexOf(npc);
+        if (idxInDeck !== -1) deck.splice(idxInDeck, 1);
+        return npc;
       }
 
       if (valid.length === 0) return null;
 
-      // 按 compositeRate 決定組合鎖或單鑰匙鎖
+      // Priority 3: composite or single
       const composites = valid.filter(v => v.tpl.requiredKeys.length > 1);
       const singles = valid.filter(v => v.tpl.requiredKeys.length <= 1);
       const useComposite = composites.length > 0 && (singles.length === 0 || this.rng.next() < (config.compositeRate ?? 0));
@@ -465,8 +479,11 @@ export function generatePuzzleContent(
 
   // 狀態鎖配對用的查詢表
   const keyTplByName = new Map(ctx.filteredKeyPool.map(k => [k.name, k]));
+  // Candidate pool for stateTag pairing:
+  //  - pickupable=true  → state lock (pickupable, inventory transform)
+  //  - pickupable=false → NPC lock (stationary container bound to room)
   const stateLockTemplates = ctx.filteredLockPool.filter(
-    l => l.pickupable && l.category === 'container' && l.stateTags && l.stateTags.length > 0,
+    l => l.category === 'container' && l.stateTags && l.stateTags.length > 0,
   );
 
   // Phase A 已把 item 放進 visibleItems，Phase B 會重新決定最終歸宿
