@@ -10,6 +10,7 @@ describe('Template types', () => {
       type: 'tool',
       reusable: true,
       volume: 3,
+      tags: ['classic'],
     };
     expect(key.id).toBe('crowbar');
     expect(key.reusable).toBe(true);
@@ -45,6 +46,7 @@ describe('Template types', () => {
       type: 'tool',
       reusable: true,
       volume: 3,
+      tags: ['classic'],
     };
 
     const lock1: LockTemplate = {
