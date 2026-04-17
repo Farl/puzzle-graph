@@ -63,11 +63,26 @@ class GeneratorContext {
     this.rng = rng;
     this.passwordPool = new PasswordFormatPool(rng);
     this.availableThemes = shuffle(ROOM_THEMES, rng).slice(0, maxRooms);
-    this.filteredLockPool = filterTemplatesByTags(
+    const filtered = filterTemplatesByTags(
       LOCK_TEMPLATES,
       config.includeTemplateTags,
       config.excludeTemplateTags,
     );
+    // Door skeleton (Phase A) needs spatial locks. When an include filter
+    // selects a theme whose templates are all container (e.g. pure
+    // investigation mode), the filtered pool has zero spatial candidates.
+    // Fall back to exclude-only filtered spatial locks so door generation
+    // never starves. Include filter still constrains container slots.
+    if (!filtered.some(t => t.category === 'spatial')) {
+      const spatialFallback = filterTemplatesByTags(
+        LOCK_TEMPLATES,
+        undefined,
+        config.excludeTemplateTags,
+      ).filter(t => t.category === 'spatial');
+      this.filteredLockPool = [...filtered, ...spatialFallback];
+    } else {
+      this.filteredLockPool = filtered;
+    }
     this.filteredKeyPool = filterTemplatesByTags(
       KEY_TEMPLATES,
       config.includeTemplateTags,
