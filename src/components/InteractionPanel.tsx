@@ -5,6 +5,11 @@ import { getReturnDoors } from '../game/engine';
 import PasswordModal from './PasswordModal';
 import MinigameModal from './MinigameModal';
 
+function isNpcLock(lock: { pickupable: boolean; stateTags?: string[]; category: string }): boolean {
+  return lock.category === 'container' && !lock.pickupable
+    && !!lock.stateTags && lock.stateTags.length > 0;
+}
+
 interface Props {
   gameState: GameState;
   selectedItem: ItemId | null;
@@ -179,6 +184,7 @@ export default function InteractionPanel({
               const isSpatial = lock.category === 'spatial';
               const isUnlocked = !lock.isLocked;
               const isLocal = lock.roomId === currentRoomId;
+              const isNpc = isNpcLock(lock);
               const progStr = (lock.isLocked && lock.insertedItems.length > 0)
                 ? `(${lock.insertedItems.length}/${lock.requiredItems.length})`
                 : '';
@@ -194,7 +200,9 @@ export default function InteractionPanel({
                     className={`px-2.5 py-2 rounded text-[11px] md:text-xs border flex-1 text-left flex items-center gap-1.5 truncate shadow-sm ${
                       isSpatial && !isLocal
                         ? 'bg-sky-950 hover:bg-sky-900 active:bg-sky-800 text-sky-200 border-sky-800'
-                        : 'bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-amber-200 border-slate-700'
+                        : isNpc
+                          ? 'bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-indigo-200 border-indigo-900/60'
+                          : 'bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-amber-200 border-slate-700'
                     }`}
                   >
                     {isSpatial
@@ -218,7 +226,7 @@ export default function InteractionPanel({
                     const minigameReady = isMinigame &&
                       lock.requiredItems.every(r => lock.insertedItems.includes(r));
                     const isEnabled = isPassword || minigameReady || !!selectedItem;
-                    const btnLabel = isPassword ? '密碼' : minigameReady ? '挑戰' : '使用';
+                    const btnLabel = isPassword ? '密碼' : minigameReady ? '挑戰' : isNpc ? '出示' : '使用';
                     const btnClass = isPassword
                       ? 'bg-amber-900 border-amber-700 text-amber-100 active:bg-amber-800'
                       : minigameReady

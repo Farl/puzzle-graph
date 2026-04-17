@@ -3,6 +3,11 @@ import { ZoomIn, ZoomOut, Move } from 'lucide-react';
 import type { PuzzleDefinition } from '../game/types';
 import { buildGraphLayout } from '../game/graph-layout';
 
+function isNpcLock(lock: { pickupable: boolean; stateTags?: string[]; category: string }): boolean {
+  return lock.category === 'container' && !lock.pickupable
+    && !!lock.stateTags && lock.stateTags.length > 0;
+}
+
 interface Props {
   puzzle: PuzzleDefinition;
 }
@@ -228,6 +233,7 @@ export default function CanvasGraph({ puzzle }: Props) {
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" /> 物品</div>
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500" /> 小遊戲 / 固定物品</div>
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" /> 容器鎖</div>
+        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-indigo-500" /> NPC 鎖</div>
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500" /> 空間鎖（門）</div>
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" /> 出口</div>
         <div className="mt-1.5 pt-1.5 border-t border-slate-700 space-y-1">
@@ -331,6 +337,9 @@ export default function CanvasGraph({ puzzle }: Props) {
             } else if (node.category === 'spatial') {
               borderColor = 'border-purple-900/60';
               dotColor = 'bg-purple-500 shadow-purple-500/50';
+            } else if (lock && isNpcLock(lock)) {
+              borderColor = 'border-indigo-900/60';
+              dotColor = 'bg-indigo-500 shadow-indigo-500/50';
             } else {
               borderColor = 'border-rose-900/60';
               dotColor = 'bg-rose-500 shadow-rose-500/50';
