@@ -76,3 +76,62 @@ describe('GeneratorContext tag filter', () => {
     }
   });
 });
+
+describe('投查模式可解性', () => {
+  const INVESTIGATION_BASE: GeneratorConfig = {
+    targetDepth: 6,
+    maxRooms: 4,
+    depthStaggerVariance: 1,
+    compositeRate: 0.5,
+    reuseRate: 0.6,
+    maxReusesPerTool: 3,
+    crossRoomRate: 0.5,
+    stateLockRate: 0.3,
+    npcRate: 0.7,
+    includeTemplateTags: ['investigation'],
+  };
+
+  it('純 investigation tag 過濾：100 次全部可解', async () => {
+    const { solvePuzzle } = await import('../solver');
+    let npcSeen = 0;
+    for (let i = 0; i < 100; i++) {
+      const puzzle = generatePuzzle({ ...INVESTIGATION_BASE, seed: i });
+      const result = solvePuzzle(puzzle);
+      expect(result.solvable, `seed=${i} not solvable: ${result.blockedItems.join(', ')}`).toBe(true);
+      for (const lock of Object.values(puzzle.locks)) {
+        const tpl = LOCK_TEMPLATES.find(t => t.variations.some(v =>
+          lock.name === v.name || lock.name.startsWith(v.name)));
+        if (tpl?.tags.includes('npc')) { npcSeen++; break; }
+      }
+    }
+    expect(npcSeen, 'NPC locks never appeared across 100 seeds').toBeGreaterThan(10);
+  });
+
+  it('mixed 模式（無 filter）：50 次全部可解', async () => {
+    const { solvePuzzle } = await import('../solver');
+    for (let i = 0; i < 50; i++) {
+      const puzzle = generatePuzzle({ ...INVESTIGATION_BASE, includeTemplateTags: undefined, seed: i });
+      const result = solvePuzzle(puzzle);
+      expect(result.solvable, `seed=${i} not solvable`).toBe(true);
+    }
+  });
+
+  it('classic-only 模式：50 次全部可解，且無 investigation 鎖', async () => {
+    const { solvePuzzle } = await import('../solver');
+    for (let i = 0; i < 50; i++) {
+      const puzzle = generatePuzzle({
+        ...INVESTIGATION_BASE,
+        includeTemplateTags: undefined,
+        excludeTemplateTags: ['investigation'],
+        seed: i,
+      });
+      const result = solvePuzzle(puzzle);
+      expect(result.solvable).toBe(true);
+      for (const lock of Object.values(puzzle.locks)) {
+        const tpl = LOCK_TEMPLATES.find(t => t.variations.some(v =>
+          lock.name === v.name || lock.name.startsWith(v.name)));
+        if (tpl) expect(tpl.tags).not.toContain('investigation');
+      }
+    }
+  });
+});
