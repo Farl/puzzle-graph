@@ -64,6 +64,66 @@ export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   { id: 'metal_rod', name: '金屬桿', description: '一根堅固的金屬桿。', type: 'key', reusable: false, volume: 2, tags: ['classic', 'crafting'] },
   { id: 'ic_chip', name: 'IC 晶片', description: '一塊精密的電路晶片。', type: 'key', reusable: false, volume: 0.5, tags: ['classic', 'crafting'] },
   { id: 'whetstone', name: '磨刀石', description: '一塊粗糙的磨刀石。', type: 'key', reusable: false, volume: 1, tags: ['classic', 'crafting'] },
+
+  // ─── Investigation: 證據（可重用工具） ───
+  { id: 'scene_photo',      name: '現場照片',       description: '案發現場的全景照片，角落隱約有可疑細節。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'blood_cloth',      name: '沾血的衣物',     description: '一件沾有血跡的外套，血跡形狀不自然。',       type: 'tool', reusable: true, volume: 1,   tags: ['investigation', 'evidence'] },
+  { id: 'suicide_copy',     name: '遺書副本',       description: '一份遺書的影印本，字跡工整得可疑。',         type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'cctv_still',       name: '監視器截圖',     description: '一張從監視器擷取的靜態畫面。',               type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'bank_statement',   name: '帳戶交易紀錄',   description: '一份列印的銀行交易紀錄。',                   type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'phone_records',    name: '電話通聯紀錄',   description: '過去一個月的通話紀錄明細。',                 type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'knife_closeup',    name: '刀具特寫照',     description: '兇案現場刀具的近距離照片。',                 type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'dna_report',       name: 'DNA 比對報告',   description: '一份正式的 DNA 鑑識比對報告。',              type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'timestamp_video',  name: '時間戳記錄影',   description: '一段帶有精確時間戳的短片。',                 type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'fingerprint_scan', name: '指紋鑑定',       description: '一張採證指紋的比對圖。',                     type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'plate_photo',      name: '車牌照片',       description: '一張模糊但能認出號碼的車牌照片。',           type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'shoe_print',       name: '現場鞋印',       description: '一張採模過的鞋印圖，花紋清晰。',             type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'victim_phone',     name: '死者手機',       description: '死者的手機，螢幕鎖已解除。',                 type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'pill_bottle',      name: '藥瓶',           description: '一個處方藥瓶，標籤被刮掉了。',               type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'iou_note',         name: '借據',           description: '一張寫有大額金額的手寫借據。',               type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+
+  // ─── Investigation: 權限（可重用工具） ───
+  { id: 'police_badge',     name: '警徽',           description: '一枚磨得發亮的警徽。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'credential'] },
+  { id: 'search_warrant',   name: '搜查令',         description: '一張有法官簽名的搜查令。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'credential'] },
+  { id: 'press_pass',       name: '記者證',         description: '一張資深記者的採訪證。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'credential'] },
+  { id: 'family_consent',   name: '家屬同意書',     description: '受害者家屬的書面授權。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'credential'] },
+  { id: 'attorney_letter',  name: '律師委任狀',     description: '一張律師事務所的正式委任狀。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'credential'] },
+
+  // ─── Investigation: 口信／關鍵字（消耗型 clue，帶 stateTag 供 NPC 連鎖） ───
+  { id: 'tip_nickname',     name: '死者的暱稱',     description: '只有親近的人才知道的小名。',             type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-nickname'] },
+  { id: 'tip_quarrel',      name: '失蹤當晚的爭執', description: '關於死者最後一晚的爭吵細節。',           type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-quarrel'] },
+  { id: 'tip_money',        name: '神秘的資金來源', description: '一筆無法解釋的匯款來源。',               type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-money'] },
+  { id: 'tip_hideout',      name: '藏匿地點的線索', description: '某個不為人知的地址。',                   type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-hideout'] },
+  { id: 'tip_affair',       name: '未公開的關係',   description: '一段外界不知的感情糾葛。',               type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-affair'] },
+  { id: 'tip_weapon',       name: '兇器來源',       description: '兇器從何而來的關鍵訊息。',               type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-weapon'] },
+  { id: 'tip_timing',       name: '案發時間的修正', description: '推翻官方時間線的新證詞。',               type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-timing'] },
+  { id: 'tip_motive',       name: '目擊者的動機',   description: '某個證人為何出現的真實原因。',           type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-motive'] },
+
+  // ─── Investigation: 輕型實體鑰匙（消耗型） ───
+  { id: 'diary_book',       name: '日記本',         description: '死者的私人日記。',                       type: 'key', reusable: false, volume: 1,   tags: ['investigation', 'personal-item'] },
+  { id: 'personal_seal',    name: '私章',           description: '一枚雕工精緻的私章。',                   type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
+  { id: 'keyring',          name: '鑰匙圈',         description: '一串上面掛著多把鑰匙的鑰匙圈。',         type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
+  { id: 'pill_case',        name: '藥罐',           description: '一個貼有患者標籤的藥罐。',               type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
+  { id: 'bankbook',         name: '存摺',           description: '一本紀錄歷年存提款的存摺。',             type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
+  { id: 'matchbox',         name: '火柴盒',         description: '印有某間酒吧 logo 的火柴盒。',           type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
+  { id: 'business_card',    name: '名片盒',         description: '裝著數張名片的金屬盒。',                 type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
+  { id: 'pocket_watch',     name: '懷錶',           description: '一隻停在特定時間的懷錶。',               type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
+  { id: 'ring',             name: '戒指',           description: '一枚刻著縮寫的戒指。',                   type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
+  { id: 'address_slip',     name: '手寫地址條',     description: '一張撕下的手寫地址紙條。',               type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
+
+  // ─── Investigation: 證據加工工具（reusable，用於 evidence-state 鎖）───
+  { id: 'image_enhancer',   name: '影像增強器',     description: '可以提升低解析度畫面的工具。', type: 'tool', reusable: true, volume: 1,   tags: ['investigation', 'enhancer'] },
+  { id: 'transparent_tape', name: '透明膠帶',       description: '一卷用來重組碎紙的透明膠帶。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'enhancer'] },
+  { id: 'decrypt_software', name: '解密軟體',       description: '一份可破解常見加密格式的軟體。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'enhancer'] },
+  { id: 'uv_lamp',          name: '紫外線燈',       description: '可顯現隱形字跡的紫外線燈。', type: 'tool', reusable: true, volume: 1,   tags: ['investigation', 'enhancer'] },
+  { id: 'forensic_kit',     name: '鑑識採樣工具',   description: '一套採集 DNA、血跡、指紋的工具組。', type: 'tool', reusable: true, volume: 2,   tags: ['investigation', 'enhancer'] },
+
+  // ─── Investigation: 已加工證據（消耗型 key，帶 stateTag 與 evidence-state 鎖配對）───
+  { id: 'enhanced_photo',      name: '清晰截圖',       description: '經過影像增強後可以看清楚的畫面。',     type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'evidence-processed'], stateTags: ['enhanced-photo'] },
+  { id: 'restored_document',   name: '拼好的遺書',     description: '用膠帶拼回的完整遺書。',               type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'evidence-processed'], stateTags: ['restored-document'] },
+  { id: 'decoded_audio',       name: '還原的錄音',     description: '經過解密的原始錄音檔。',               type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'evidence-processed'], stateTags: ['decoded-audio'] },
+  { id: 'revealed_notes',      name: '可讀的筆記',     description: '紫外線下現形的隱藏筆記。',             type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'evidence-processed'], stateTags: ['revealed-notes'] },
+  { id: 'dna_sample',          name: '已採樣血跡',     description: '採樣管中的 DNA 樣本。',                type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'evidence-processed'], stateTags: ['dna-sample'] },
 ];
 
 // ─── 鎖目錄 ───
