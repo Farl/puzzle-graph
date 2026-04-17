@@ -6,6 +6,14 @@ function itemTag(item: { reusable: boolean; pickupable: boolean }): string {
   return '';
 }
 
+function lockTag(lock: { stateTags?: string[]; pickupable: boolean; category: string }): string {
+  // NPC = non-pickupable container lock with stateTags
+  if (lock.category === 'container' && !lock.pickupable && lock.stateTags && lock.stateTags.length > 0) {
+    return '[NPC]';
+  }
+  return '';
+}
+
 export function dumpPuzzle(puzzle: PuzzleDefinition, config?: GeneratorConfig): string {
   const { rooms, items, locks, startRoomId, exitLockId } = puzzle;
 
@@ -118,7 +126,8 @@ export function dumpPuzzle(puzzle: PuzzleDefinition, config?: GeneratorConfig): 
       const composite = lock.requiredItems.length > 1;
       const reqStr = composite ? reqParts.join('·') : reqParts[0]!;
       const miniTag = lock.mechanism === 'minigame' ? '[MINI] ' : '';
-      lines.push(`  R${roomIdx}: ${miniTag}{${reqStr} → ${hidesLabels}}`);
+      const npcTag = lockTag(lock) ? `${lockTag(lock)} ` : '';
+      lines.push(`  R${roomIdx}: ${npcTag}${miniTag}{${reqStr} → ${hidesLabels}}`);
     }
   }
 
