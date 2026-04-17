@@ -4,7 +4,7 @@ import type { KeyTemplate, LockTemplate } from './types';
 
 export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   // 消耗型鑰匙
-  { id: 'rusty_key', name: '生鏽的鑰匙', description: '一把佈滿鐵鏽的老舊鑰匙。', type: 'key', reusable: false, volume: 1, tags: ['classic', 'door-key'] },
+  { id: 'rusty_key', name: '生鏽的鑰匙', description: '一把佈滿鐵鏽的老舊鑰匙。', type: 'key', reusable: false, volume: 1, tags: ['classic', 'container-key'] },
   { id: 'password_note', name: '寫著密碼的紙條', description: '一張皺巴巴的紙條。', type: 'clue', reusable: false, volume: 0.5, tags: ['classic', 'code'] },
   { id: 'power_cable', name: '備用電源線', description: '一條粗重的電源線。', type: 'key', reusable: false, volume: 2, tags: ['classic', 'combo-part'] },
   { id: 'usb_drive', name: '解密隨身碟', description: '一個不起眼的隨身碟。', type: 'key', reusable: false, volume: 0.5, tags: ['classic', 'combo-part'] },
