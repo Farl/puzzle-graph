@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 export default defineConfig({
-  base: '/puzzle-graph/',
+  base: process.env.VITE_BASE ?? '/puzzle-graph/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
