@@ -828,22 +828,22 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
   {
     id: 'npc_coworker', name: '死者同事',
     lockedDescription: '他頭也不抬地盯著螢幕：「我現在很忙，能不能下班後再說？」',
-    unlockDescription: '帳戶紀錄和DNA報告同時出現，他把椅子轉過來：「⋯⋯好，那筆錢其實不是公款，是他私下借我的。」',
+    unlockDescription: '帳戶紀錄和辦公室那晚爭執的細節同時攤開，他把椅子轉過來：「⋯⋯好，那筆錢其實不是公款，是他私下借我的，那晚他就是為了這個吵起來的。」',
     partialDescription: '他抬頭看了一眼，搖搖頭：「只有這個，我不知道你要問什麼。」',
     category: 'container', mechanism: 'physical', capacity: 4, volume: 0,
     tags: ['investigation', 'npc', 'relative'],
-    requiredKeys: ['bank_statement', 'dna_sample'],
+    requiredKeys: ['bank_statement', 'tip_quarrel'],
     pickupable: false,
     stateTags: ['tip-money'],
     keyHints: {
-      bank_statement: '盯著數字皺起眉頭',
-      dna_sample: '對鑑識流程顯得很敏感',
+      bank_statement: '盯著數字皺眉',
+      tip_quarrel: '辦公室八卦他比誰都清楚',
     },
     variations: [
-      { name: '死者同事', lockMsg: '他緊盯螢幕：「很忙，可以之後再說嗎？」', unlockMsg: '帳戶加上DNA，他終於轉過身：「那筆錢⋯⋯是他欠我的，不是公款。」', partialMsg: '他瞟了一眼：「只有這個，我沒什麼好說的。」' },
-      { name: '競爭對手公司的業務', lockMsg: '他扯了扯領帶：「我跟他是對手公司的，平時不太聯絡。」', unlockMsg: '兩份文件擺上桌，他深吸一口氣：「好吧⋯⋯他那段時間來找過我，說要帶客戶投靠。」', partialMsg: '他聳聳肩：「只帶一份不夠，我沒辦法確認。」' },
-      { name: '多年老友', lockMsg: '他抽著菸，輕描淡寫：「我跟他是老朋友，但私事不方便說。」', unlockMsg: '他看完帳戶和樣本，把菸按熄：「⋯⋯其實他找過我借過一大筆，說是急用。」', partialMsg: '他彈了彈菸灰：「就這樣？說不了什麼。」' },
-      { name: '女性直屬上司', lockMsg: '她合上筆電：「下屬的財務狀況我不便評論。」', unlockMsg: '文件擺好，她緩緩點頭：「⋯⋯那筆匯款我知道，他當時情緒很不穩。」', partialMsg: '她搖頭：「我只能就職務內容說，這不夠。」' },
+      { name: '死者同事', lockMsg: '他緊盯螢幕：「很忙，可以之後再說嗎？」', unlockMsg: '帳戶紀錄加上那晚吵架的細節，他終於轉過身：「那筆錢⋯⋯是他欠我的，那晚他就是為了這個跟人吵。」', partialMsg: '他瞟了一眼：「只有這個，我沒什麼好說的。」' },
+      { name: '競爭對手公司的業務', lockMsg: '他扯了扯領帶：「我跟他是對手公司的，平時不太聯絡。」', unlockMsg: '帳戶紀錄和那晚的爭執擺上桌，他深吸一口氣：「好吧⋯⋯他那段時間來找過我，那晚還因為錢的事在辦公室跟人吵得很兇。」', partialMsg: '他聳聳肩：「只帶一份不夠，我沒辦法確認。」' },
+      { name: '多年老友', lockMsg: '他抽著菸，輕描淡寫：「我跟他是老朋友，但私事不方便說。」', unlockMsg: '他看完帳戶紀錄和那晚吵架的描述，把菸按熄：「⋯⋯其實他找過我借過一大筆，那晚他在茶水間被逼問就是這事。」', partialMsg: '他彈了彈菸灰：「就這樣？說不了什麼。」' },
+      { name: '女性直屬上司', lockMsg: '她合上筆電：「下屬的財務狀況我不便評論。」', unlockMsg: '文件和那晚辦公室的爭執擺好，她緩緩點頭：「⋯⋯那筆匯款我知道，他那晚跟同事吵就是為了這個，情緒很不穩。」', partialMsg: '她搖頭：「我只能就職務內容說，這不夠。」' },
     ],
   },
   {
@@ -1133,6 +1133,24 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
   },
 
   // ─── Investigation: NPC (擴充) ───
+  {
+    id: 'npc_lab_assistant', name: '鑑識組助理',
+    lockedDescription: '助理推著眼鏡，專心看顯微鏡：「這類樣本不是誰拿來我都會比對。」',
+    unlockDescription: '正式採樣的血跡交到她手上，她對上資料庫：「⋯⋯這個 DNA 圖譜和某個失蹤人口吻合。」',
+    category: 'container', mechanism: 'physical', capacity: 4, volume: 0,
+    tags: ['investigation', 'npc', 'professional'],
+    requiredKeys: ['dna_sample'],
+    pickupable: false,
+    stateTags: ['tip-identity'],
+    keyHints: {
+      dna_sample: '她的工作就是處理這類樣本',
+    },
+    variations: [
+      { name: '鑑識組助理', lockMsg: '助理低頭看顯微鏡：「沒有正式樣本免談。」', unlockMsg: '她比對完資料庫：「這個 DNA⋯⋯指向一個失蹤人口。」' },
+      { name: '法醫實驗室技師', lockMsg: '技師戴著手套：「請交付採樣袋，我不處理口頭描述。」', unlockMsg: '採樣入庫比對後，她抬頭：「資料庫有一筆非常接近的紀錄。」' },
+      { name: '刑事鑑識員', lockMsg: '她戴著口罩：「現場處理完了嗎？沒處理好的樣本我不收。」', unlockMsg: '樣本合格，她指著螢幕：「同源機率 99.8%，身份另有其人。」' },
+    ],
+  },
   {
     id: 'npc_prosecutor', name: '年輕檢察官',
     lockedDescription: '檢察官看著堆滿的卷宗：「本案還在偵辦，一般人無法調閱資訊。」',
