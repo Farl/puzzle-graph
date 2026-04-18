@@ -469,12 +469,20 @@ export function generateRoomSkeleton(config: GeneratorConfig, rng: SeededRandom)
   }
 
   // 建立出口鎖（spatial，在最後一個房間）
+  const isInvestigation = config.includeTemplateTags?.includes('investigation');
+  const exitVariation = isInvestigation
+    ? {
+        name: '結案陳詞',
+        lockMsg: '辦公室內的書記官正在整理卷宗：「還缺最關鍵的那一份證據，整份報告就送不出去。」',
+        unlockMsg: '決定性證據交到書記官手中，他點頭蓋章：「案件終結，真相歸位。」',
+      }
+    : {
+        name: '逃生大門',
+        lockMsg: '鎖著厚重鐵鍊與精密電子鎖的裝甲門，是逃離這裡的唯一出口。',
+        unlockMsg: '大門發出洩壓的巨大聲響，刺眼的陽光灑落，你重獲自由了！',
+      };
   const exitLock = ctx.createLock(
-    {
-      name: '逃生大門',
-      lockMsg: '鎖著厚重鐵鍊與精密電子鎖的裝甲門，是逃離這裡的唯一出口。',
-      unlockMsg: '大門發出洩壓的巨大聲響，刺眼的陽光灑落，你重獲自由了！',
-    },
+    exitVariation,
     true,   // isSpatial=true，讓出口鎖計入 spatial 類別（N-1 門 + 1 出口 = N 個 spatial 鎖）
     exitRoomId,
     true,   // isExit=true
@@ -483,7 +491,9 @@ export function generateRoomSkeleton(config: GeneratorConfig, rng: SeededRandom)
   ctx.rooms[exitRoomId]!.lockIds.push(exitLock.id);
 
   // 建立出口鑰匙
-  const exitKey = ctx.createItem('終極逃生卡', false, 0.5, '帶有最高權限的特殊磁卡。', true);
+  const exitKey = isInvestigation
+    ? ctx.createItem('決定性證據', false, 0.5, '能蓋棺定論的關鍵證物，拿著它就能把案件送結。', true)
+    : ctx.createItem('終極逃生卡', false, 0.5, '帶有最高權限的特殊磁卡。', true);
   exitLock.requiredItems.push(exitKey.id);
 
   const exitKeyRoom = pickRoom(roomIds, roomIds.length - 1, keySpreadRate, ctx);
