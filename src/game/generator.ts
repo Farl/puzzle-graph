@@ -55,6 +55,7 @@ class GeneratorContext {
   consumableCount: Record<string, number> = {};
   usedItemNames = new Set<string>();
   usedLockNames = new Set<string>();
+  usedLockTemplateIds = new Set<string>();
   passwordPool: PasswordFormatPool;
   lockCount = 0;
   toolReuseCount: Record<ItemId, number> = {};
@@ -219,7 +220,9 @@ class GeneratorContext {
       // Priority 1: state transform lock (pickupable)
       if (validStateLocks.length > 0 &&
           (valid.length === 0 || this.rng.next() < (config.stateLockRate ?? 0))) {
-        return validStateLocks[this.rng.nextInt(validStateLocks.length)]!;
+        const picked = validStateLocks[this.rng.nextInt(validStateLocks.length)]!;
+        this.usedLockTemplateIds.add(picked.id);
+        return picked;
       }
 
       // Priority 2: NPC lock (non-pickupable with matching stateTag)
@@ -229,6 +232,7 @@ class GeneratorContext {
         const npc = validNpcLocks[this.rng.nextInt(validNpcLocks.length)]!;
         const idxInDeck = deck.indexOf(npc);
         if (idxInDeck !== -1) deck.splice(idxInDeck, 1);
+        this.usedLockTemplateIds.add(npc.id);
         return npc;
       }
 
@@ -242,12 +246,16 @@ class GeneratorContext {
       const pick = pool[this.rng.nextInt(pool.length)]!;
 
       deck.splice(pick.i, 1);
+      this.usedLockTemplateIds.add(pick.tpl.id);
       return pick.tpl;
     };
 
     let result = drawFrom(this.availableLocks);
     if (!result) {
-      this.availableLocks = shuffle([...this.filteredLockPool], this.rng);
+      this.availableLocks = shuffle(
+        this.filteredLockPool.filter(t => !this.usedLockTemplateIds.has(t.id)),
+        this.rng,
+      );
       result = drawFrom(this.availableLocks);
     }
     return result;
@@ -273,12 +281,16 @@ class GeneratorContext {
     if (!keyTpl) return null;
 
     const compatibleLocks = this.filteredLockPool.filter(
-      l => l.category === targetCategory && l.requiredKeys.includes(keyTpl.id)
+      l => !this.usedLockTemplateIds.has(l.id)
+        && l.category === targetCategory
+        && l.requiredKeys.includes(keyTpl.id)
         && !l.pickupable,
     );
     if (compatibleLocks.length === 0) return null;
 
-    return compatibleLocks[this.rng.nextInt(compatibleLocks.length)]!;
+    const pick = compatibleLocks[this.rng.nextInt(compatibleLocks.length)]!;
+    this.usedLockTemplateIds.add(pick.id);
+    return pick;
   }
 
 }
@@ -550,6 +562,7 @@ export function generatePuzzleContent(
         const keyTpl = keyTplByName.get(item.name);
         if (keyTpl?.stateTags && keyTpl.stateTags.length > 0) {
           stateLockCandidates = stateLockTemplates.filter(lt =>
+            !ctx.usedLockTemplateIds.has(lt.id) &&
             lt.stateTags!.some(tag => keyTpl.stateTags!.includes(tag)),
           );
         }
