@@ -56,6 +56,8 @@ export interface Lock {
   stateTags?: string[];
   isLocked: boolean;
   isExit: boolean;
+  /** Per-required-item observation strings (keyed by ItemId). Copied from template during generation. */
+  keyHints?: Record<string, string>;
 }
 
 // ─── 房間 ───
@@ -175,4 +177,10 @@ export interface LockTemplate {
   minigameType?: string;
   pickupable?: boolean;           // true = 玩家可拾取進背包（轉換鎖、合成鎖）
   stateTags?: string[];           // 狀態鎖配對用，匹配 KeyTemplate.stateTags
+  /**
+   * Optional per-requiredKey behavioral hints for NPC locks.
+   * Keyed by KeyTemplate.id — each entry is a short observation (1 sentence)
+   * that obliquely signals why the NPC cares about that evidence.
+   */
+  keyHints?: Record<string, string>;
 }

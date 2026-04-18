@@ -709,10 +709,14 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['police_badge', 'cctv_still'],
     pickupable: false,
     stateTags: ['tip-timing'],
+    keyHints: {
+      police_badge: '他不斷提醒自己這只是例行公事',
+      cctv_still: '眼神不時飄向牆上那顆監視器',
+    },
     variations: [
       { name: '夜班門房', lockMsg: '門房警戒地開口：「沒有正式文件，我什麼都不能說。」', unlockMsg: '他嘆了口氣：「⋯⋯好，那晚確實有人深夜進出。」', partialMsg: '他搖搖頭：「這樣還不夠，你還有別的嗎？」' },
-      { name: '值夜保全', lockMsg: '保全握著對講機，眼神警戒：「這裡我負責，外人不能隨便問。」', unlockMsg: '他低頭看了一眼截圖，嘴角抽動：「⋯⋯那個人我認得，但你沒看到我說的。」', partialMsg: '他瞇眼打量：「只帶這個來問我？不太夠。」' },
-      { name: '大夜班警衛', lockMsg: '警衛靠在門邊，語氣冷淡：「來查什麼？有沒有帶單據？」', unlockMsg: '看完警徽和畫面，他把守衛台的登記簿往前推：「那晚的簽到你自己翻。」', partialMsg: '他聳聳肩：「不夠具體，我沒什麼可說的。」' },
+      { name: '代班的臨時工', lockMsg: '代班的年輕人搓著手，緊張地看你：「我今天才來代班，真的不太熟。」', unlockMsg: '他低頭看了一眼截圖，聲音發抖：「⋯⋯這個人我認得，但拜託別說是我講的。」', partialMsg: '他瞇眼打量：「只帶這個來問我？我不敢亂說。」' },
+      { name: '資深保全隊長', lockMsg: '隊長挺直腰桿，語氣嚴肅：「這裡我負責十年了，沒有程序我不開口。」', unlockMsg: '看完警徽和畫面，他把守衛台的登記簿往前推：「那晚的簽到你自己翻。」', partialMsg: '他抱起雙臂：「不夠具體，我這個位置不能隨便說。」' },
     ],
   },
   {
@@ -724,10 +728,13 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['family_consent'],
     pickupable: false,
     stateTags: ['tip-quarrel'],
+    keyHints: {
+      family_consent: '她反覆確認自己「有沒有資格」開口',
+    },
     variations: [
       { name: '清潔阿姨', lockMsg: '阿姨頭也不抬：「我只是掃地的，不要問我。」', unlockMsg: '看到同意書，她放下掃把嘆氣：「那晚有吵架，很兇。」' },
-      { name: '打掃工', lockMsg: '她搖搖頭，用方言嘟噥：「不關我的事，問別人去。」', unlockMsg: '有了家屬授權，她才點頭：「我親眼看到的，但你不要說我說的⋯⋯」' },
-      { name: '大樓清潔員', lockMsg: '她靠在走廊牆邊，警覺地四下張望：「這種事我不敢亂說。」', unlockMsg: '同意書給她看之後，她低聲說：「那晚電梯旁邊，有人推他⋯⋯」' },
+      { name: '工友伯伯', lockMsg: '伯伯推著工具車，用方言嘟噥：「不關我的事，問別人去。」', unlockMsg: '有了家屬授權，他才點頭：「我親眼看到的，但你不要說我說的⋯⋯」' },
+      { name: '外包保潔員', lockMsg: '她靠在走廊牆邊，警覺地四下張望：「我們是外包的，這種事不敢亂說。」', unlockMsg: '同意書給她看之後，她低聲說：「那晚電梯旁邊，有人推他⋯⋯」' },
     ],
   },
   {
@@ -739,9 +746,12 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['cctv_still'],
     pickupable: false,
     stateTags: ['tip-timing'],
+    keyHints: {
+      cctv_still: '他盯著收銀機正上方那顆鏡頭',
+    },
     variations: [
       { name: '便利商店店員', lockMsg: '店員掃商品：「我記性不好，真的忘了啦。」', unlockMsg: '截圖一亮出，他馬上認出：「這個人！他那晚買了一瓶威士忌。」' },
-      { name: '深夜店員', lockMsg: '她盯著收銀機螢幕：「深夜都是怪人，我不太記了。」', unlockMsg: '她瞇著眼看截圖：「⋯⋯這件外套我記得，他大概兩點半進來的。」' },
+      { name: '藥局輪班藥師', lockMsg: '藥師忙著配藥：「深夜來的客人很多，我不太記了。」', unlockMsg: '她瞇著眼看截圖：「⋯⋯這件外套我記得，他來買鎮定劑，兩點半左右。」' },
       { name: '加油站員工', lockMsg: '他比了比監視器：「我們這裡有錄影，但私人資料不能給。」', unlockMsg: '截圖拿出來，他認出那台車：「這輛！那晚加了滿缸油，付現的。」' },
     ],
   },
@@ -754,10 +764,13 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['search_warrant'],
     pickupable: false,
     stateTags: ['tip-hideout'],
+    keyHints: {
+      search_warrant: '一再堅持「沒有公文我不能透露」',
+    },
     variations: [
       { name: '計程車司機', lockMsg: '司機盯著方向盤：「乘客隱私，我沒辦法說。」', unlockMsg: '搜查令一看，他把行程紀錄推過來：「自己看吧。」' },
-      { name: '代駕司機', lockMsg: '他點開APP說：「所有行程記錄在後台，我無權調閱。」', unlockMsg: '搜查令讓他配合，他把那晚的接單截圖給你看。' },
-      { name: '機場接駁員', lockMsg: '他搖搖頭：「接了幾百個客人，哪記得。」', unlockMsg: '搜查令讓他打開排班系統：「那晚這個時段⋯⋯只有這一筆。」' },
+      { name: '網路叫車的代駕', lockMsg: '他點開APP說：「所有行程記錄在後台，我無權調閱。」', unlockMsg: '搜查令讓他配合，他把那晚的接單截圖給你看。' },
+      { name: '遊覽車駕駛', lockMsg: '駕駛拍了拍方向盤：「團客隱私，我接了幾百團，哪記得。」', unlockMsg: '搜查令讓他打開排班系統：「那晚這個時段⋯⋯只有這一筆包車。」' },
     ],
   },
   {
@@ -770,10 +783,14 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['scene_photo', 'tip_timing'],
     pickupable: false,
     stateTags: ['tip-motive'],
+    keyHints: {
+      scene_photo: '他試圖回想當晚巷口的景象',
+      tip_timing: '對案發的時刻反覆推算',
+    },
     variations: [
       { name: '遛狗的老人', lockMsg: '老人搖搖頭：「記性差，記不清楚了。」', unlockMsg: '照片對上時間，他回想起來：「那晚狗狂叫，我看到一個人跑走。」', partialMsg: '他瞇眼看你：「還不夠具體，我沒辦法確認是哪天。」' },
-      { name: '公園常客', lockMsg: '老人慢慢踱步：「我每天都來，怎麼記得哪一晚特別。」', unlockMsg: '照片加上時間讓他停下腳步：「這個位置⋯⋯那晚確實有個陌生人在那等著。」', partialMsg: '他抬頭看天：「你帶的東西不夠讓我想起那一晚。」' },
-      { name: '晨運的長者', lockMsg: '長者擺擺手：「我就是繞圈走走，沒注意別人的事。」', unlockMsg: '現場位置加上時間，他想了想：「那個位置？是有個人我沒見過，在那抽菸等人。」', partialMsg: '他皺眉：「只憑這一樣，我說不準是那晚的事。」' },
+      { name: '送報的中年男子', lockMsg: '他把摺好的報紙夾在腋下：「天沒亮就出門送報，沒空看別的。」', unlockMsg: '照片加上時間讓他停下腳步：「這個位置⋯⋯那晚我路過時確實有個陌生人在那等著。」', partialMsg: '他抬頭看天：「你帶的東西不夠讓我想起那一晚。」' },
+      { name: '打太極的婦人', lockMsg: '婦人慢慢收拳：「我就是來打拳的，沒注意別人的事。」', unlockMsg: '現場位置加上時間，她想了想：「那個位置？是有個人我沒見過，在那抽菸等人。」', partialMsg: '她皺眉：「只憑這一樣，我說不準是那晚的事。」' },
     ],
   },
   // 關係人類
@@ -787,10 +804,15 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['diary_book', 'tip_affair', 'tip_money'],
     pickupable: false,
     stateTags: ['tip-money'],
+    keyHints: {
+      diary_book: '看到熟悉的筆跡她會停下來',
+      tip_affair: '提到感情事她會避開眼神',
+      tip_money: '一說到「錢」她就沉默',
+    },
     variations: [
       { name: '死者前妻', lockMsg: '她抱著臂膀：「那段日子我不想再提了。」', unlockMsg: '三件事全擺上桌，她紅著眼：「好吧⋯⋯他從來沒有真正離開那個人。」', partialMsg: '她搖頭：「你帶的還不夠讓我說，我不想平白捲進去。」' },
-      { name: '死者的前任伴侶', lockMsg: '她輕聲說：「我已經不是他生命裡的人了，問我沒意義。」', unlockMsg: '日記翻開在她面前，她抽了一口氣：「這些字是他的筆跡⋯⋯好，我跟你說那筆錢的事。」', partialMsg: '她避開你的目光：「只拿這些來？還不夠讓我開口。」' },
-      { name: '分居多年的妻子', lockMsg: '她端起茶杯，靜靜地：「我們分開很久了，我不清楚他最近的事。」', unlockMsg: '錢的來源、外遇的細節、他的日記⋯⋯她緩緩放下杯子：「⋯⋯他一直說那筆錢是為我留的，但根本是謊言。」', partialMsg: '她細細打量你帶來的東西：「還差一些，你要說服我，得再多帶點。」' },
+      { name: '失聯多年的姊姊', lockMsg: '姊姊輕聲說：「我們家很久沒聯絡了，你問我沒意義。」', unlockMsg: '日記翻開在她面前，她抽了一口氣：「這些字是弟弟的筆跡⋯⋯好，我跟你說那筆錢的事。」', partialMsg: '她避開你的目光：「只拿這些來？還不夠讓我開口。」' },
+      { name: '遠房表妹', lockMsg: '表妹端起茶杯：「我們是遠親，一年見不到一次面。」', unlockMsg: '錢的來源、外遇的細節、他的日記⋯⋯她緩緩放下杯子：「⋯⋯他家一直說那筆錢是準備分家的，但根本是謊言。」', partialMsg: '她細細打量你帶來的東西：「還差一些，你要說服我，得再多帶點。」' },
     ],
   },
   {
@@ -802,10 +824,13 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['personal_seal'],
     pickupable: false,
     stateTags: ['tip-quarrel'],
+    keyHints: {
+      personal_seal: '她一眼就認得那個印章',
+    },
     variations: [
       { name: '失蹤者室友', lockMsg: '她把門開一條縫：「我真的不太知道他的事。」', unlockMsg: '私章出現，她把門推開：「這是他的⋯⋯那晚有人來找他，聲音很大。」' },
-      { name: '同寢室友', lockMsg: '她搓著手：「我不想被捲進去，你問別人好嗎？」', unlockMsg: '認出那枚私章，她吸了口氣：「好吧，那晚他接了一個電話，之後就消失了。」' },
-      { name: '合租公寓的鄰居', lockMsg: '她靠在門框上，語氣謹慎：「鄰居的事，我不方便說太多。」', unlockMsg: '看到章，她沉默了一下：「他把這個放在我這裡⋯⋯說萬一出事就拿去給警察。」' },
+      { name: '大學學弟', lockMsg: '學弟搓著手：「學長的事我不想被捲進去，你問別人好嗎？」', unlockMsg: '認出那枚私章，他吸了口氣：「好吧，那晚學長接了一個電話，之後就消失了。」' },
+      { name: '隔壁鄰居', lockMsg: '鄰居靠在門框上，語氣謹慎：「隔壁那戶的事，我不方便說太多。」', unlockMsg: '看到章，她沉默了一下：「他把這個塞進我門縫⋯⋯說萬一出事就拿去給警察。」' },
     ],
   },
   {
@@ -818,10 +843,14 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['bank_statement', 'dna_sample'],
     pickupable: false,
     stateTags: ['tip-money'],
+    keyHints: {
+      bank_statement: '盯著數字皺起眉頭',
+      dna_sample: '對鑑識流程顯得很敏感',
+    },
     variations: [
       { name: '死者同事', lockMsg: '他緊盯螢幕：「很忙，可以之後再說嗎？」', unlockMsg: '帳戶加上DNA，他終於轉過身：「那筆錢⋯⋯是他欠我的，不是公款。」', partialMsg: '他瞟了一眼：「只有這個，我沒什麼好說的。」' },
-      { name: '同部門組員', lockMsg: '他用便利貼擋住臉：「我現在沒空，報告要交。」', unlockMsg: '兩份文件擺上桌，他深吸一口氣：「好吧⋯⋯他那段時間行為很奇怪，到處借錢。」', partialMsg: '他聳聳肩：「只帶一份不夠，我沒辦法確認。」' },
-      { name: '吸菸區常見的面孔', lockMsg: '他抽著菸，漫不在乎地說：「我跟他只是同事，私下不熟。」', unlockMsg: '他看完帳戶和樣本，把菸按熄：「⋯⋯其實他找過我借過一大筆，說是急用。」', partialMsg: '他彈了彈菸灰：「就這樣？說不了什麼。」' },
+      { name: '競爭對手公司的業務', lockMsg: '他扯了扯領帶：「我跟他是對手公司的，平時不太聯絡。」', unlockMsg: '兩份文件擺上桌，他深吸一口氣：「好吧⋯⋯他那段時間來找過我，說要帶客戶投靠。」', partialMsg: '他聳聳肩：「只帶一份不夠，我沒辦法確認。」' },
+      { name: '多年老友', lockMsg: '他抽著菸，輕描淡寫：「我跟他是老朋友，但私事不方便說。」', unlockMsg: '他看完帳戶和樣本，把菸按熄：「⋯⋯其實他找過我借過一大筆，說是急用。」', partialMsg: '他彈了彈菸灰：「就這樣？說不了什麼。」' },
     ],
   },
   {
@@ -834,10 +863,14 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['restored_document', 'revealed_notes'],
     pickupable: false,
     stateTags: ['tip-affair'],
+    keyHints: {
+      restored_document: '她顫抖著觸摸那張紙',
+      revealed_notes: '熟悉的字跡讓她哽咽',
+    },
     variations: [
       { name: '受害者母親', lockMsg: '她抱著照片，啜泣著：「我現在說不了任何話。」', unlockMsg: '遺書和筆記同時放到她手中，她說：「那段感情⋯⋯家裡一直壓著不讓說。」', partialMsg: '她搖頭：「只有這樣，我還說不了，等我準備好。」' },
-      { name: '年邁的父親', lockMsg: '他沉默地坐著，盯著地板：「孩子的事，我說了也沒用。」', unlockMsg: '兩份文件讓他撐起身體，沙啞地說：「⋯⋯那個人，我見過，是個危險的傢伙。」', partialMsg: '他揮揮手：「你帶的東西不夠讓我說，我怕說了有危險。」' },
-      { name: '奶奶', lockMsg: '她把手搭在你手背上：「老了，很多事記不住了⋯⋯」', unlockMsg: '遺書和筆記讓她顫抖著手接過：「這是他寫的⋯⋯那個孩子⋯⋯一直愛著那個人啊。」', partialMsg: '她搖頭嘆氣：「只有這樣，我想不起太多了。」' },
+      { name: '從小帶大他的乾媽', lockMsg: '乾媽坐在沙發上，握著佛珠：「他不是我親生的，有些事我不能說。」', unlockMsg: '兩份文件讓她撐起身體，沙啞地說：「⋯⋯那個人，我見過，是個危險的傢伙。」', partialMsg: '她揮揮手：「你帶的東西不夠讓我說，我怕說了有危險。」' },
+      { name: '疼愛孫子的爺爺', lockMsg: '爺爺擦著眼鏡：「老了，很多事記不住了⋯⋯」', unlockMsg: '遺書和筆記讓他顫抖著手接過：「這是他寫的⋯⋯那個孩子⋯⋯一直愛著那個人啊。」', partialMsg: '他搖頭嘆氣：「只有這樣，我想不起太多了。」' },
     ],
   },
   // 專業人士類
@@ -851,10 +884,15 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['police_badge', 'attorney_letter', 'tip_weapon'],
     pickupable: false,
     stateTags: ['tip-weapon'],
+    keyHints: {
+      police_badge: '需要看到正式的授權才肯開口',
+      attorney_letter: '法律文件讓她放下戒心',
+      tip_weapon: '對兇器的描述特別敏感',
+    },
     variations: [
       { name: '法醫', lockMsg: '他頭也不抬：「報告還沒定案，現在不能說。」', unlockMsg: '三件齊備，他脫下手套：「傷口角度跟你說的符合，兇器很特殊。」', partialMsg: '他搖頭：「沒有完整授權，我沒辦法透露鑑識結果。」' },
-      { name: '資深鑑識員', lockMsg: '她靠在實驗室門邊：「現在保密期，任何細節我都不能說。」', unlockMsg: '全部文件到位，她嘆口氣打開档案：「這個傷不是一般刀，是特殊刀刃。」', partialMsg: '她指著文件欄位：「少了一份，這裡的資料不能給你。」' },
-      { name: '解剖室技師', lockMsg: '他拉開口罩，警戒地看你：「你是誰？沒有授權不能進來問。」', unlockMsg: '三份齊了，他翻出紀錄本低聲說：「其實有一個細節我一直覺得奇怪⋯⋯」', partialMsg: '他搖搖手：「少一份，不行，照規矩來。」' },
+      { name: '大學法醫學教授', lockMsg: '教授翻著教案：「我已經退離第一線，現役案件不能評論。」', unlockMsg: '全部文件到位，她嘆口氣打開舊档案：「這個傷不是一般刀，是特殊刀刃。」', partialMsg: '她指著文件欄位：「少了一份，這裡的資料不能給你。」' },
+      { name: '殯葬業的入殮師', lockMsg: '他擦著手上的藥水：「我的職責是讓死者安詳，別的不好多說。」', unlockMsg: '三份齊了，他翻出工作筆記低聲說：「其實有一個細節我一直覺得奇怪⋯⋯」', partialMsg: '他搖搖手：「少一份，不行，照規矩來。」' },
     ],
   },
   {
@@ -867,10 +905,15 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['press_pass', 'business_card', 'tip_motive'],
     pickupable: false,
     stateTags: ['tip-motive'],
+    keyHints: {
+      press_pass: '要確認對方是圈內人才肯談',
+      business_card: '習慣交換名片作為信任儀式',
+      tip_motive: '一提動機他眼神就亮了起來',
+    },
     variations: [
       { name: '資深記者', lockMsg: '記者滑著手機：「我有自己的線，不需要你。」', unlockMsg: '三份籌碼一出，他坐直：「你這消息有料，我把筆記給你看。」', partialMsg: '他抬頭：「就這樣？帶點更有意思的再來。」' },
-      { name: '八卦雜誌主筆', lockMsg: '她翻著雜誌稿：「跑這條線很久了，你能給我什麼？」', unlockMsg: '記者證、名片和動機說服了她：「⋯⋯行，這個角度我沒想到，我的舊資料給你看。」', partialMsg: '她搖頭：「不夠料，回去多挖點再來。」' },
-      { name: '調查報導記者', lockMsg: '他低著頭打字：「要交稿，沒時間，你說重點。」', unlockMsg: '三件到齊，他闔上筆電：「OK，等值交換，我的線人說的你要聽嗎？」', partialMsg: '他瞟了一眼：「拿更多來，不然沒得談。」' },
+      { name: '地下電台主持人', lockMsg: '他抽著菸，對麥克風冷笑：「我這邊消息多，你能給我什麼？」', unlockMsg: '記者證、名片和動機說服了他：「⋯⋯行，這個角度我沒想到，我的舊錄音給你聽。」', partialMsg: '他搖頭：「不夠料，回去多挖點再來。」' },
+      { name: '新聞系退休教授', lockMsg: '教授推了推眼鏡：「我不跑線很久了，你跟我談什麼？」', unlockMsg: '三件到齊，他闔上筆電：「OK，等值交換，我當年調查的檔案你要看嗎？」', partialMsg: '他瞟了一眼：「拿更多來，不然沒得談。」' },
     ],
   },
   {
@@ -883,10 +926,15 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['pocket_watch', 'decoded_audio', 'tip_hideout'],
     pickupable: false,
     stateTags: ['tip-hideout'],
+    keyHints: {
+      pocket_watch: '那隻錶他似乎見過',
+      decoded_audio: '他豎起耳朵想聽清楚',
+      tip_hideout: '「那個地方⋯⋯」他愣了一下',
+    },
     variations: [
       { name: '私家偵探', lockMsg: '偵探靠在椅背：「客戶資料，不是誰都能問的。」', unlockMsg: '三件齊了，他嘆了口氣：「你比我想的有料，地點告訴你。」', partialMsg: '他交叉雙臂：「還差一點，你的籌碼不夠。」' },
-      { name: '線人', lockMsg: '他四處張望，壓低聲音：「我說話要收費，你有帶什麼嗎？」', unlockMsg: '籌碼擺出來，他點頭：「OK，他躲的那個地方，我帶你去。」', partialMsg: '他撥弄著硬幣：「還差一樣，不夠讓我開口。」' },
-      { name: '老派徵信社老闆', lockMsg: '他透過厚玻璃看你：「沒有委託單，我不接話。」', unlockMsg: '懷錶、錄音、藏處三件到齊，他從抽屜裡拿出一個信封：「這是我早就準備好的，等人來拿。」', partialMsg: '他搖著頭：「差那麼一點，你再去找找。」' },
+      { name: '街頭消息販子', lockMsg: '他蹲在巷口，壓低聲音：「我說話要收費，你有帶什麼嗎？」', unlockMsg: '籌碼擺出來，他點頭：「OK，他躲的那個地方，我帶你去。」', partialMsg: '他撥弄著硬幣：「還差一樣，不夠讓我開口。」' },
+      { name: '退休刑警', lockMsg: '老刑警隔著紗窗看你：「我退休了，沒有案號我不接話。」', unlockMsg: '懷錶、錄音、藏處三件到齊，他從抽屜裡拿出一個信封：「這是我當年留下的，就等人來拿。」', partialMsg: '他搖著頭：「差那麼一點，你再去找找。」' },
     ],
   },
   {
@@ -898,10 +946,13 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['attorney_letter'],
     pickupable: false,
     stateTags: ['tip-affair'],
+    keyHints: {
+      attorney_letter: '沒有正式委任她什麼都不談',
+    },
     variations: [
       { name: '律師事務所職員', lockMsg: '她放下文件夾：「沒有委任狀，我們不能透露客戶資料。」', unlockMsg: '委任狀核對後，她打開抽屜：「你有十五分鐘，這裡看完。」' },
-      { name: '書記官', lockMsg: '他推了推眼鏡：「程序問題，沒有授權文件我沒辦法幫你。」', unlockMsg: '委任狀到位，他翻出厚重的卷宗：「這一段，這裡有記錄，自己看。」' },
-      { name: '法務助理', lockMsg: '她低著頭在打字：「請先聯絡律師預約，我這邊沒辦法直接處理。」', unlockMsg: '委任狀讓她停下來，她從保險箱裡取出一個信封：「這個⋯⋯他交代我保管的。」' },
+      { name: '法院書記官', lockMsg: '他推了推眼鏡：「程序問題，沒有授權文件我沒辦法幫你。」', unlockMsg: '委任狀到位，他翻出厚重的卷宗：「這一段，這裡有記錄，自己看。」' },
+      { name: '公證人', lockMsg: '公證人低頭整理印鑑盒：「請先備齊文件，我這邊按規矩辦事。」', unlockMsg: '委任狀讓她停下來，她從保險箱裡取出一個信封：「這個⋯⋯他生前交代我保管的。」' },
     ],
   },
   {
@@ -913,10 +964,13 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['address_slip'],
     pickupable: false,
     stateTags: ['tip-hideout'],
+    keyHints: {
+      address_slip: '看到地址他臉色一變',
+    },
     variations: [
       { name: '房屋仲介', lockMsg: '仲介微笑：「請問有具體的物件資訊嗎？」', unlockMsg: '地址條一出，他低聲：「這棟的真正屋主我認識⋯⋯」' },
-      { name: '公寓管委會總幹事', lockMsg: '她整理著開會記錄：「住戶資料不能外流，請問你的目的是？」', unlockMsg: '地址條遞過去，她沉默片刻：「這個單位⋯⋯登記名字跟我知道的房客不一樣。」' },
-      { name: '包租公', lockMsg: '他翻著帳本，漫不在乎：「房子不少，你要問哪一間？」', unlockMsg: '地址條出現，他放下帳本，表情變了：「這地方⋯⋯他說他是大公司的人，付了好幾個月押金。」' },
+      { name: '地政事務所辦事員', lockMsg: '辦事員整理著檔案：「產權查詢要本人親到，請問你的目的是？」', unlockMsg: '地址條遞過去，她沉默片刻：「這個地號⋯⋯登記名字跟申報人不一樣。」' },
+      { name: '地方代書', lockMsg: '代書翻著帳本，漫不在乎：「契約我經手很多，你要問哪一間？」', unlockMsg: '地址條出現，他放下帳本，表情變了：「這地方⋯⋯當事人說他是大公司的人，付了好幾個月訂金。」' },
     ],
   },
   // 嫌疑人類
@@ -930,10 +984,15 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['shoe_print', 'phone_records', 'tip_quarrel'],
     pickupable: false,
     stateTags: ['tip-quarrel'],
+    keyHints: {
+      shoe_print: '他不時低頭看自己那雙皮鞋',
+      phone_records: '口袋裡手機震個不停，他裝沒察覺',
+      tip_quarrel: '聊到那晚的走廊他就轉移話題',
+    },
     variations: [
       { name: '旅館經理', lockMsg: '經理微笑，眼神躲閃：「您有更具體的東西嗎？」', unlockMsg: '三件全到，他的笑消失：「⋯⋯那晚我確實和他在走廊上起了爭執。」', partialMsg: '他額頭冒汗：「這⋯⋯只是巧合，說明不了什麼。」' },
-      { name: '櫃台主任', lockMsg: '她緊抿嘴唇：「客人的隱私我們是有義務保護的。」', unlockMsg: '三件證據擺出，她嘆了口氣，翻開那晚的登記簿：「這個房間⋯⋯他來過兩次。」', partialMsg: '她盯著桌面：「這不一定代表什麼，我需要更確定的東西。」' },
-      { name: '民宿老闆', lockMsg: '他搓著手，笑容有點僵：「哎，客人就是客人，我哪記得那麼多。」', unlockMsg: '三件全攤開，他扶著桌子，聲音低了下去：「⋯⋯那晚他跟人吵完就跑了，我看到了。」', partialMsg: '他避開眼神：「這樣⋯⋯還不夠讓我說什麼。」' },
+      { name: '連鎖飯店區經理', lockMsg: '她緊抿嘴唇：「集團的隱私規範嚴格，我們有義務保護客人。」', unlockMsg: '三件證據擺出，她嘆了口氣，翻開那晚的登記簿：「這個房間⋯⋯他來過兩次。」', partialMsg: '她盯著桌面：「這不一定代表什麼，我需要更確定的東西。」' },
+      { name: '汽車旅館老闆', lockMsg: '他搓著手，笑容有點僵：「哎，客人車進車出，我哪記得那麼多。」', unlockMsg: '三件全攤開，他扶著桌子，聲音低了下去：「⋯⋯那晚他跟人吵完就開車跑了，我看到了。」', partialMsg: '他避開眼神：「這樣⋯⋯還不夠讓我說什麼。」' },
     ],
   },
   {
@@ -945,10 +1004,13 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['knife_closeup'],
     pickupable: false,
     stateTags: ['tip-weapon'],
+    keyHints: {
+      knife_closeup: '他瞄了一眼刀柄上的紋路',
+    },
     variations: [
       { name: '黑市掮客', lockMsg: '掮客靠牆打量你：「我只是中間人，找錯了。」', unlockMsg: '特寫照往桌上一甩，他低聲說：「那把刀是我的貨，但買家我不認識。」' },
-      { name: '地下當鋪老闆', lockMsg: '他隔著鐵網看你：「我這裡清清白白，你要找什麼？」', unlockMsg: '刀具照片讓他臉色一變：「⋯⋯那個花紋，我見過，有人拿來典當過。」' },
-      { name: '夜市走私商', lockMsg: '他若無其事地整理攤位：「賣的都是合法商品，警官有事說事。」', unlockMsg: '照片一亮出，他偷偷往四周看：「⋯⋯這個⋯⋯是我轉手的，但我不知道要幹什麼用。」' },
+      { name: '二手刀具收藏家', lockMsg: '他摸著胸前的放大鏡：「我只是收藏客，你要找什麼？」', unlockMsg: '刀具照片讓他臉色一變：「⋯⋯那個花紋，我見過，有人拿來讓我鑑定過。」' },
+      { name: '廢品回收場老闆', lockMsg: '他叼著菸整理廢鐵：「這裡收什麼都有，警官有事說事。」', unlockMsg: '照片一亮出，他偷偷往四周看：「⋯⋯這個⋯⋯是我廠裡磨過的，但我不知道要幹什麼用。」' },
     ],
   },
   {
@@ -961,10 +1023,14 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['police_badge', 'enhanced_photo'],
     pickupable: false,
     stateTags: ['tip-timing'],
+    keyHints: {
+      police_badge: '軍人本能要先看證件',
+      enhanced_photo: '影像的清晰度讓他無法再辯',
+    },
     variations: [
       { name: '保全隊長', lockMsg: '隊長立正：「請透過正式管道申請，我們有存檔。」', unlockMsg: '警徽和截圖齊出，他低下頭：「那晚我確實提早離崗⋯⋯」', partialMsg: '他繃著臉：「這不夠，請走正式程序。」' },
-      { name: '警衛班長', lockMsg: '他把雙手背在身後：「我按規矩做事，沒什麼好說的。」', unlockMsg: '清晰截圖和警徽讓他喉嚨動了一下：「⋯⋯那個班是我排的，但那晚有人換班，我沒批准。」', partialMsg: '他搖頭：「拿齊文件再來，我不說沒根據的話。」' },
-      { name: '夜間督察', lockMsg: '她夾著板子走來走去：「例行詢問，請配合正規程序。」', unlockMsg: '兩件齊備，她停下腳步：「⋯⋯那個時段的監控有段空窗，是我沒處理好。」', partialMsg: '她繼續走：「不完整，走程序。」' },
+      { name: '現役憲兵軍士', lockMsg: '軍士敬了個禮：「我執勤中，沒公文不能說。」', unlockMsg: '清晰截圖和警徽讓他喉嚨動了一下：「⋯⋯那個勤務我帶的，但那晚有人擅離崗位，我沒上報。」', partialMsg: '他搖頭：「拿齊文件再來，我不說沒根據的話。」' },
+      { name: '消防隊副隊長', lockMsg: '她整理著頭盔：「例行詢問請走正規程序，我們出勤記錄有報備。」', unlockMsg: '兩件齊備，她停下手：「⋯⋯那個時段的出勤紀錄有段空窗，是我沒處理好。」', partialMsg: '她別過頭：「不完整，走程序。」' },
     ],
   },
   {
@@ -976,10 +1042,13 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['keyring'],
     pickupable: false,
     stateTags: ['tip-hideout'],
+    keyHints: {
+      keyring: '他認得掛在最外圍的那把鑰匙',
+    },
     variations: [
       { name: '公寓大樓管理員', lockMsg: '管理員縮在玻璃後：「沒預約，我不方便說。」', unlockMsg: '鑰匙圈一亮出，他臉色一白：「這是哪來的⋯⋯那個房間有人住。」' },
-      { name: '社區總幹事', lockMsg: '她抱著公告板：「住戶資料保密，請問您找哪一位？」', unlockMsg: '鑰匙圈放在桌上，她嘴唇抖了一下：「這串鑰匙⋯⋯是七樓那個人的，他說出去一下。」' },
-      { name: '大樓主委', lockMsg: '他斜眼打量你：「你是住戶嗎？不是的話，我沒辦法幫你。」', unlockMsg: '鑰匙圈認出來，他放下茶杯：「這個⋯⋯這是備用鑰匙，那個單位已經很久沒人進出了。」' },
+      { name: '鎖匠鋪老師傅', lockMsg: '老師傅低頭磨著鑰匙胚：「我只打鑰匙，不管別的事。」', unlockMsg: '鑰匙圈放在桌上，他嘴唇抖了一下：「這串鑰匙⋯⋯是我打的，他說要配備份。」' },
+      { name: '停車場管理員', lockMsg: '他斜眼打量你：「你有車牌嗎？沒有的話，我沒辦法幫你。」', unlockMsg: '鑰匙圈認出來，他放下茶杯：「這個⋯⋯是那台車的備用鑰匙，那輛車已經很久沒出停車場了。」' },
     ],
   },
   // 邊緣角色類
@@ -992,10 +1061,13 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['tip_nickname'],
     pickupable: false,
     stateTags: ['tip-money'],
+    keyHints: {
+      tip_nickname: '聽到那個暱稱他愣了一下',
+    },
     variations: [
       { name: '實習生', lockMsg: '他眼神飄忽：「這個⋯⋯我不確定能說⋯⋯」', unlockMsg: '聽到那個小名，他放低聲音：「你認識他？那⋯⋯他那天匯了一大筆錢。」' },
-      { name: '工讀生', lockMsg: '她輕聲說：「這不是我能管的事，你問上面的人。」', unlockMsg: '小名一說出，她眼睛睜大了：「你也知道那個？那他跟我說的事⋯⋯我可以告訴你。」' },
-      { name: '兼差的學生', lockMsg: '他縮著肩膀：「我只是打工的，不太清楚公司的事。」', unlockMsg: '小名說出，他嘴角微微動了一下：「⋯⋯你是認識他的人，我說給你聽，但別提我。」' },
+      { name: '派遣文員', lockMsg: '她輕聲說：「我是派遣的，這種事要問正職。」', unlockMsg: '小名一說出，她眼睛睜大了：「你也知道那個？那他跟我說的事⋯⋯我可以告訴你。」' },
+      { name: '網紅直播主', lockMsg: '他低頭盯著手機直播：「我不方便在鏡頭前說這個。」', unlockMsg: '小名說出，他偷偷關掉直播：「⋯⋯你是認識他的人，我說給你聽，但別提我。」' },
     ],
   },
   {
@@ -1007,10 +1079,13 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['address_slip'],
     pickupable: false,
     stateTags: ['tip-hideout'],
+    keyHints: {
+      address_slip: '「這地址我送過」脫口而出',
+    },
     variations: [
       { name: '送貨員', lockMsg: '送貨員掃條碼：「等一下，我還有單要清。」', unlockMsg: '地址一認出，他抬頭：「這我送過！對方簽名很潦草，但我記得那棟。」' },
-      { name: '快遞員', lockMsg: '她把箱子堆好，看了你一眼：「你找我什麼事？我很趕。」', unlockMsg: '地址條讓她停下來：「這地方⋯⋯我送了三次，每次都沒人開門，後來有個男的下來拿。」' },
-      { name: '跑腿小弟', lockMsg: '他對著手機看地址：「你要問什麼，我還有單子要跑。」', unlockMsg: '地址條一亮，他認出了：「這邊我去過，那個人叫我把包裹放在門口，不要敲門。」' },
+      { name: '外送平台騎士', lockMsg: '她盯著手機APP：「我還有三張單在跑，你找我什麼事？」', unlockMsg: '地址條讓她停下來：「這地方⋯⋯我送了三次，每次都沒人開門，後來有個男的下來拿。」' },
+      { name: '搬家工人', lockMsg: '他放下貨箱，擦著汗：「你要問什麼，我還有一車要卸。」', unlockMsg: '地址條一亮，他認出了：「這邊我搬過傢俱，那個人叫我把箱子放在門口，不要敲門。」' },
     ],
   },
   {
@@ -1022,10 +1097,13 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['matchbox'],
     pickupable: false,
     stateTags: ['tip-affair'],
+    keyHints: {
+      matchbox: '他一眼認出盒子上的 logo',
+    },
     variations: [
       { name: '酒保', lockMsg: '酒保擦著杯子：「客人的事，我不多嘴。」', unlockMsg: '火柴盒一認出，他壓低聲音：「那晚那兩個，吵了很久⋯⋯」' },
-      { name: '酒吧經理', lockMsg: '她交叉雙臂靠著吧台：「這裡的事，向來進出兩清。」', unlockMsg: '認出火柴盒，她眼睛微微眯起：「這個⋯⋯那晚有個女的一直哭，和那個男人吵架。」' },
-      { name: '深夜食堂老闆', lockMsg: '他坐在角落剁菜：「我這裡的客人不喜歡被打聽。」', unlockMsg: '火柴盒放在他面前，他停下來：「你在那邊吃過？那晚的事，我有看到一些⋯⋯」' },
+      { name: 'Live House 駐場歌手', lockMsg: '歌手調著吉他弦：「我只顧著表演，台下的事沒留意。」', unlockMsg: '認出火柴盒，她眼睛微微眯起：「這個⋯⋯那晚有個女的坐在前排一直哭，和那個男人吵架。」' },
+      { name: '熱炒店師傅', lockMsg: '師傅顛著炒鍋：「我這裡的客人不喜歡被打聽。」', unlockMsg: '火柴盒放在他面前，他停下來：「你在那邊吃過？那晚的事，我有看到一些⋯⋯」' },
     ],
   },
   {
@@ -1037,10 +1115,13 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     requiredKeys: ['tip_nickname'],
     pickupable: false,
     stateTags: ['tip-motive'],
+    keyHints: {
+      tip_nickname: '熟悉的稱呼讓他放下戒心',
+    },
     variations: [
       { name: '常客', lockMsg: '他端著酒杯：「我只是來喝酒的，不認識太多人。」', unlockMsg: '小名一說，他眼神一亮：「你認識他！那晚他來找那個女的，我都聽到了。」' },
-      { name: '老主顧', lockMsg: '她搖著杯裡的冰塊，漫不在乎地看著別處。', unlockMsg: '聽到那個名字，她轉過頭：「你說的是他？他跟那個女的鬧得很僵，那晚我在旁邊桌。」' },
-      { name: '熟客', lockMsg: '他瞇著眼，用下巴示意：「你找的人不在這，我不認識你說的。」', unlockMsg: '暱稱一說出，他放下杯子：「⋯⋯你真的認識他，那好，他那晚來過，走得很急，臉色很差。」' },
+      { name: '餐廳老鄰桌', lockMsg: '她看著菜單裝作沒聽見：「我只是來吃飯的，別問我。」', unlockMsg: '聽到那個名字，她轉過頭：「你說的是他？他跟那個女的鬧得很僵，那晚我就坐在隔壁桌。」' },
+      { name: '跳舞教室的會員', lockMsg: '他擦著額頭的汗：「我只是來運動的，別的不清楚。」', unlockMsg: '暱稱一說出，他放下毛巾：「⋯⋯你真的認識他，那好，他那晚來過跳舞，走得很急，臉色很差。」' },
     ],
   },
 

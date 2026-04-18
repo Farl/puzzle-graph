@@ -309,6 +309,10 @@ function enqueueKeysForLock(
   const lock = ctx.locks[lockId]!;
   lock.mechanism = lockTemplate.mechanism;
 
+  if (lockTemplate.keyHints) {
+    lock.keyHints = {};
+  }
+
   if (lockTemplate.mechanism === 'minigame' && lockTemplate.minigameType) {
     lock.minigameConfig = generateMinigameConfig(lockTemplate.minigameType, ctx.rng);
   }
@@ -333,6 +337,10 @@ function enqueueKeysForLock(
     }
 
     lock.requiredItems.push(keyId);
+
+    if (lockTemplate.keyHints?.[keyTemplateId]) {
+      lock.keyHints![keyId] = lockTemplate.keyHints[keyTemplateId]!;
+    }
 
     if (keyTpl.reusable) {
       ctx.toolReuseCount[keyId] = (ctx.toolReuseCount[keyId] ?? 0) + 1;

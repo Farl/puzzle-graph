@@ -230,6 +230,19 @@ export function inspectEntity(state: GameState, entityId: string): GameState {
     if (lock.isLocked && lock.insertedItems.length > 0 && lock.requiredItems.length > 1) {
       addLog(newState, 'info', `已插入 ${lock.insertedItems.length}/${lock.requiredItems.length} 個所需物品。`);
     }
+    if (lock.isLocked && lock.keyHints) {
+      const hintLines = lock.requiredItems
+        .map(itemId => {
+          const hint = lock.keyHints?.[itemId];
+          if (!hint) return null;
+          const done = lock.insertedItems.includes(itemId);
+          return `${done ? '✓' : '•'} ${hint}`;
+        })
+        .filter((line): line is string => line !== null);
+      if (hintLines.length > 0) {
+        addLog(newState, 'info', `你觀察到：\n${hintLines.join('\n')}`);
+      }
+    }
   } else {
     addLog(newState, 'error', '找不到該物品或機關。');
   }
