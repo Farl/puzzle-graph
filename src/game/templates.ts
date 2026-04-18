@@ -682,64 +682,6 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
   },
 
   // ─── Investigation: 通用偵查容器（無 stateTags，可收任意物品，讓非證據物品也能被包裹）───
-  {
-    id: 'evidence_drawer', name: '證物室抽屜',
-    lockedDescription: '證物室的金屬抽屜，上面貼著案件編號封條。',
-    unlockDescription: '你撕開封條，拉開抽屜。',
-    category: 'container', mechanism: 'physical', capacity: 8, volume: 5,
-    tags: ['investigation', 'evidence-storage', 'physical'],
-    requiredKeys: ['police_badge'],
-    variations: [
-      { name: '證物室抽屜', lockMsg: '金屬抽屜貼著案件封條。', unlockMsg: '你撕開封條，拉開抽屜。' },
-      { name: '物證保管箱', lockMsg: '一個標示「物證」的金屬箱。', unlockMsg: '你開啟了物證保管箱。' },
-    ],
-  },
-  {
-    id: 'case_file_box', name: '案件檔案箱',
-    lockedDescription: '一個堆滿卷宗的硬紙箱，用繩子綁著。',
-    unlockDescription: '你出示律師委任狀後，解開繩結翻閱起內容。',
-    category: 'container', mechanism: 'physical', capacity: 8, volume: 5,
-    tags: ['investigation', 'evidence-storage', 'physical'],
-    requiredKeys: ['attorney_letter'],
-    variations: [
-      { name: '案件檔案箱', lockMsg: '硬紙箱用繩子綁著。', unlockMsg: '你解開繩結，翻閱卷宗。' },
-      { name: '調查卷宗', lockMsg: '一疊被封條封住的卷宗。', unlockMsg: '你撕開封條，翻開卷宗。' },
-    ],
-  },
-  {
-    id: 'lost_and_found', name: '失物招領櫃',
-    lockedDescription: '一個落滿灰塵的失物招領玻璃櫃。',
-    unlockDescription: '你用家屬同意書換取了櫃中物品。',
-    category: 'container', mechanism: 'physical', capacity: 6, volume: 3,
-    tags: ['investigation', 'evidence-storage', 'physical'],
-    requiredKeys: ['family_consent'],
-    variations: [
-      { name: '失物招領櫃', lockMsg: '落滿灰塵的玻璃櫃。', unlockMsg: '你換取了櫃中物品。' },
-    ],
-  },
-  {
-    id: 'detective_briefcase', name: '偵探的手提箱',
-    lockedDescription: '一個皮革手提箱，鎖頭上有刮痕。',
-    unlockDescription: '你用監視器截圖說服偵探，他親手打開了手提箱。',
-    category: 'container', mechanism: 'physical', capacity: 6, volume: 3,
-    tags: ['investigation', 'evidence-storage', 'physical'],
-    requiredKeys: ['cctv_still'],
-    variations: [
-      { name: '偵探的手提箱', lockMsg: '皮革手提箱鎖著。', unlockMsg: '偵探親手打開了手提箱。' },
-    ],
-  },
-  {
-    id: 'photo_album', name: '老舊相本',
-    lockedDescription: '一本厚厚的相本，邊緣已經泛黃。',
-    unlockDescription: '你翻開相本，熟悉的面孔出現。',
-    category: 'container', mechanism: 'hidden', capacity: 4, volume: 2,
-    tags: ['investigation', 'evidence-storage', 'hidden'],
-    requiredKeys: ['flashlight'],
-    variations: [
-      { name: '老舊相本', lockMsg: '相本邊緣泛黃。', unlockMsg: '你翻開相本。' },
-    ],
-  },
-
   // ─── Investigation: NPC 鎖（不可拾取，固定房間內）───
   // 目擊者類
   {
