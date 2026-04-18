@@ -82,12 +82,22 @@ export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   { id: 'pill_bottle',      name: '藥瓶',           description: '一個處方藥瓶，標籤被刮掉了。',               type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
   { id: 'iou_note',         name: '借據',           description: '一張寫有大額金額的手寫借據。',               type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
 
+  // ─── Investigation: 證據 (擴充) ───
+  { id: 'autopsy_report',  name: '解剖報告',       description: '法醫出具的正式解剖報告。',     type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'insurance_form',  name: '保險理賠書',     description: '一份金額可觀的理賠申請。',     type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'medical_record',  name: '病歷影本',       description: '一份被部分塗黑的病歷影本。',   type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+  { id: 'court_filing',    name: '訴訟書狀',       description: '一份正在進行的訴訟文件。',     type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'evidence'] },
+
   // ─── Investigation: 權限（可重用工具） ───
   { id: 'police_badge',     name: '警徽',           description: '一枚磨得發亮的警徽。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'credential'] },
   { id: 'search_warrant',   name: '搜查令',         description: '一張有法官簽名的搜查令。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'credential'] },
   { id: 'press_pass',       name: '記者證',         description: '一張資深記者的採訪證。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'credential'] },
   { id: 'family_consent',   name: '家屬同意書',     description: '受害者家屬的書面授權。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'credential'] },
   { id: 'attorney_letter',  name: '律師委任狀',     description: '一張律師事務所的正式委任狀。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'credential'] },
+
+  // ─── Investigation: 權限 (擴充) ───
+  { id: 'prosecutor_order', name: '檢察官命令',    description: '一張檢察官核發的正式命令。',   type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'credential'] },
+  { id: 'social_auth',      name: '社工證明',      description: '社福單位的訪談授權。',         type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'credential'] },
 
   // ─── Investigation: 口信／關鍵字（消耗型 clue，帶 stateTag 供 NPC 連鎖） ───
   { id: 'tip_nickname',     name: '死者的暱稱',     description: '只有親近的人才知道的小名。',             type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-nickname'] },
@@ -98,6 +108,13 @@ export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   { id: 'tip_weapon',       name: '兇器來源',       description: '兇器從何而來的關鍵訊息。',               type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-weapon'] },
   { id: 'tip_timing',       name: '案發時間的修正', description: '推翻官方時間線的新證詞。',               type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-timing'] },
   { id: 'tip_motive',       name: '目擊者的動機',   description: '某個證人為何出現的真實原因。',           type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-motive'] },
+
+  // ─── Investigation: 口信／關鍵字 (擴充) ───
+  { id: 'tip_alibi',     name: '破綻的不在場證明', description: '有人在關鍵時間無法解釋自己的行蹤。', type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-alibi'] },
+  { id: 'tip_identity',  name: '真實身份',         description: '某人並非他自稱的那個人。',           type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-identity'] },
+  { id: 'tip_poison',    name: '毒物線索',         description: '一種罕見毒物的名字。',               type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-poison'] },
+  { id: 'tip_insurance', name: '保險詐欺',         description: '一張不尋常的保險受益人變更紀錄。',   type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-insurance'] },
+  { id: 'tip_location',  name: '秘密地點',         description: '某個地圖上沒標的地方。',             type: 'clue', reusable: false, volume: 0.5, tags: ['investigation', 'testimony'], stateTags: ['tip-location'] },
 
   // ─── Investigation: 輕型實體鑰匙（消耗型） ───
   { id: 'diary_book',       name: '日記本',         description: '死者的私人日記。',                       type: 'key', reusable: false, volume: 1,   tags: ['investigation', 'personal-item'] },
@@ -111,6 +128,12 @@ export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   { id: 'ring',             name: '戒指',           description: '一枚刻著縮寫的戒指。',                   type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
   { id: 'address_slip',     name: '手寫地址條',     description: '一張撕下的手寫地址紙條。',               type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
 
+  // ─── Investigation: 個人物品 (擴充) ───
+  { id: 'pawn_ticket',      name: '當票',          description: '一張寫有編號的當票存根。',     type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
+  { id: 'cigarette_pack',   name: '半空的菸盒',    description: '一個只剩兩根菸的品牌菸盒。',   type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
+  { id: 'medal',            name: '舊警察勳章',    description: '一枚已經退役警察的榮譽勳章。', type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
+  { id: 'notebook_page',    name: '撕下的筆記頁',  description: '一張從記事本上撕下的頁面。',   type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'personal-item'] },
+
   // ─── Investigation: 證據加工工具（reusable，用於 evidence-state 鎖）───
   { id: 'image_enhancer',   name: '影像增強器',     description: '可以提升低解析度畫面的工具。', type: 'tool', reusable: true, volume: 1,   tags: ['investigation', 'enhancer'] },
   { id: 'transparent_tape', name: '透明膠帶',       description: '一卷用來重組碎紙的透明膠帶。', type: 'tool', reusable: true, volume: 0.5, tags: ['investigation', 'enhancer'] },
@@ -118,12 +141,18 @@ export const KEY_TEMPLATES: readonly KeyTemplate[] = [
   { id: 'uv_lamp',          name: '紫外線燈',       description: '可顯現隱形字跡的紫外線燈。', type: 'tool', reusable: true, volume: 1,   tags: ['investigation', 'enhancer'] },
   { id: 'forensic_kit',     name: '鑑識採樣工具',   description: '一套採集 DNA、血跡、指紋的工具組。', type: 'tool', reusable: true, volume: 2,   tags: ['investigation', 'enhancer'] },
 
+  // ─── Investigation: 加工工具 (擴充) ───
+  { id: 'chemical_developer', name: '化學顯影劑',  description: '可顯現被塗抹字跡的試劑。',  type: 'tool', reusable: true, volume: 1, tags: ['investigation', 'enhancer'] },
+
   // ─── Investigation: 已加工證據（消耗型 key，帶 stateTag 與 evidence-state 鎖配對）───
   { id: 'enhanced_photo',      name: '清晰截圖',       description: '經過影像增強後可以看清楚的畫面。',     type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'evidence-processed'], stateTags: ['enhanced-photo'] },
   { id: 'restored_document',   name: '拼好的遺書',     description: '用膠帶拼回的完整遺書。',               type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'evidence-processed'], stateTags: ['restored-document'] },
   { id: 'decoded_audio',       name: '還原的錄音',     description: '經過解密的原始錄音檔。',               type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'evidence-processed'], stateTags: ['decoded-audio'] },
   { id: 'revealed_notes',      name: '可讀的筆記',     description: '紫外線下現形的隱藏筆記。',             type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'evidence-processed'], stateTags: ['revealed-notes'] },
   { id: 'dna_sample',          name: '已採樣血跡',     description: '採樣管中的 DNA 樣本。',                type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'evidence-processed'], stateTags: ['dna-sample'] },
+
+  // ─── Investigation: 已加工證據 (擴充) ───
+  { id: 'revealed_signature', name: '還原的簽名',  description: '經過顯影呈現的原始簽名。',  type: 'key', reusable: false, volume: 0.5, tags: ['investigation', 'evidence-processed'], stateTags: ['revealed-signature'] },
 ];
 
 // ─── 鎖目錄 ───
@@ -637,6 +666,20 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '沾血的衣物樣本', lockMsg: '血跡需要正式採樣。', unlockMsg: '樣本採集完畢。' },
     ],
   },
+  {
+    id: 'erased_signature', name: '被塗掉的簽名',
+    lockedDescription: '文件上的簽名被某種油墨覆蓋，完全看不出原本的字跡。',
+    unlockDescription: '顯影劑塗上去後，被覆蓋的簽名浮現出來。',
+    category: 'container', mechanism: 'physical', capacity: 2, volume: 0.5,
+    tags: ['investigation', 'evidence-state'],
+    requiredKeys: ['chemical_developer'],
+    pickupable: true,
+    stateTags: ['revealed-signature'],
+    variations: [
+      { name: '被塗掉的簽名', lockMsg: '油墨覆蓋著簽名。', unlockMsg: '顯影劑讓簽名重現。' },
+      { name: '被修改的文件', lockMsg: '文件上有修改痕跡。', unlockMsg: '試劑讓原始內容浮現。' },
+    ],
+  },
 
   // ─── Investigation: 通用偵查容器（無 stateTags，可收任意物品，讓非證據物品也能被包裹）───
   {
@@ -716,7 +759,8 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
     variations: [
       { name: '夜班門房', lockMsg: '門房警戒地開口：「沒有正式文件，我什麼都不能說。」', unlockMsg: '他嘆了口氣：「⋯⋯好，那晚確實有人深夜進出。」', partialMsg: '他搖搖頭：「這樣還不夠，你還有別的嗎？」' },
       { name: '代班的臨時工', lockMsg: '代班的年輕人搓著手，緊張地看你：「我今天才來代班，真的不太熟。」', unlockMsg: '他低頭看了一眼截圖，聲音發抖：「⋯⋯這個人我認得，但拜託別說是我講的。」', partialMsg: '他瞇眼打量：「只帶這個來問我？我不敢亂說。」' },
-      { name: '資深保全隊長', lockMsg: '隊長挺直腰桿，語氣嚴肅：「這裡我負責十年了，沒有程序我不開口。」', unlockMsg: '看完警徽和畫面，他把守衛台的登記簿往前推：「那晚的簽到你自己翻。」', partialMsg: '他抱起雙臂：「不夠具體，我這個位置不能隨便說。」' },
+      { name: '夜間督察', lockMsg: '督察挺直腰桿，語氣嚴肅：「這裡我負責十年了，沒有程序我不開口。」', unlockMsg: '看完警徽和畫面，他把守衛台的登記簿往前推：「那晚的簽到你自己翻。」', partialMsg: '他抱起雙臂：「不夠具體，我這個位置不能隨便說。」' },
+      { name: '女性夜班櫃檯', lockMsg: '她盯著電腦螢幕：「公司規定，我們不能隨便透露客人資訊。」', unlockMsg: '她點點頭：「⋯⋯那晚我看到那個人進來，穿著深色外套，很趕。」', partialMsg: '她搖頭：「資料這麼少，我不敢確定是那晚。」' },
     ],
   },
   {
@@ -735,6 +779,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '清潔阿姨', lockMsg: '阿姨頭也不抬：「我只是掃地的，不要問我。」', unlockMsg: '看到同意書，她放下掃把嘆氣：「那晚有吵架，很兇。」' },
       { name: '工友伯伯', lockMsg: '伯伯推著工具車，用方言嘟噥：「不關我的事，問別人去。」', unlockMsg: '有了家屬授權，他才點頭：「我親眼看到的，但你不要說我說的⋯⋯」' },
       { name: '外包保潔員', lockMsg: '她靠在走廊牆邊，警覺地四下張望：「我們是外包的，這種事不敢亂說。」', unlockMsg: '同意書給她看之後，她低聲說：「那晚電梯旁邊，有人推他⋯⋯」' },
+      { name: '年輕女清潔工', lockMsg: '她戴著口罩低聲說：「我不太會說話，你去找主管吧。」', unlockMsg: '她看過同意書，鬆了口氣：「那晚⋯⋯有人在樓梯間大吼，我躲在儲藏室不敢出來。」' },
     ],
   },
   {
@@ -753,6 +798,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '便利商店店員', lockMsg: '店員掃商品：「我記性不好，真的忘了啦。」', unlockMsg: '截圖一亮出，他馬上認出：「這個人！他那晚買了一瓶威士忌。」' },
       { name: '藥局輪班藥師', lockMsg: '藥師忙著配藥：「深夜來的客人很多，我不太記了。」', unlockMsg: '她瞇著眼看截圖：「⋯⋯這件外套我記得，他來買鎮定劑，兩點半左右。」' },
       { name: '加油站員工', lockMsg: '他比了比監視器：「我們這裡有錄影，但私人資料不能給。」', unlockMsg: '截圖拿出來，他認出那台車：「這輛！那晚加了滿缸油，付現的。」' },
+      { name: '手搖飲打工生', lockMsg: '她邊搖杯邊說：「每天那麼多客人，沒特別印象耶。」', unlockMsg: '看了截圖她眼睛一亮：「啊！這個人點的是無糖綠，那晚很晚才進來。」' },
     ],
   },
   {
@@ -771,6 +817,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '計程車司機', lockMsg: '司機盯著方向盤：「乘客隱私，我沒辦法說。」', unlockMsg: '搜查令一看，他把行程紀錄推過來：「自己看吧。」' },
       { name: '網路叫車的代駕', lockMsg: '他點開APP說：「所有行程記錄在後台，我無權調閱。」', unlockMsg: '搜查令讓他配合，他把那晚的接單截圖給你看。' },
       { name: '遊覽車駕駛', lockMsg: '駕駛拍了拍方向盤：「團客隱私，我接了幾百團，哪記得。」', unlockMsg: '搜查令讓他打開排班系統：「那晚這個時段⋯⋯只有這一筆包車。」' },
+      { name: '女性排班司機', lockMsg: '她戴著耳機：「沒有公文我不開口，這是規矩。」', unlockMsg: '搜查令就位後她解鎖平板：「那晚我送他到一個很偏僻的巷口，他全程沒說話。」' },
     ],
   },
   {
@@ -791,6 +838,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '遛狗的老人', lockMsg: '老人搖搖頭：「記性差，記不清楚了。」', unlockMsg: '照片對上時間，他回想起來：「那晚狗狂叫，我看到一個人跑走。」', partialMsg: '他瞇眼看你：「還不夠具體，我沒辦法確認是哪天。」' },
       { name: '送報的中年男子', lockMsg: '他把摺好的報紙夾在腋下：「天沒亮就出門送報，沒空看別的。」', unlockMsg: '照片加上時間讓他停下腳步：「這個位置⋯⋯那晚我路過時確實有個陌生人在那等著。」', partialMsg: '他抬頭看天：「你帶的東西不夠讓我想起那一晚。」' },
       { name: '打太極的婦人', lockMsg: '婦人慢慢收拳：「我就是來打拳的，沒注意別人的事。」', unlockMsg: '現場位置加上時間，她想了想：「那個位置？是有個人我沒見過，在那抽菸等人。」', partialMsg: '她皺眉：「只憑這一樣，我說不準是那晚的事。」' },
+      { name: '晨跑的學生', lockMsg: '她擦著汗低頭看手錶：「我只是跑步，路上的事沒注意。」', unlockMsg: '照片與時間對上，她想了想：「那個巷口有個人在等車，那晚我剛好跑過。」', partialMsg: '她搖頭：「我不確定是不是同一天。」' },
     ],
   },
   // 關係人類
@@ -813,6 +861,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '死者前妻', lockMsg: '她抱著臂膀：「那段日子我不想再提了。」', unlockMsg: '三件事全擺上桌，她紅著眼：「好吧⋯⋯他從來沒有真正離開那個人。」', partialMsg: '她搖頭：「你帶的還不夠讓我說，我不想平白捲進去。」' },
       { name: '失聯多年的姊姊', lockMsg: '姊姊輕聲說：「我們家很久沒聯絡了，你問我沒意義。」', unlockMsg: '日記翻開在她面前，她抽了一口氣：「這些字是弟弟的筆跡⋯⋯好，我跟你說那筆錢的事。」', partialMsg: '她避開你的目光：「只拿這些來？還不夠讓我開口。」' },
       { name: '遠房表妹', lockMsg: '表妹端起茶杯：「我們是遠親，一年見不到一次面。」', unlockMsg: '錢的來源、外遇的細節、他的日記⋯⋯她緩緩放下杯子：「⋯⋯他家一直說那筆錢是準備分家的，但根本是謊言。」', partialMsg: '她細細打量你帶來的東西：「還差一些，你要說服我，得再多帶點。」' },
+      { name: '同父異母的弟弟', lockMsg: '弟弟冷淡地點頭：「我跟他不熟，你問錯人了。」', unlockMsg: '三件全擺上桌，他嘆了口氣：「⋯⋯那筆錢是他借我爸的，後來爸還不出，他就⋯⋯」', partialMsg: '他瞥了一眼：「不齊，我沒義務開口。」' },
     ],
   },
   {
@@ -831,6 +880,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '失蹤者室友', lockMsg: '她把門開一條縫：「我真的不太知道他的事。」', unlockMsg: '私章出現，她把門推開：「這是他的⋯⋯那晚有人來找他，聲音很大。」' },
       { name: '大學學弟', lockMsg: '學弟搓著手：「學長的事我不想被捲進去，你問別人好嗎？」', unlockMsg: '認出那枚私章，他吸了口氣：「好吧，那晚學長接了一個電話，之後就消失了。」' },
       { name: '隔壁鄰居', lockMsg: '鄰居靠在門框上，語氣謹慎：「隔壁那戶的事，我不方便說太多。」', unlockMsg: '看到章，她沉默了一下：「他把這個塞進我門縫⋯⋯說萬一出事就拿去給警察。」' },
+      { name: '合租公寓的房東', lockMsg: '房東翻著租約不耐煩：「房客的事要問本人，我不介入。」', unlockMsg: '看到熟悉的印章他愣住：「⋯⋯他押金單上蓋的就是這個，那晚他匆忙退租。」' },
     ],
   },
   {
@@ -851,6 +901,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '死者同事', lockMsg: '他緊盯螢幕：「很忙，可以之後再說嗎？」', unlockMsg: '帳戶加上DNA，他終於轉過身：「那筆錢⋯⋯是他欠我的，不是公款。」', partialMsg: '他瞟了一眼：「只有這個，我沒什麼好說的。」' },
       { name: '競爭對手公司的業務', lockMsg: '他扯了扯領帶：「我跟他是對手公司的，平時不太聯絡。」', unlockMsg: '兩份文件擺上桌，他深吸一口氣：「好吧⋯⋯他那段時間來找過我，說要帶客戶投靠。」', partialMsg: '他聳聳肩：「只帶一份不夠，我沒辦法確認。」' },
       { name: '多年老友', lockMsg: '他抽著菸，輕描淡寫：「我跟他是老朋友，但私事不方便說。」', unlockMsg: '他看完帳戶和樣本，把菸按熄：「⋯⋯其實他找過我借過一大筆，說是急用。」', partialMsg: '他彈了彈菸灰：「就這樣？說不了什麼。」' },
+      { name: '女性直屬上司', lockMsg: '她合上筆電：「下屬的財務狀況我不便評論。」', unlockMsg: '文件擺好，她緩緩點頭：「⋯⋯那筆匯款我知道，他當時情緒很不穩。」', partialMsg: '她搖頭：「我只能就職務內容說，這不夠。」' },
     ],
   },
   {
@@ -871,6 +922,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '受害者母親', lockMsg: '她抱著照片，啜泣著：「我現在說不了任何話。」', unlockMsg: '遺書和筆記同時放到她手中，她說：「那段感情⋯⋯家裡一直壓著不讓說。」', partialMsg: '她搖頭：「只有這樣，我還說不了，等我準備好。」' },
       { name: '從小帶大他的乾媽', lockMsg: '乾媽坐在沙發上，握著佛珠：「他不是我親生的，有些事我不能說。」', unlockMsg: '兩份文件讓她撐起身體，沙啞地說：「⋯⋯那個人，我見過，是個危險的傢伙。」', partialMsg: '她揮揮手：「你帶的東西不夠讓我說，我怕說了有危險。」' },
       { name: '疼愛孫子的爺爺', lockMsg: '爺爺擦著眼鏡：「老了，很多事記不住了⋯⋯」', unlockMsg: '遺書和筆記讓他顫抖著手接過：「這是他寫的⋯⋯那個孩子⋯⋯一直愛著那個人啊。」', partialMsg: '他搖頭嘆氣：「只有這樣，我想不起太多了。」' },
+      { name: '年輕的姑姑', lockMsg: '姑姑低著頭：「家裡都不讓說，我也不敢。」', unlockMsg: '兩份文件讓她抿緊嘴唇：「⋯⋯他高中就跟我說過那個人，我勸他不要。」', partialMsg: '她搖頭：「只有這樣我還不敢開口。」' },
     ],
   },
   // 專業人士類
@@ -893,6 +945,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '法醫', lockMsg: '他頭也不抬：「報告還沒定案，現在不能說。」', unlockMsg: '三件齊備，他脫下手套：「傷口角度跟你說的符合，兇器很特殊。」', partialMsg: '他搖頭：「沒有完整授權，我沒辦法透露鑑識結果。」' },
       { name: '大學法醫學教授', lockMsg: '教授翻著教案：「我已經退離第一線，現役案件不能評論。」', unlockMsg: '全部文件到位，她嘆口氣打開舊档案：「這個傷不是一般刀，是特殊刀刃。」', partialMsg: '她指著文件欄位：「少了一份，這裡的資料不能給你。」' },
       { name: '殯葬業的入殮師', lockMsg: '他擦著手上的藥水：「我的職責是讓死者安詳，別的不好多說。」', unlockMsg: '三份齊了，他翻出工作筆記低聲說：「其實有一個細節我一直覺得奇怪⋯⋯」', partialMsg: '他搖搖手：「少一份，不行，照規矩來。」' },
+      { name: '年輕病理技師', lockMsg: '她低頭操作顯微鏡：「技師不對外發言，請找主治。」', unlockMsg: '文件齊備後她抬眼：「其實樣本上有一個異常痕跡，報告裡沒寫。」', partialMsg: '她搖頭：「規定就是規定，不能說。」' },
     ],
   },
   {
@@ -914,6 +967,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '資深記者', lockMsg: '記者滑著手機：「我有自己的線，不需要你。」', unlockMsg: '三份籌碼一出，他坐直：「你這消息有料，我把筆記給你看。」', partialMsg: '他抬頭：「就這樣？帶點更有意思的再來。」' },
       { name: '地下電台主持人', lockMsg: '他抽著菸，對麥克風冷笑：「我這邊消息多，你能給我什麼？」', unlockMsg: '記者證、名片和動機說服了他：「⋯⋯行，這個角度我沒想到，我的舊錄音給你聽。」', partialMsg: '他搖頭：「不夠料，回去多挖點再來。」' },
       { name: '新聞系退休教授', lockMsg: '教授推了推眼鏡：「我不跑線很久了，你跟我談什麼？」', unlockMsg: '三件到齊，他闔上筆電：「OK，等值交換，我當年調查的檔案你要看嗎？」', partialMsg: '他瞟了一眼：「拿更多來，不然沒得談。」' },
+      { name: '自由撰稿人', lockMsg: '她敲著鍵盤頭也不抬：「我是自由記者，不欠誰人情。」', unlockMsg: '三件齊備，她關掉瀏覽器：「這個動機有意思，我的訪談紀錄跟你換。」', partialMsg: '她搖搖頭：「不值得我停手邊這篇稿。」' },
     ],
   },
   {
@@ -935,6 +989,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '私家偵探', lockMsg: '偵探靠在椅背：「客戶資料，不是誰都能問的。」', unlockMsg: '三件齊了，他嘆了口氣：「你比我想的有料，地點告訴你。」', partialMsg: '他交叉雙臂：「還差一點，你的籌碼不夠。」' },
       { name: '街頭消息販子', lockMsg: '他蹲在巷口，壓低聲音：「我說話要收費，你有帶什麼嗎？」', unlockMsg: '籌碼擺出來，他點頭：「OK，他躲的那個地方，我帶你去。」', partialMsg: '他撥弄著硬幣：「還差一樣，不夠讓我開口。」' },
       { name: '退休刑警', lockMsg: '老刑警隔著紗窗看你：「我退休了，沒有案號我不接話。」', unlockMsg: '懷錶、錄音、藏處三件到齊，他從抽屜裡拿出一個信封：「這是我當年留下的，就等人來拿。」', partialMsg: '他搖著頭：「差那麼一點，你再去找找。」' },
+      { name: '女性情報掮客', lockMsg: '她翹著腿打量你：「我不跟不熟的人交換情報。」', unlockMsg: '三樣擺上咖啡桌，她嫣然一笑：「有意思。那個地點⋯⋯我三個月前才剛去過。」', partialMsg: '她撥弄著耳環：「還差一點，讓我考慮一下要不要見你。」' },
     ],
   },
   {
@@ -953,6 +1008,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '律師事務所職員', lockMsg: '她放下文件夾：「沒有委任狀，我們不能透露客戶資料。」', unlockMsg: '委任狀核對後，她打開抽屜：「你有十五分鐘，這裡看完。」' },
       { name: '法院書記官', lockMsg: '他推了推眼鏡：「程序問題，沒有授權文件我沒辦法幫你。」', unlockMsg: '委任狀到位，他翻出厚重的卷宗：「這一段，這裡有記錄，自己看。」' },
       { name: '公證人', lockMsg: '公證人低頭整理印鑑盒：「請先備齊文件，我這邊按規矩辦事。」', unlockMsg: '委任狀讓她停下來，她從保險箱裡取出一個信封：「這個⋯⋯他生前交代我保管的。」' },
+      { name: '菜鳥律師助理', lockMsg: '他緊張地整理文件：「我是新來的，規矩一定要走。」', unlockMsg: '委任狀遞上，他鬆了口氣：「好，那我把卷宗翻給你看，但請別影印。」' },
     ],
   },
   {
@@ -971,6 +1027,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '房屋仲介', lockMsg: '仲介微笑：「請問有具體的物件資訊嗎？」', unlockMsg: '地址條一出，他低聲：「這棟的真正屋主我認識⋯⋯」' },
       { name: '地政事務所辦事員', lockMsg: '辦事員整理著檔案：「產權查詢要本人親到，請問你的目的是？」', unlockMsg: '地址條遞過去，她沉默片刻：「這個地號⋯⋯登記名字跟申報人不一樣。」' },
       { name: '地方代書', lockMsg: '代書翻著帳本，漫不在乎：「契約我經手很多，你要問哪一間？」', unlockMsg: '地址條出現，他放下帳本，表情變了：「這地方⋯⋯當事人說他是大公司的人，付了好幾個月訂金。」' },
+      { name: '資深包租婆', lockMsg: '她邊數鈔票邊說：「房客的事要問房客本人，別找我。」', unlockMsg: '地址條遞給她，她冷笑一聲：「那個地方？前後三年換了四個承租人，都姓不同姓。」' },
     ],
   },
   // 嫌疑人類
@@ -993,6 +1050,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '旅館經理', lockMsg: '經理微笑，眼神躲閃：「您有更具體的東西嗎？」', unlockMsg: '三件全到，他的笑消失：「⋯⋯那晚我確實和他在走廊上起了爭執。」', partialMsg: '他額頭冒汗：「這⋯⋯只是巧合，說明不了什麼。」' },
       { name: '連鎖飯店區經理', lockMsg: '她緊抿嘴唇：「集團的隱私規範嚴格，我們有義務保護客人。」', unlockMsg: '三件證據擺出，她嘆了口氣，翻開那晚的登記簿：「這個房間⋯⋯他來過兩次。」', partialMsg: '她盯著桌面：「這不一定代表什麼，我需要更確定的東西。」' },
       { name: '汽車旅館老闆', lockMsg: '他搓著手，笑容有點僵：「哎，客人車進車出，我哪記得那麼多。」', unlockMsg: '三件全攤開，他扶著桌子，聲音低了下去：「⋯⋯那晚他跟人吵完就開車跑了，我看到了。」', partialMsg: '他避開眼神：「這樣⋯⋯還不夠讓我說什麼。」' },
+      { name: '民宿老闆娘', lockMsg: '她摸著玉鐲：「小店而已，客人我都當朋友，不方便說。」', unlockMsg: '三件齊備，她嘆氣：「那晚他確實有住，我還聽到他在陽台跟人激烈爭執。」', partialMsg: '她搖頭：「這還不夠，我不想得罪人。」' },
     ],
   },
   {
@@ -1011,6 +1069,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '黑市掮客', lockMsg: '掮客靠牆打量你：「我只是中間人，找錯了。」', unlockMsg: '特寫照往桌上一甩，他低聲說：「那把刀是我的貨，但買家我不認識。」' },
       { name: '二手刀具收藏家', lockMsg: '他摸著胸前的放大鏡：「我只是收藏客，你要找什麼？」', unlockMsg: '刀具照片讓他臉色一變：「⋯⋯那個花紋，我見過，有人拿來讓我鑑定過。」' },
       { name: '廢品回收場老闆', lockMsg: '他叼著菸整理廢鐵：「這裡收什麼都有，警官有事說事。」', unlockMsg: '照片一亮出，他偷偷往四周看：「⋯⋯這個⋯⋯是我廠裡磨過的，但我不知道要幹什麼用。」' },
+      { name: '夜市鐵工老手', lockMsg: '他放下焊槍：「我只打鐵，不打聽客人的事。」', unlockMsg: '看到刀具特寫，他眯眼：「這把手柄是我幫一個客人重新包的，他付現不留名。」' },
     ],
   },
   {
@@ -1031,6 +1090,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '保全隊長', lockMsg: '隊長立正：「請透過正式管道申請，我們有存檔。」', unlockMsg: '警徽和截圖齊出，他低下頭：「那晚我確實提早離崗⋯⋯」', partialMsg: '他繃著臉：「這不夠，請走正式程序。」' },
       { name: '現役憲兵軍士', lockMsg: '軍士敬了個禮：「我執勤中，沒公文不能說。」', unlockMsg: '清晰截圖和警徽讓他喉嚨動了一下：「⋯⋯那個勤務我帶的，但那晚有人擅離崗位，我沒上報。」', partialMsg: '他搖頭：「拿齊文件再來，我不說沒根據的話。」' },
       { name: '消防隊副隊長', lockMsg: '她整理著頭盔：「例行詢問請走正規程序，我們出勤記錄有報備。」', unlockMsg: '兩件齊備，她停下手：「⋯⋯那個時段的出勤紀錄有段空窗，是我沒處理好。」', partialMsg: '她別過頭：「不完整，走程序。」' },
+      { name: '園區巡邏長', lockMsg: '巡邏長摸著無線電：「未經授權我們不對外透露勤務。」', unlockMsg: '警徽加截圖一亮，他沉默半晌：「那段巡邏路線那晚我本來該走，可是換班了。」', partialMsg: '他咬牙：「這樣不行，不符程序。」' },
     ],
   },
   {
@@ -1049,6 +1109,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '公寓大樓管理員', lockMsg: '管理員縮在玻璃後：「沒預約，我不方便說。」', unlockMsg: '鑰匙圈一亮出，他臉色一白：「這是哪來的⋯⋯那個房間有人住。」' },
       { name: '鎖匠鋪老師傅', lockMsg: '老師傅低頭磨著鑰匙胚：「我只打鑰匙，不管別的事。」', unlockMsg: '鑰匙圈放在桌上，他嘴唇抖了一下：「這串鑰匙⋯⋯是我打的，他說要配備份。」' },
       { name: '停車場管理員', lockMsg: '他斜眼打量你：「你有車牌嗎？沒有的話，我沒辦法幫你。」', unlockMsg: '鑰匙圈認出來，他放下茶杯：「這個⋯⋯是那台車的備用鑰匙，那輛車已經很久沒出停車場了。」' },
+      { name: '物業女主管', lockMsg: '她推了推眼鏡：「住戶資料受隱私法規保護，請出示公文。」', unlockMsg: '鑰匙圈在桌上叮噹一響，她臉色變了：「這串⋯⋯是違規加配的，我登記過。」' },
     ],
   },
   // 邊緣角色類
@@ -1068,6 +1129,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '實習生', lockMsg: '他眼神飄忽：「這個⋯⋯我不確定能說⋯⋯」', unlockMsg: '聽到那個小名，他放低聲音：「你認識他？那⋯⋯他那天匯了一大筆錢。」' },
       { name: '派遣文員', lockMsg: '她輕聲說：「我是派遣的，這種事要問正職。」', unlockMsg: '小名一說出，她眼睛睜大了：「你也知道那個？那他跟我說的事⋯⋯我可以告訴你。」' },
       { name: '網紅直播主', lockMsg: '他低頭盯著手機直播：「我不方便在鏡頭前說這個。」', unlockMsg: '小名說出，他偷偷關掉直播：「⋯⋯你是認識他的人，我說給你聽，但別提我。」' },
+      { name: '高中打工生', lockMsg: '她緊張地看著店長方向：「我只是打工的，下班後再說好嗎？」', unlockMsg: '聽到那個小名，她眼睛一亮：「那是他！他每次都這樣叫自己，我還以為是你在鬧他。」' },
     ],
   },
   {
@@ -1086,6 +1148,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '送貨員', lockMsg: '送貨員掃條碼：「等一下，我還有單要清。」', unlockMsg: '地址一認出，他抬頭：「這我送過！對方簽名很潦草，但我記得那棟。」' },
       { name: '外送平台騎士', lockMsg: '她盯著手機APP：「我還有三張單在跑，你找我什麼事？」', unlockMsg: '地址條讓她停下來：「這地方⋯⋯我送了三次，每次都沒人開門，後來有個男的下來拿。」' },
       { name: '搬家工人', lockMsg: '他放下貨箱，擦著汗：「你要問什麼，我還有一車要卸。」', unlockMsg: '地址條一亮，他認出了：「這邊我搬過傢俱，那個人叫我把箱子放在門口，不要敲門。」' },
+      { name: '郵差', lockMsg: '郵差一邊分信一邊說：「住戶資料我們有保密義務。」', unlockMsg: '地址條對上他的路線：「這棟⋯⋯收件人名字常改，但都指名那間房的住戶領。」' },
     ],
   },
   {
@@ -1104,6 +1167,7 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '酒保', lockMsg: '酒保擦著杯子：「客人的事，我不多嘴。」', unlockMsg: '火柴盒一認出，他壓低聲音：「那晚那兩個，吵了很久⋯⋯」' },
       { name: 'Live House 駐場歌手', lockMsg: '歌手調著吉他弦：「我只顧著表演，台下的事沒留意。」', unlockMsg: '認出火柴盒，她眼睛微微眯起：「這個⋯⋯那晚有個女的坐在前排一直哭，和那個男人吵架。」' },
       { name: '熱炒店師傅', lockMsg: '師傅顛著炒鍋：「我這裡的客人不喜歡被打聽。」', unlockMsg: '火柴盒放在他面前，他停下來：「你在那邊吃過？那晚的事，我有看到一些⋯⋯」' },
+      { name: '夜店資深媽媽桑', lockMsg: '她輕搖著扇子：「客人的事外面不能說，這是規矩。」', unlockMsg: '看到火柴盒，她嘴角一揚：「那晚那兩個人⋯⋯在包廂裡摔了東西，女孩走得很急。」' },
     ],
   },
   {
@@ -1122,6 +1186,163 @@ export const LOCK_TEMPLATES: readonly LockTemplate[] = [
       { name: '常客', lockMsg: '他端著酒杯：「我只是來喝酒的，不認識太多人。」', unlockMsg: '小名一說，他眼神一亮：「你認識他！那晚他來找那個女的，我都聽到了。」' },
       { name: '餐廳老鄰桌', lockMsg: '她看著菜單裝作沒聽見：「我只是來吃飯的，別問我。」', unlockMsg: '聽到那個名字，她轉過頭：「你說的是他？他跟那個女的鬧得很僵，那晚我就坐在隔壁桌。」' },
       { name: '跳舞教室的會員', lockMsg: '他擦著額頭的汗：「我只是來運動的，別的不清楚。」', unlockMsg: '暱稱一說出，他放下毛巾：「⋯⋯你真的認識他，那好，他那晚來過跳舞，走得很急，臉色很差。」' },
+      { name: '咖啡廳常客', lockMsg: '她翻著雜誌頭也不抬：「我每天都來坐，但不記得其他人。」', unlockMsg: '小名一出口，她合起雜誌：「欸，你說的是他？那他那天跟一個女生激烈吵過，我就坐斜對面。」' },
+    ],
+  },
+
+  // ─── Investigation: NPC (擴充) ───
+  {
+    id: 'npc_prosecutor', name: '年輕檢察官',
+    lockedDescription: '檢察官看著堆滿的卷宗：「本案還在偵辦，一般人無法調閱資訊。」',
+    unlockDescription: '檢察官命令 + 訴訟書狀齊全，她抽出一份卷宗：「⋯⋯這本案的關鍵人物確實另有其人。」',
+    partialDescription: '她抬眼：「你應該很清楚程序還不到位。」',
+    category: 'container', mechanism: 'combination', capacity: 6, volume: 0,
+    tags: ['investigation', 'npc', 'professional'],
+    requiredKeys: ['prosecutor_order', 'court_filing'],
+    pickupable: false,
+    stateTags: ['tip-identity'],
+    keyHints: {
+      prosecutor_order: '她需要看見正式的檢察命令才肯談',
+      court_filing: '相關訴訟文件能讓她安心引用',
+    },
+    variations: [
+      { name: '年輕檢察官', lockMsg: '她翻著卷宗不抬頭：「沒有正式文件恕難奉告。」', unlockMsg: '文件齊備，她把一頁推過來：「其實這個人⋯⋯身份有問題。」', partialMsg: '她皺眉：「這還不構成調閱資格。」' },
+      { name: '地檢署書記官', lockMsg: '書記官客氣地搖頭：「我只是行政人員，不能隨便透露。」', unlockMsg: '看見授權，他指向牆上檔案櫃：「第三格，你自己找。」', partialMsg: '他抱歉地笑：「這樣不夠喔。」' },
+      { name: '退休法官', lockMsg: '老法官不動聲色：「往事不需要再翻。」', unlockMsg: '文件一攤，他摘下眼鏡：「那個案子，當年被動了手腳。」', partialMsg: '他擺手：「沒那麼簡單，小伙子。」' },
+    ],
+  },
+  {
+    id: 'npc_psychologist', name: '心理醫師',
+    lockedDescription: '醫師翻著病歷皺眉：「病人隱私有醫療倫理保護。」',
+    unlockDescription: '病歷影本 + 社工證明齊全，她輕嘆：「這個病人⋯⋯長期反應著異常的藥物偏好。」',
+    partialDescription: '她托著下巴：「這些還不足以讓我開口。」',
+    category: 'container', mechanism: 'combination', capacity: 6, volume: 0,
+    tags: ['investigation', 'npc', 'professional'],
+    requiredKeys: ['medical_record', 'social_auth'],
+    pickupable: false,
+    stateTags: ['tip-poison'],
+    keyHints: {
+      medical_record: '她只憑醫療資料才肯分析',
+      social_auth: '社工出面她才相信是善意調查',
+    },
+    variations: [
+      { name: '心理醫師', lockMsg: '她皺眉：「病人隱私有嚴格規範。」', unlockMsg: '資料齊備，她低聲：「這個人長期服用⋯⋯某種非常用藥。」', partialMsg: '她搖頭：「不符合揭露條件。」' },
+      { name: '精神科主治醫師', lockMsg: '醫師按著桌面：「醫療倫理擺在那裡。」', unlockMsg: '看到社工印章，他給出一個藥名：「罕見但致命。」', partialMsg: '他笑笑：「還差一點。」' },
+      { name: '臨床心理師', lockMsg: '她摘下眼鏡：「我只能做評估，不能當證人。」', unlockMsg: '文件完備後她遞出一份筆記：「觀察了半年，這個人有明顯偏差。」', partialMsg: '她咬嘴唇：「證據太薄。」' },
+    ],
+  },
+  {
+    id: 'npc_socialworker', name: '社工',
+    lockedDescription: '社工抱著檔案袋：「受助者的資訊我不能隨便透露。」',
+    unlockDescription: '家屬同意書讓她鬆口：「他的戶口⋯⋯其實和登記地址對不上。」',
+    category: 'container', mechanism: 'physical', capacity: 4, volume: 0,
+    tags: ['investigation', 'npc', 'professional'],
+    requiredKeys: ['family_consent'],
+    pickupable: false,
+    stateTags: ['tip-location'],
+    keyHints: {
+      family_consent: '必須看到家屬書面授權',
+    },
+    variations: [
+      { name: '社工', lockMsg: '社工警戒地抱緊檔案：「受助者權益第一。」', unlockMsg: '授權在手，她給出地址：「他其實住在⋯⋯另一個地方。」' },
+      { name: '家暴中心輔導員', lockMsg: '輔導員謹慎地：「受害者隱私是底線。」', unlockMsg: '看到同意書後，她指出另一處住所：「那邊才是真的。」' },
+      { name: '老人關懷員', lockMsg: '她搖頭：「長輩們的話我不能隨便轉述。」', unlockMsg: '授權就位，她嘆氣：「其實他常提到一個地方⋯⋯」' },
+    ],
+  },
+  {
+    id: 'npc_loanshark', name: '放貸老闆',
+    lockedDescription: '老闆打著算盤頭也不抬：「做生意只認當票和本人。」',
+    unlockDescription: '當票 + 借據擺出來，他合上算盤：「⋯⋯這個人確實欠下大筆，還不出才出事。」',
+    partialDescription: '他瞥了一眼：「一個就想問？規矩是一起亮。」',
+    category: 'container', mechanism: 'combination', capacity: 4, volume: 0,
+    tags: ['investigation', 'npc', 'suspect'],
+    requiredKeys: ['pawn_ticket', 'iou_note'],
+    pickupable: false,
+    stateTags: ['tip-insurance'],
+    keyHints: {
+      pawn_ticket: '他要看到當票才認帳',
+      iou_note: '借據攤開他會對上編號',
+    },
+    variations: [
+      { name: '放貸老闆', lockMsg: '他打算盤：「當票和借據少一不談。」', unlockMsg: '兩件齊全，他笑：「這個人被追得緊。」', partialMsg: '他噘嘴：「半套而已。」' },
+      { name: '地下錢莊帳房', lockMsg: '帳房冷眼：「這裡不是公家機關。」', unlockMsg: '文件對齊後他低聲：「那筆錢的保單⋯⋯有動過手腳。」', partialMsg: '他搖頭：「不行，缺一件。」' },
+      { name: '當鋪老闆', lockMsg: '老闆瞇眼：「沒憑沒據別跟我囉嗦。」', unlockMsg: '齊備之後他翻開帳本：「他當的那東西，保了很高的險。」', partialMsg: '他擺手：「還差。」' },
+    ],
+  },
+  {
+    id: 'npc_expoliceman', name: '退休警官',
+    lockedDescription: '老警官盯著你的眼睛：「江湖事江湖了，我退了十年了。」',
+    unlockDescription: '警徽和警察勳章都拿出來，他吐了口煙：「⋯⋯當年那案子，是被壓下來的。」',
+    partialDescription: '他搖頭：「你還差一點，小朋友。」',
+    category: 'container', mechanism: 'combination', capacity: 6, volume: 0,
+    tags: ['investigation', 'npc', 'professional'],
+    requiredKeys: ['police_badge', 'medal'],
+    pickupable: false,
+    stateTags: ['tip-alibi'],
+    keyHints: {
+      police_badge: '他要先確認你真的是自己人',
+      medal: '看到勳章他會認同你走過相同的路',
+    },
+    variations: [
+      { name: '退休警官', lockMsg: '他吐煙：「江湖事江湖了。」', unlockMsg: '警徽 + 勳章齊出，他低聲：「那案子當年被人壓住了。」', partialMsg: '他搖頭：「還差點意思。」' },
+      { name: '前刑警隊長', lockMsg: '老刑警眼神銳利：「誰派你來的？」', unlockMsg: '信物齊全後他點頭：「那晚我在場，有人撒謊。」', partialMsg: '他瞇眼：「信任要時間。」' },
+      { name: '離職督察', lockMsg: '他抱著雙臂：「走正式管道吧。」', unlockMsg: '看見勳章他軟化：「有些事不在檔案裡⋯⋯」', partialMsg: '他撇嘴：「不夠。」' },
+    ],
+  },
+  {
+    id: 'npc_foreman', name: '工地工頭',
+    lockedDescription: '工頭戴著安全帽擺手：「工人的事我不多嘴，快走快走。」',
+    unlockDescription: '撕下的筆記頁一遞過去，他認出字跡：「⋯⋯這是那小子留的，他那晚確實沒來上工。」',
+    category: 'container', mechanism: 'physical', capacity: 4, volume: 0,
+    tags: ['investigation', 'npc', 'witness'],
+    requiredKeys: ['notebook_page'],
+    pickupable: false,
+    stateTags: ['tip-alibi'],
+    keyHints: {
+      notebook_page: '他熟悉工地裡每個人的筆跡',
+    },
+    variations: [
+      { name: '工地工頭', lockMsg: '工頭拂手：「工人的事別問我。」', unlockMsg: '看字跡他一愣：「⋯⋯那小子那天根本沒到。」' },
+      { name: '外勞領班', lockMsg: '領班用生硬中文：「不關我的事啦。」', unlockMsg: '熟悉的字出現後，他嘆氣：「那人那天沒上班。」' },
+      { name: '夜班包商', lockMsg: '他夾著菸：「說了對我沒好處。」', unlockMsg: '筆跡認出後，他低聲：「那晚他根本不在工地。」' },
+    ],
+  },
+  {
+    id: 'npc_streetvendor', name: '夜市攤販',
+    lockedDescription: '攤販一邊炒菜一邊瞄你：「做生意的，誰來誰去沒記那麼清楚。」',
+    unlockDescription: '半空的菸盒擺出來，他停下鍋鏟：「⋯⋯這牌子老客人才抽，那晚他確實在這轉角。」',
+    category: 'container', mechanism: 'physical', capacity: 4, volume: 0,
+    tags: ['investigation', 'npc', 'witness'],
+    requiredKeys: ['cigarette_pack'],
+    pickupable: false,
+    stateTags: ['tip-location'],
+    keyHints: {
+      cigarette_pack: '他對特定品牌的菸很敏感',
+    },
+    variations: [
+      { name: '夜市攤販', lockMsg: '攤販忙著翻鏟：「客人來來去去不記。」', unlockMsg: '看到菸盒他點頭：「他那晚在這個轉角。」' },
+      { name: '小吃店老闆娘', lockMsg: '她擦著桌子：「生意人不管閒事。」', unlockMsg: '看菸盒她放下抹布：「這牌子我有印象。」' },
+      { name: '滷味攤老闆', lockMsg: '他剝著蒜：「那麼多客人誰記得誰？」', unlockMsg: '菸盒一亮，他指了方向：「那晚他坐這邊。」' },
+    ],
+  },
+  {
+    id: 'npc_exmistress', name: '前情婦',
+    lockedDescription: '她抱著手臂冷笑：「你們這些人又要挖什麼？」',
+    unlockDescription: '解剖報告 + 保險理賠書，兩樣放她面前，她臉色一白：「⋯⋯原來如此，他老婆早就準備好了。」',
+    partialDescription: '她冷笑：「你以為這樣就夠了？」',
+    category: 'container', mechanism: 'combination', capacity: 6, volume: 0,
+    tags: ['investigation', 'npc', 'relative'],
+    requiredKeys: ['autopsy_report', 'insurance_form'],
+    pickupable: false,
+    stateTags: ['tip-insurance'],
+    keyHints: {
+      autopsy_report: '解剖細節她一看就懂是不是自然死',
+      insurance_form: '保單上的名字讓她臉色劇變',
+    },
+    variations: [
+      { name: '前情婦', lockMsg: '她冷笑：「挖別人八卦嗎？」', unlockMsg: '兩樣齊全，她倒抽口氣：「那女人早就設好局了。」', partialMsg: '她撇嘴：「半桶水。」' },
+      { name: '多年同居人', lockMsg: '她抱肘：「法律上我不算什麼。」', unlockMsg: '看到兩件事實後，她冷靜下來：「保險金⋯⋯受益人不是親屬嗎？」', partialMsg: '她搖頭：「繼續找。」' },
+      { name: '被遺棄的未婚妻', lockMsg: '她冷冷：「和我無關。」', unlockMsg: '鐵證擺出，她眼睛濕了：「他老婆⋯⋯真的下得了手。」', partialMsg: '她搖頭：「差得遠。」' },
     ],
   },
 
