@@ -194,7 +194,8 @@ export default function InteractionPanel({
               const destName = destRoomId ? puzzle.rooms[destRoomId]?.name : null;
 
               return (
-                <div key={lock.id} className="flex gap-1">
+                <div key={lock.id} className="flex flex-col gap-1">
+                  <div className="flex gap-1">
                   <button
                     onClick={() => onInspect(lock.id)}
                     className={`px-2.5 py-2 rounded text-[11px] md:text-xs border flex-1 text-left flex items-center gap-1.5 truncate shadow-sm ${
@@ -256,6 +257,23 @@ export default function InteractionPanel({
                     >
                       {isLocal ? '進入' : '前往'}
                     </button>
+                  )}
+                  </div>
+
+                  {isNpc && lock.isLocked && lock.keyHints && Object.keys(lock.keyHints).length > 0 && (
+                    <ul className="ml-2 mt-0.5 mb-1 space-y-0.5 text-[11px] text-slate-400">
+                      {lock.requiredItems.map(itemId => {
+                        const hint = lock.keyHints?.[itemId];
+                        if (!hint) return null;
+                        const done = lock.insertedItems.includes(itemId);
+                        return (
+                          <li key={itemId} className={`flex items-start gap-1.5 ${done ? 'text-emerald-400/80 line-through decoration-emerald-700/60' : 'text-indigo-200/80'}`}>
+                            <span className="shrink-0 font-bold">{done ? '✓' : '•'}</span>
+                            <span className="flex-1">{hint}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
                 </div>
               );
